@@ -1,0 +1,95 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+html { background: var(--bg-base); }
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+input, button, textarea { font-family: inherit; }
+
+/* Foco visible coherente — solo navegación por teclado */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+}
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline-offset: 3px;
+}
+input:focus-visible,
+textarea:focus-visible {
+  outline-color: var(--gold-soft);
+}
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Hide scrollbars on chrome but keep functionality */
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* App container — phone-like viewport on desktop */
+.app-shell {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  background: var(--bg-deeper);
+}
+.app-frame {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  background: var(--bg-base);
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .app-frame {
+    max-width: 440px;
+    min-height: 100vh;
+    border-left: 1px solid var(--hairline-cold);
+    border-right: 1px solid var(--hairline-cold);
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-frame.is-desktop {
+    max-width: 1280px;
+    border-left: none;
+    border-right: none;
+  }
+}

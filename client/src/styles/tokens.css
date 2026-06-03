@@ -1,0 +1,178 @@
+/* EL IMPOSTOR — Design Tokens (sourced from project/tokens.css) */
+
+:root {
+  /* Color */
+  --bg-base:        #07070f;
+  --bg-deeper:      #04040a;
+  --surface-1:      #12121e;
+  --surface-2:      #1a1a2e;
+  --surface-3:      #22223a;
+  --hairline:       rgba(245, 158, 11, 0.18);
+  --hairline-cold:  rgba(148, 163, 184, 0.10);
+
+  --impostor:       #dc2626;
+  --impostor-glow:  rgba(220, 38, 38, 0.55);
+  --impostor-deep:  #1a0505;
+  --impostor-edge:  #7f1d1d;
+
+  --citizen:        #3b82f6;
+  --citizen-glow:   rgba(59, 130, 246, 0.45);
+  --citizen-deep:   #0a1426;
+
+  --gold:           #f59e0b;
+  --gold-soft:      #fbbf24;
+  --gold-deep:      #78350f;
+  --gold-glow:      rgba(245, 158, 11, 0.35);
+
+  --victory:        #22c55e;
+  --victory-glow:   rgba(34, 197, 94, 0.4);
+
+  --text-1:         #f1f5f9;
+  --text-2:         #94a3b8;
+  --text-3:         #64748b;
+  --text-faint:     #475569;
+
+  /* Type */
+  --font-display:   'Cinzel', 'Times New Roman', serif;
+  --font-ui:        'Inter', -apple-system, system-ui, sans-serif;
+  --font-num:       'Bebas Neue', 'Inter', sans-serif;
+
+  /* Radii */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+
+  /* Shadow */
+  --sh-card: 0 24px 60px -20px rgba(0, 0, 0, 0.8), 0 8px 20px -8px rgba(0, 0, 0, 0.6);
+  --sh-impostor: 0 0 0 1px rgba(220, 38, 38, 0.6), 0 0 40px -4px var(--impostor-glow), 0 20px 60px -10px rgba(0, 0, 0, 0.9);
+  --sh-citizen:  0 0 0 1px rgba(59, 130, 246, 0.55), 0 0 40px -4px var(--citizen-glow),  0 20px 60px -10px rgba(0, 0, 0, 0.9);
+  --sh-gold:     0 0 0 1px rgba(245, 158, 11, 0.55), 0 0 30px -4px var(--gold-glow);
+}
+
+/* Grain / noise overlay */
+.grain { position: relative; isolation: isolate; }
+.grain::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  opacity: 0.07; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.grain-heavy::after { opacity: 0.13; }
+
+/* Text utility */
+.t-eyebrow {
+  font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold);
+}
+.t-display {
+  font-family: var(--font-display); font-weight: 700;
+  letter-spacing: 0.02em; line-height: 1; color: var(--text-1);
+}
+.t-num { font-family: var(--font-num); letter-spacing: 0.04em; color: var(--text-1); }
+.t-body { font-family: var(--font-ui); color: var(--text-1); }
+.t-meta {
+  font-family: var(--font-ui); font-size: 13px; color: var(--text-2); letter-spacing: 0.01em;
+}
+
+/* Decorative dividers */
+.hr-gold {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold) 18%, var(--gold) 82%, transparent);
+  opacity: 0.55;
+}
+.hr-gold-soft {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.35) 30%, rgba(245, 158, 11, 0.35) 70%, transparent);
+}
+.hr-red {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--impostor) 25%, var(--impostor) 75%, transparent);
+  opacity: 0.7;
+}
+
+/* Buttons */
+.btn {
+  font-family: var(--font-ui); font-weight: 600; letter-spacing: 0.04em;
+  border: none; cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease;
+  font-size: 15px; text-transform: uppercase;
+}
+.btn:active { transform: scale(0.985); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 60%, #b91c1c 100%);
+  color: #fff7f7;
+  padding: 16px 20px; border-radius: var(--r-md);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 0 30px -8px var(--impostor-glow),
+    0 10px 22px -8px rgba(0, 0, 0, 0.7);
+  width: 100%;
+  letter-spacing: 0.18em;
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 0 44px -6px var(--impostor-glow),
+    0 12px 28px -10px rgba(0, 0, 0, 0.8);
+}
+.btn-primary:active { background: linear-gradient(180deg, #b91c1c, #991b1b); }
+
+.btn-secondary {
+  background: rgba(245, 158, 11, 0.04);
+  color: var(--gold);
+  padding: 14px 20px; border-radius: var(--r-md);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  width: 100%; letter-spacing: 0.16em;
+}
+.btn-secondary:hover { background: rgba(245, 158, 11, 0.09); border-color: var(--gold); }
+.btn-secondary:active { background: rgba(245, 158, 11, 0.12); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-2);
+  padding: 12px 16px; border: none; width: 100%;
+  letter-spacing: 0.18em; position: relative;
+}
+.btn-ghost::after {
+  content: ""; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  width: 28px; height: 1px; background: var(--text-3);
+  transition: width 0.18s ease, background 0.18s ease;
+}
+.btn-ghost:hover { color: var(--text-1); }
+.btn-ghost:hover::after { width: 48px; background: var(--gold); }
+
+/* Keyframes */
+@keyframes clueUnlock {
+  from { opacity: 0; transform: translateY(8px) scaleY(0.9); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1);     filter: blur(0); }
+}
+@keyframes cardReveal {
+  from { opacity: 0; transform: rotateY(70deg) scale(0.95); filter: brightness(0.4); }
+  to   { opacity: 1; transform: rotateY(0) scale(1);        filter: brightness(1); }
+}
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 0 1px var(--impostor), 0 0 18px -2px var(--impostor-glow); }
+  50%     { box-shadow: 0 0 0 1px var(--impostor), 0 0 32px 2px var(--impostor-glow); }
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-40px) rotate(0deg); opacity: 0; }
+  10%  { opacity: 0.95; }
+  100% { transform: translateY(120vh) rotate(540deg); opacity: 0; }
+}
+@keyframes caretBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes redPulse {
+  0%, 100% { text-shadow: 0 0 40px rgba(220, 38, 38, 0.5), 0 0 16px rgba(220, 38, 38, 0.4); }
+  50%      { text-shadow: 0 0 60px rgba(220, 38, 38, 0.85), 0 0 24px rgba(220, 38, 38, 0.6); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-3px); }
+  40%, 80% { transform: translateX(3px); }
+}

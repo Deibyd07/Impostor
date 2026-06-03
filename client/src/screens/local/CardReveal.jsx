@@ -1,0 +1,76 @@
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import PhoneScreen from '../../components/PhoneScreen.jsx'
+import RoleCard from '../../components/RoleCard.jsx'
+import { useTimer } from '../../hooks/useTimer.js'
+import { useGameStore } from '../../store/gameStore.js'
+import { sfx } from '../../utils/sfx.js'
+
+const TOTAL_SECONDS = 8
+
+export default function CardReveal() {
+  const navigate = useNavigate()
+  const session = useGameStore(s => s.session)
+
+  if (!session) { navigate('/'); return null }
+  const i = session.revealIndex
+  const player = session.players[i]
+  if (!player) { navigate('/game'); return null }
+
+  const variant = computeVariant(session, player)
+
+  useEffect(() => {
+    if (variant === 'impostor' || variant === 'impostor-clue') sfx.revealImpostor()
+    else if (variant === 'impostor-blind') sfx.revealCitizen()
+    else sfx.revealCitizen()
+  }, [variant])
+  const word = player.role === 'citizen' ? session.word
+    : session.config.mode === 'blind' ? session.fakeWord
+    : ''
+  const clue = session.clue
+
+  const { seconds } = useTimer(TOTAL_SECONDS, { autoStart: true })
+
+  return (
+    <PhoneScreen padTop={false} padBottom={false}>
+      <div style={{
+        position: 'relative', zIndex: 3,
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        padding: '70px 24px 32px',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          fontFamily: 'var(--font-ui)', fontSize: 10, color: 'var(--text-faint)',
+          letterSpacing: '0.32em', textTransform: 'uppercase', marginBottom: 24,
+        }}>Memoriza · Oculta · Pasa</div>
+
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'cardReveal 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both',
+        }}>
+          <RoleCard
+            variant={variant}
+            word={word}
+            clue={clue}
+            seconds={seconds}
+            totalSeconds={TOTAL_SECONDS}
+          />
+        </div>
+
+        <button className="btn btn-secondary" onClick={() => navigate('/game/hidden')} style={{
+          marginTop: 24, padding: '16px 20px', letterSpacing: '0.22em',
+        }}>
+          ✓ He memorizado mi carta
+        </button>
+      </div>
+    </PhoneScreen>
+  )
+}
+
+function computeVariant(session, player) {
+  if (player.role === 'citizen') return 'citizen'
+  // impostor
+  if (session.config.mode === 'blind') return 'impostor-blind'
+  if (session.config.mode === 'clue')  return 'impostor-clue'
+  return 'impostor'
+}
