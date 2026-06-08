@@ -128,6 +128,7 @@ function makeRoom(hostSocketId, hostName, config) {
     word: null, fakeWord: null, clue: null, category: null,
     roles: {},
     impostorGuessedWord: false,
+    lastGuessRounds: {},   // socketId -> última ronda en que intentó adivinar
     disconnectTimers: {},   // playerId -> timeout
   }
   rooms.set(code, room)
@@ -369,6 +370,7 @@ io.on('connection', (socket) => {
     room.votes = {}; room.voters = {}
     room.eliminatedIds = []
     room.impostorGuessedWord = false
+    room.lastGuessRounds = {}
     room.players.forEach(p => { p.eliminated = false; p.ready = false })
     io.to(room.code).emit('game:started')
     emitYourRole(room)
@@ -447,6 +449,7 @@ io.on('connection', (socket) => {
     room.category = null
     room.roles = {}
     room.impostorGuessedWord = false
+    room.lastGuessRounds = {}
     room.players.forEach(p => {
       p.eliminated = false
       p.ready = false
@@ -460,8 +463,14 @@ io.on('connection', (socket) => {
     if (!room) return
     if (room.roles[socket.id] !== 'impostor') return
     if (room.phase === 'ended') return
+    const lastRound = room.lastGuessRounds[socket.id] ?? -1
+    if (room.round - lastRound < 2) {
+      socket.emit('game:guessBlocked', { availableAt: lastRound + 2 })
+      return
+    }
     const guess = (word || '').toString().trim().toLowerCase()
     if (!guess) return
+    room.lastGuessRounds[socket.id] = room.round
     const correct = guess === (room.word || '').toLowerCase()
     if (correct) {
       room.impostorGuessedWord = true

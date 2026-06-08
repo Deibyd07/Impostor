@@ -38,6 +38,8 @@ export const useOnlineStore = create((set, get) => ({
   result: null,         // { winner, reason, impostorIds, word, fakeWord }
   error: null,
   guessAttempts: 0,     // cuántas veces el impostor ha fallado adivinanza
+  round: 1,             // ronda actual
+  lastGuessRound: -1,   // ronda del último intento de adivinanza (-1 = nunca)
   lastTie: null,        // { counts, at }
 
   connect: () => {
@@ -92,7 +94,7 @@ export const useOnlineStore = create((set, get) => ({
       toast.error(message || 'Error en la sala', { title: 'Sala' })
     })
 
-    socket.on('game:started', () => set({ phase: 'reveal', votes: {}, votedFor: null, guessAttempts: 0, lastTie: null }))
+    socket.on('game:started', () => set({ phase: 'reveal', votes: {}, votedFor: null, guessAttempts: 0, round: 1, lastGuessRound: -1, lastTie: null }))
     socket.on('game:yourRole', ({ role, word, clue }) => {
       set({ myRole: role, myWord: word, myClue: clue })
     })
@@ -118,18 +120,21 @@ export const useOnlineStore = create((set, get) => ({
     socket.on('game:guessFailed', ({ socketId }) => {
       const { myId } = get()
       if (socketId === myId) {
-        set((s) => ({ guessAttempts: s.guessAttempts + 1 }))
+        set((s) => ({ guessAttempts: s.guessAttempts + 1, lastGuessRound: s.round }))
         toast.error('Palabra incorrecta', { duration: 3000 })
       } else {
         toast.info('Un impostor intentó adivinar... y falló', { duration: 3000 })
       }
+    })
+    socket.on('game:guessBlocked', ({ availableAt }) => {
+      toast.warn(`Podrás adivinar en la ronda ${availableAt}`, { duration: 3500 })
     })
     socket.on('game:over', (result) => {
       set({ phase: 'ended', result })
       if (result?.winner === 'citizens') sfx.winCitizens()
       else if (result?.winner === 'impostor') sfx.winImpostor()
     })
-    socket.on('game:newRound', () => set({ votes: {}, votedFor: null, phase: 'discussion' }))
+    socket.on('game:newRound', ({ round }) => set({ votes: {}, votedFor: null, phase: 'discussion', round }))
     socket.on('room:rematch', ({ room }) => {
       set({
         phase: 'lobby',
@@ -137,7 +142,7 @@ export const useOnlineStore = create((set, get) => ({
         config: room.config,
         myRole: null, myWord: null, myClue: null,
         votes: {}, votedFor: null, votersReady: 0,
-        result: null, guessAttempts: 0, lastTie: null,
+        result: null, guessAttempts: 0, round: 1, lastGuessRound: -1, lastTie: null,
       })
       saveSession({ code: get().roomCode, name: get().myName })
       toast.success('Nueva partida en la misma sala', { duration: 2500 })

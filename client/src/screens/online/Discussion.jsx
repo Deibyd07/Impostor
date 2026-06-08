@@ -16,6 +16,8 @@ export default function Discussion() {
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
   const goToVote = useOnlineStore(s => s.goToVote)
+  const round = useOnlineStore(s => s.round)
+  const lastGuessRound = useOnlineStore(s => s.lastGuessRound)
   const [showGuess, setShowGuess] = useState(false)
 
   useEffect(() => {
@@ -25,27 +27,41 @@ export default function Discussion() {
   }, [phase, navigate])
 
   const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue'
+  const canGuess = isImpostor && (round - lastGuessRound >= 2)
+  const guessAvailableAt = lastGuessRound + 2
 
   return (
     <PhoneScreen
       footer={
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {isImpostor && (
-            <button
-              onClick={() => setShowGuess(true)}
-              style={{
-                padding: '13px 18px',
-                background: 'linear-gradient(180deg, rgba(217, 38, 56, 0.18) 0%, rgba(120, 18, 30, 0.22) 100%)',
-                border: '1px solid rgba(255, 64, 80, 0.55)',
-                borderRadius: 12,
-                color: 'var(--impostor)',
-                fontFamily: 'var(--font-ui)', fontWeight: 600,
-                fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              Adivinar palabra
-            </button>
+            canGuess ? (
+              <button
+                onClick={() => setShowGuess(true)}
+                style={{
+                  padding: '13px 18px',
+                  background: 'linear-gradient(180deg, rgba(217, 38, 56, 0.18) 0%, rgba(120, 18, 30, 0.22) 100%)',
+                  border: '1px solid rgba(255, 64, 80, 0.55)',
+                  borderRadius: 12,
+                  color: 'var(--impostor)',
+                  fontFamily: 'var(--font-ui)', fontWeight: 600,
+                  fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Adivinar palabra
+              </button>
+            ) : (
+              <div style={{
+                padding: '13px 18px', borderRadius: 12, textAlign: 'center',
+                border: '1px solid rgba(255, 64, 80, 0.2)',
+                background: 'rgba(255, 64, 80, 0.05)',
+                fontFamily: 'var(--font-ui)', fontSize: 11,
+                color: 'var(--text-3)', letterSpacing: '0.18em', textTransform: 'uppercase',
+              }}>
+                Adivinar disponible en ronda {guessAvailableAt}
+              </div>
+            )
           )}
           {isHost ? (
             <button className="btn btn-primary" onClick={goToVote}
