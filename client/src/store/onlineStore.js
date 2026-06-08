@@ -99,7 +99,11 @@ export const useOnlineStore = create((set, get) => ({
     socket.on('game:yourRole', ({ role, word, clue }) => {
       set({ myRole: role, myWord: word, myClue: clue })
     })
-    socket.on('game:phase', ({ phase, speakOrder }) => set(speakOrder ? { phase, speakOrder } : { phase }))
+    socket.on('game:phase', ({ phase, speakOrder }) => {
+      const update = speakOrder ? { phase, speakOrder } : { phase }
+      if (phase === 'voting') update.votersReady = 0
+      set(update)
+    })
     socket.on('vote:update', ({ votes, votersReady }) => set({ votes, votersReady }))
     socket.on('game:eliminated', ({ playerId, wasImpostor, name }) => {
       set((s) => {
@@ -191,7 +195,7 @@ export const useOnlineStore = create((set, get) => ({
 
   castVote: (targetId) => {
     get().socket?.emit('vote:cast', { targetId })
-    set({ votedFor: targetId, phase: 'voted' })
+    set((s) => ({ votedFor: targetId, phase: 'voted', votersReady: s.votersReady + 1 }))
   },
 
   guessWord: (word) => {
