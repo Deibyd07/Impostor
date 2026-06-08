@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, useLocation } from 'react-router-dom'
 
 import Home from './screens/local/Home.jsx'
@@ -25,9 +25,12 @@ import EndOnline from './screens/online/EndOnline.jsx'
 import ToastHost from './components/ToastHost.jsx'
 import RouteTransition from './components/RouteTransition.jsx'
 import PrefsToggle from './components/PrefsToggle.jsx'
+import SplashScreen from './components/SplashScreen.jsx'
 import { useGameStore } from './store/gameStore.js'
 import { useOnlineStore } from './store/onlineStore.js'
 import { sfx } from './utils/sfx.js'
+
+const SPLASH_SESSION_KEY = 'el-impostor-splash-seen'
 
 const routes = [
   { path: '/', element: <Home /> },
@@ -55,15 +58,36 @@ const routes = [
 ]
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    try {
+      return sessionStorage.getItem(SPLASH_SESSION_KEY) !== '1'
+    } catch {
+      return true
+    }
+  })
+
+  const closeSplash = () => {
+    try {
+      sessionStorage.setItem(SPLASH_SESSION_KEY, '1')
+    } catch {}
+    setShowSplash(false)
+  }
+
   return (
     <div className="app-shell">
       <div className="app-frame">
-        <PrefsToggle />
-        <BrowserRouter>
-          <SoundDirector />
-          <RouteTransition routes={routes} />
-        </BrowserRouter>
-        <ToastHost />
+        {showSplash ? (
+          <SplashScreen onDone={closeSplash} />
+        ) : (
+          <>
+            <PrefsToggle />
+            <BrowserRouter>
+              <SoundDirector />
+              <RouteTransition routes={routes} />
+            </BrowserRouter>
+            <ToastHost />
+          </>
+        )}
       </div>
     </div>
   )
