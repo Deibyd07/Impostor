@@ -1,8 +1,38 @@
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
-import BackgroundSilhouettes from '../../components/BackgroundSilhouettes.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { sfx } from '../../utils/sfx.js'
+
+const modes = [
+  {
+    id: '01',
+    icon: '🎭',
+    title: 'Clásico',
+    desc: 'Un impostor sin palabra. Solo memoria, nervios y actuación.',
+    tone: 'red',
+  },
+  {
+    id: '02',
+    icon: '🔍',
+    title: 'Con pista',
+    desc: 'El impostor recibe una pista y puede mezclarse mejor.',
+    tone: 'gold',
+  },
+  {
+    id: '03',
+    icon: '👁',
+    title: 'Ciego',
+    desc: 'El impostor cree ser ciudadano. La mesa se rompe sola.',
+    tone: 'blue',
+  },
+]
+
+const caseSteps = [
+  'Reparte palabras secretas.',
+  'Hablen por turnos sin decir la palabra.',
+  'Detecten contradicciones.',
+  'Voten antes de que el impostor escape.',
+]
 
 export default function Home() {
   const navigate = useNavigate()
@@ -16,93 +46,103 @@ export default function Home() {
   const onHost = () => { sfx.unlock(); navigate('/online/host') }
   const onJoin = () => { sfx.unlock(); navigate('/online/join') }
 
-  return (
-    <PhoneScreen padTop={false} padBottom={false}>
-      <BackgroundSilhouettes />
-      <div style={{
-        position: 'relative', zIndex: 4, minHeight: '100vh',
-        display: 'flex', flexDirection: 'column',
-        padding: '90px 32px 40px',
-      }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="t-eyebrow" style={{ marginBottom: 14, fontSize: 10 }}>UN JUEGO DE</div>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 900,
-            fontSize: 56, letterSpacing: '0.04em', lineHeight: 0.95,
-            color: 'var(--text-1)', textAlign: 'center',
-            textShadow: `
-              0 0 60px rgba(220, 38, 38, 0.55),
-              0 0 24px rgba(220, 38, 38, 0.35),
-              0 2px 1px rgba(0,0,0,0.8)
-            `,
-            animation: 'redPulse 3.6s ease-in-out infinite',
-          }}>EL<br />IMPOSTOR</div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 22 }}>
-            <span style={{ width: 30, height: 1, background: 'var(--gold)' }} />
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <path d="M6 1 L 8 5 L 11 6 L 8 7 L 6 11 L 4 7 L 1 6 L 4 5 Z" fill="var(--gold)" />
-            </svg>
-            <span style={{ width: 30, height: 1, background: 'var(--gold)' }} />
-          </div>
-
-          <div style={{
-            marginTop: 20, fontFamily: 'var(--font-display)', fontStyle: 'italic',
-            fontSize: 16, color: 'var(--text-2)', textAlign: 'center', letterSpacing: '0.04em',
-          }}>¿Puedes confiar en alguien?</div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn btn-primary" onClick={onNew}>Nueva partida</button>
-
-          {hasSavedGame && (
-            <button className="btn btn-secondary" onClick={onResume}>Reanudar partida</button>
-          )}
-
-          <button className="btn btn-secondary" onClick={onProfile}>Perfil de jugadores</button>
-
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 8,
-            padding: 12, borderRadius: 14,
-            background: 'rgba(245, 158, 11, 0.025)',
-            border: '1px solid rgba(245, 158, 11, 0.22)',
-            position: 'relative', marginTop: 4,
-          }}>
-            <div style={{
-              position: 'absolute', top: -8, left: 14,
-              padding: '0 8px', background: 'var(--bg-base)',
-              fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 600,
-              letterSpacing: '0.32em', color: 'var(--gold)', textTransform: 'uppercase',
-            }}>● Online</div>
-            <button onClick={onHost} style={{
-              all: 'unset', cursor: 'pointer', width: '100%',
-              padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
-              background: 'rgba(245, 158, 11, 0.06)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
-              color: 'var(--gold)', textAlign: 'center',
-              letterSpacing: '0.16em', textTransform: 'uppercase',
-            }}>Crear sala</button>
-            <button onClick={onJoin} style={{
-              all: 'unset', cursor: 'pointer', width: '100%',
-              padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
-              background: 'transparent',
-              border: '1px solid var(--hairline-cold)',
-              fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 500,
-              color: 'var(--text-1)', textAlign: 'center',
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-            }}>Unirme con código</button>
-          </div>
-
-          <button className="btn btn-ghost" onClick={onHow}>Cómo jugar</button>
-        </div>
-
-        <div style={{
-          textAlign: 'center', marginTop: 20,
-          fontFamily: 'var(--font-ui)', fontSize: 10, letterSpacing: '0.32em',
-          color: 'var(--text-faint)', textTransform: 'uppercase',
-        }}>v1.0 · 3–12 jugadores</div>
+  const leftPanel = (
+    <div className="case-rail case-rail--modes">
+      <div className="case-rail__stamp">Archivo de modos</div>
+      <div className="case-rail__stack">
+        {modes.map(mode => (
+          <article className={`case-mode-card case-mode-card--${mode.tone}`} key={mode.title}>
+            <div className="case-mode-card__index">{mode.id}</div>
+            <div className="case-mode-card__body">
+              <div className="case-mode-card__title">
+                <span>{mode.icon}</span>
+                {mode.title}
+              </div>
+              <p>{mode.desc}</p>
+            </div>
+          </article>
+        ))}
       </div>
+      <div className="case-rail__note">3-12 jugadores · Detective opcional · Local u online</div>
+    </div>
+  )
+
+  const rightPanel = (
+    <div className="case-rail case-rail--brief">
+      <div className="case-rail__stamp">Procedimiento</div>
+      <ol className="case-checklist">
+        {caseSteps.map((step, index) => (
+          <li key={step}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            {step}
+          </li>
+        ))}
+      </ol>
+      <div className="case-evidence-card">
+        <div className="case-evidence-card__label">Estado del caso</div>
+        <strong>{hasSavedGame ? 'Partida en curso' : 'Sin expediente abierto'}</strong>
+        <p>{hasSavedGame ? 'Puedes reanudar o abrir un caso nuevo.' : 'Prepara la mesa y reparte identidades.'}</p>
+      </div>
+    </div>
+  )
+
+  return (
+    <PhoneScreen
+      className="evidence-home-screen"
+      padTop={false}
+      padBottom={false}
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
+    >
+      <main className="evidence-home">
+        <section className="case-file" aria-labelledby="home-title">
+          <div className="case-file__clip" />
+          <div className="case-file__stamp">Caso abierto</div>
+          <div className="case-file__number">IM-09</div>
+          <h1 id="home-title" className="case-file__title">El Impostor</h1>
+          <p className="case-file__subtitle">Una palabra. Una mentira. Toda la mesa bajo sospecha.</p>
+
+          <div className="case-file__thread" aria-hidden="true">
+            <span />
+            <i />
+            <span />
+          </div>
+
+          <div className="case-actions" aria-label="Acciones principales">
+            <button className="case-action case-action--primary" onClick={onNew}>
+              <span>Abrir caso</span>
+              <strong>Nueva partida</strong>
+            </button>
+
+            {hasSavedGame && (
+              <button className="case-action" onClick={onResume}>
+                <span>Expediente activo</span>
+                <strong>Reanudar</strong>
+              </button>
+            )}
+
+            <button className="case-action" onClick={onProfile}>
+              <span>Historial</span>
+              <strong>Perfil de jugadores</strong>
+            </button>
+          </div>
+        </section>
+
+        <section className="case-online-card" aria-label="Modo online">
+          <div>
+            <span className="case-online-card__signal" />
+            <strong>Sala privada</strong>
+            <p>Invita a tu grupo y deja que el anfitrión controle el expediente.</p>
+          </div>
+          <div className="case-online-card__actions">
+            <button onClick={onHost}>Crear sala</button>
+            <button onClick={onJoin}>Unirme con código</button>
+          </div>
+        </section>
+
+        <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
+        <div className="case-version">v1.0 · mesa de evidencias</div>
+      </main>
     </PhoneScreen>
   )
 }
