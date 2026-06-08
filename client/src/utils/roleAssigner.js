@@ -100,8 +100,6 @@ function vagueDefinition(catKey) {
     naturaleza: 'Un fenómeno natural',
     tecnologia: 'Algo moderno',
     historia: 'Algo del pasado',
-    musica: 'Algo que se escucha',
-    ciencia: 'Algo que se estudia',
     misterio: 'Algo inexplicable',
     colombia: 'Algo típicamente colombiano',
   }
