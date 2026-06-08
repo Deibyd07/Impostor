@@ -1,6 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { buildSession } from '../roleAssigner.js'
-import { wordBank, relatedWords } from '../../data/wordBank.js'
+import { wordBank, categories, relatedWords } from '../../data/wordBank.js'
+
+const newCategoryKeys = [
+  'videojuegos',
+  'seriesTv',
+  'mitologia',
+  'cocteles',
+  'marcas',
+  'arte',
+  'arquitectura',
+  'geografia',
+  'astronomia',
+  'gastronomiaColombiana',
+]
 
 function players(n) {
   return Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}` }))
@@ -108,6 +121,18 @@ describe('buildSession - modo ciego', () => {
       expect(p.seenWord).not.toBe(s.word)
     })
   })
+  it('funciona con las categorias nuevas', () => {
+    newCategoryKeys.forEach(category => {
+      const s = buildSession({
+        players: players(4), impostorCount: 1, mode: 'blind',
+        blindIntensity: 'medium', category,
+      })
+      expect(s.category).toBe(category)
+      expect(s.fakeWord).toBeTruthy()
+      expect(s.fakeWord).not.toBe(s.word)
+      expect(wordBank[category]).toContain(s.word)
+    })
+  })
 })
 
 describe('buildSession - estado inicial', () => {
@@ -138,5 +163,11 @@ describe('buildSession - estado inicial', () => {
     })
     expect(Object.keys(wordBank)).toContain(s.category)
     expect(wordBank[s.category]).toContain(s.word)
+  })
+
+  it('todas las categorias del selector tienen minimo 30 palabras', () => {
+    Object.keys(categories).forEach(category => {
+      expect(wordBank[category]?.length ?? 0).toBeGreaterThanOrEqual(30)
+    })
   })
 })

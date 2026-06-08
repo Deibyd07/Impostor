@@ -105,6 +105,18 @@ function vagueDefinition(catKey) {
     historia: 'Algo del pasado',
     misterio: 'Algo inexplicable',
     colombia: 'Algo típicamente colombiano',
+    musica: 'Algo que se escucha',
+    literatura: 'Algo que se lee',
+    videojuegos: 'Un mundo interactivo',
+    seriesTv: 'Una historia por episodios',
+    mitologia: 'Un relato legendario',
+    cocteles: 'Una bebida preparada',
+    marcas: 'Un nombre reconocido',
+    arte: 'Una expresion creativa',
+    arquitectura: 'Una construccion disenada',
+    geografia: 'Un lugar o forma del planeta',
+    astronomia: 'Algo del espacio',
+    gastronomiaColombiana: 'Un sabor colombiano',
   }
   return map[catKey] || 'Algo que existe'
 }
