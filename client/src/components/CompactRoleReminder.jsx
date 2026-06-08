@@ -4,7 +4,9 @@ import Badge from './Badge.jsx'
 export default function CompactRoleReminder({ role, word, clue }) {
   const [open, setOpen] = useState(false)
   const isImpostor = role === 'impostor' || role === 'impostor-clue'
-  const color = isImpostor ? 'var(--impostor)' : 'var(--citizen)'
+  const isDetective = role === 'detective'
+  const color = isImpostor ? 'var(--impostor)' : isDetective ? 'var(--gold)' : 'var(--citizen)'
+  const label = isImpostor ? 'IMPOSTOR' : isDetective ? 'DETECTIVE' : 'CIUDADANO'
   return (
     <div
       onClick={() => setOpen(o => !o)}
@@ -18,7 +20,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Badge color={color} dot warn={isImpostor}>{isImpostor ? 'IMPOSTOR' : 'CIUDADANO'}</Badge>
+        <Badge color={color} dot warn={isImpostor}>{label}</Badge>
         {!isImpostor && word && (
           <span style={{
             fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18,
@@ -48,6 +50,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
           color: 'var(--text-2)', lineHeight: 1.4,
         }}>
           {role === 'citizen' && <>Describe la palabra sin decirla. Observa a los demás.</>}
+          {role === 'detective' && <>Puedes iniciar un interrogatorio publico una vez por partida.</>}
           {role === 'impostor' && <>Escucha, sé vago, mezcla. Si te descubren, ¡adivina la palabra!</>}
           {role === 'impostor-clue' && (
             <>Tu pista: <strong style={{ color: 'var(--gold-soft)' }}>{clue}</strong></>

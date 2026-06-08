@@ -21,13 +21,34 @@ export default function RoleCard({
   if (variant === 'citizen' || variant === 'impostor-blind') {
     return <CitizenCard word={word} seconds={seconds} totalSeconds={totalSeconds} />
   }
+  if (variant === 'detective') {
+    return (
+      <CitizenCard
+        word={word}
+        seconds={seconds}
+        totalSeconds={totalSeconds}
+        label="DETECTIVE"
+        badgeColor="var(--gold)"
+        timerAccent="gold"
+        abilityText="Interroga publicamente a un jugador durante la discusion."
+      />
+    )
+  }
   if (variant === 'impostor-clue') {
     return <ImpostorCard withClue clue={clue} seconds={seconds} totalSeconds={totalSeconds} />
   }
   return <ImpostorCard seconds={seconds} totalSeconds={totalSeconds} />
 }
 
-function CitizenCard({ word, seconds, totalSeconds }) {
+function CitizenCard({
+  word,
+  seconds,
+  totalSeconds,
+  label = 'CIUDADANO',
+  badgeColor = 'var(--citizen)',
+  timerAccent = 'citizen',
+  abilityText,
+}) {
   const displayWord = (word || '—').toUpperCase()
   return (
     <div className="grain" style={{
@@ -51,8 +72,8 @@ function CitizenCard({ word, seconds, totalSeconds }) {
       <CornerOrnament color="rgba(96,165,250,0.45)" />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-        <Badge color="var(--citizen)" dot>CIUDADANO</Badge>
-        <CircularTimer seconds={seconds} total={totalSeconds} accent="citizen" />
+        <Badge color={badgeColor} dot>{label}</Badge>
+        <CircularTimer seconds={seconds} total={totalSeconds} accent={timerAccent} />
       </div>
 
       <div style={{
@@ -79,6 +100,23 @@ function CitizenCard({ word, seconds, totalSeconds }) {
           boxShadow: '0 0 8px var(--gold)',
         }} />
       </div>
+
+      {abilityText && (
+        <div style={{
+          position: 'relative',
+          zIndex: 2,
+          marginBottom: 14,
+          padding: '12px 14px',
+          borderRadius: 12,
+          border: '1px solid rgba(245, 158, 11, 0.34)',
+          background: 'rgba(245, 158, 11, 0.08)',
+          color: 'var(--gold-soft)',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 12,
+          lineHeight: 1.45,
+          textAlign: 'center',
+        }}>{abilityText}</div>
+      )}
 
       <div style={{
         textAlign: 'center', position: 'relative', zIndex: 2,

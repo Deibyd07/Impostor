@@ -60,6 +60,7 @@ export default function HostLobby() {
             onClick={() => createRoom(hostName.trim(), {
               impostorCount: 1, mode: 'classic', category: 'random',
               clueType: 'category', blindIntensity: 'medium', roundTime: '3',
+              detectiveEnabled: false,
             }, avatar)}
             style={{ padding: '18px 20px', letterSpacing: '0.2em' }}
           >
@@ -233,6 +234,67 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
           onChange={(n) => setConfig({ impostorCount: n })}
         />
       </div>
+
+      <SectionHeader>Rol especial</SectionHeader>
+      <button
+        type="button"
+        aria-pressed={!!config.detectiveEnabled}
+        onClick={() => setConfig({ detectiveEnabled: !config.detectiveEnabled })}
+        style={{
+          all: 'unset',
+          cursor: 'pointer',
+          boxSizing: 'border-box',
+          width: '100%',
+          marginBottom: 18,
+          padding: '14px 16px',
+          borderRadius: 14,
+          border: `1px solid ${config.detectiveEnabled ? 'rgba(245, 158, 11, 0.72)' : 'var(--hairline-cold)'}`,
+          background: config.detectiveEnabled
+            ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04))'
+            : 'var(--surface-1)',
+          boxShadow: config.detectiveEnabled ? '0 0 24px -14px var(--gold-glow)' : 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 14,
+              fontWeight: 700,
+              color: config.detectiveEnabled ? 'var(--gold)' : 'var(--text-1)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}>Detective</div>
+            <div style={{
+              marginTop: 4,
+              fontFamily: 'var(--font-ui)',
+              fontSize: 12,
+              lineHeight: 1.4,
+              color: 'var(--text-2)',
+            }}>Puede iniciar un interrogatorio publico una vez por partida.</div>
+          </div>
+          <span style={{
+            width: 42,
+            height: 24,
+            borderRadius: 999,
+            background: config.detectiveEnabled ? 'rgba(245, 158, 11, 0.28)' : 'rgba(255,255,255,0.08)',
+            border: `1px solid ${config.detectiveEnabled ? 'var(--gold)' : 'var(--hairline-cold)'}`,
+            position: 'relative',
+            flexShrink: 0,
+          }}>
+            <span style={{
+              position: 'absolute',
+              top: 3,
+              left: config.detectiveEnabled ? 21 : 3,
+              width: 16,
+              height: 16,
+              borderRadius: 999,
+              background: config.detectiveEnabled ? 'var(--gold)' : 'var(--text-3)',
+              transition: 'left 0.16s ease',
+            }} />
+          </span>
+        </div>
+      </button>
 
       <SectionHeader>Categoría</SectionHeader>
       <div style={{
