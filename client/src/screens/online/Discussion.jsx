@@ -24,7 +24,7 @@ export default function Discussion() {
     if (phase === 'spectator') navigate('/online/spectator')
   }, [phase, navigate])
 
-  const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue' || myRole === 'impostor-blind'
+  const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue'
 
   return (
     <PhoneScreen
@@ -76,8 +76,6 @@ export default function Discussion() {
           }}>
             {myRole === 'impostor' || myRole === 'impostor-clue' ? (
               <>Escucha primero. Sé vago, mezcla detalles. <strong style={{ color: 'var(--impostor)', fontStyle: 'normal' }}>No te delates.</strong></>
-            ) : myRole === 'impostor-blind' ? (
-              <>Describe lo que crees que es. Si los demás suenan distinto… algo no cuadra.</>
             ) : (
               <>Describe la palabra <strong style={{ color: 'var(--citizen)', fontStyle: 'normal' }}>sin decirla</strong>. Observa quién improvisa demasiado.</>
             )}

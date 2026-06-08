@@ -4,6 +4,7 @@ import Badge from './Badge.jsx'
 export default function CompactRoleReminder({ role, word, clue }) {
   const [open, setOpen] = useState(false)
   const isImpostor = role === 'impostor' || role === 'impostor-clue'
+  const looksLikeCitizen = role === 'citizen' || role === 'impostor-blind'
   const color = isImpostor ? 'var(--impostor)' : 'var(--citizen)'
   return (
     <div
@@ -19,18 +20,11 @@ export default function CompactRoleReminder({ role, word, clue }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Badge color={color} dot warn={isImpostor}>{isImpostor ? 'IMPOSTOR' : 'CIUDADANO'}</Badge>
-        {!isImpostor && word && (
+        {looksLikeCitizen && word && (
           <span style={{
             fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18,
             color: 'var(--text-1)', letterSpacing: '0.06em',
             textShadow: '0 0 12px var(--citizen-glow)',
-            flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{word.toUpperCase()}</span>
-        )}
-        {role === 'impostor-blind' && word && (
-          <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18,
-            color: 'var(--text-1)', letterSpacing: '0.06em',
             flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{word.toUpperCase()}</span>
         )}
@@ -47,12 +41,11 @@ export default function CompactRoleReminder({ role, word, clue }) {
           marginTop: 10, fontFamily: 'var(--font-ui)', fontSize: 12,
           color: 'var(--text-2)', lineHeight: 1.4,
         }}>
-          {role === 'citizen' && <>Describe la palabra sin decirla. Observa a los demás.</>}
+          {looksLikeCitizen && <>Describe la palabra sin decirla. Observa a los demás.</>}
           {role === 'impostor' && <>Escucha, sé vago, mezcla. Si te descubren, ¡adivina la palabra!</>}
           {role === 'impostor-clue' && (
             <>Tu pista: <strong style={{ color: 'var(--gold-soft)' }}>{clue}</strong></>
           )}
-          {role === 'impostor-blind' && <>Crees ser ciudadano… pero tu palabra es falsa.</>}
         </div>
       )}
     </div>
