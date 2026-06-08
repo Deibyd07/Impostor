@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import CompactRoleReminder from '../../components/CompactRoleReminder.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
+import PlayerChip from '../../components/PlayerChip.jsx'
+import ChatBox from '../../components/ChatBox.jsx'
+import DetectiveInterrogationPanel from '../../components/DetectiveInterrogationPanel.jsx'
 import GuessWordModal from '../../components/GuessWordModal.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 
@@ -12,13 +15,18 @@ export default function Discussion() {
   const myRole = useOnlineStore(s => s.myRole)
   const myWord = useOnlineStore(s => s.myWord)
   const myClue = useOnlineStore(s => s.myClue)
+  const myId = useOnlineStore(s => s.myId)
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
   const goToVote = useOnlineStore(s => s.goToVote)
   const round = useOnlineStore(s => s.round)
   const lastGuessRound = useOnlineStore(s => s.lastGuessRound)
   const speakOrder = useOnlineStore(s => s.speakOrder)
-  const myId = useOnlineStore(s => s.myId)
+  const chatMessages = useOnlineStore(s => s.chatMessages)
+  const sendChatMessage = useOnlineStore(s => s.sendChatMessage)
+  const detectiveInterrogation = useOnlineStore(s => s.detectiveInterrogation)
+  const detectiveInterrogationUsed = useOnlineStore(s => s.detectiveInterrogationUsed)
+  const startDetectiveInterrogation = useOnlineStore(s => s.startDetectiveInterrogation)
   const [showGuess, setShowGuess] = useState(false)
 
   useEffect(() => {
@@ -30,6 +38,10 @@ export default function Discussion() {
   const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue'
   const canGuess = isImpostor && (round - lastGuessRound >= 2)
   const guessAvailableAt = lastGuessRound + 2
+  const isInterrogationSpeaker = detectiveInterrogation
+    ? myId === detectiveInterrogation.detectiveId || myId === detectiveInterrogation.targetId
+    : true
+  const chatLocked = !!detectiveInterrogation && !isInterrogationSpeaker
 
   return (
     <PhoneScreen
@@ -74,7 +86,7 @@ export default function Discussion() {
               textAlign: 'center', fontFamily: 'var(--font-ui)', fontSize: 12,
               color: 'var(--text-3)', letterSpacing: '0.16em', textTransform: 'uppercase',
               paddingBottom: 4,
-            }}>Esperando al anfitrión…</div>
+            }}>Esperando al anfitrion...</div>
           )}
         </div>
       }
@@ -92,11 +104,24 @@ export default function Discussion() {
             color: 'var(--text-2)', fontStyle: 'italic', marginBottom: 24,
           }}>
             {myRole === 'impostor' || myRole === 'impostor-clue' ? (
-              <>Escucha primero. Sé vago, mezcla detalles. <strong style={{ color: 'var(--impostor)', fontStyle: 'normal' }}>No te delates.</strong></>
+              <>Escucha primero. Se vago, mezcla detalles. <strong style={{ color: 'var(--impostor)', fontStyle: 'normal' }}>No te delates.</strong></>
+            ) : myRole === 'impostor-blind' ? (
+              <>Describe lo que crees que es. Si los demas suenan distinto, algo no cuadra.</>
+            ) : myRole === 'detective' ? (
+              <>Elige bien a quien presionar. El interrogatorio no da veredicto, pero ordena la conversacion.</>
             ) : (
-              <>Describe la palabra <strong style={{ color: 'var(--citizen)', fontStyle: 'normal' }}>sin decirla</strong>. Observa quién improvisa demasiado.</>
+              <>Describe la palabra <strong style={{ color: 'var(--citizen)', fontStyle: 'normal' }}>sin decirla</strong>. Observa quien improvisa demasiado.</>
             )}
           </div>
+
+          <DetectiveInterrogationPanel
+            players={players}
+            myId={myId}
+            role={myRole}
+            interrogation={detectiveInterrogation}
+            used={detectiveInterrogationUsed}
+            onStart={startDetectiveInterrogation}
+          />
 
           <SectionHeader>Orden de turno</SectionHeader>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
@@ -117,20 +142,42 @@ export default function Discussion() {
                     fontFamily: 'var(--font-num)', fontSize: 13,
                     color: 'var(--text-3)', minWidth: 18,
                   }}>{idx + 1}</span>
-                  <span style={{
-                    fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--text-1)',
-                    textDecoration: player.eliminated ? 'line-through' : 'none', flex: 1,
-                  }}>{player.name}</span>
+                  <PlayerChip
+                    name={player.name}
+                    avatar={player.avatar}
+                    eliminated={player.eliminated}
+                    disconnected={player.disconnected}
+                  />
                   {isMe && (
                     <span style={{
+                      marginLeft: 'auto',
                       fontFamily: 'var(--font-ui)', fontSize: 10,
                       color: 'var(--citizen)', letterSpacing: '0.18em',
-                    }}>TÚ</span>
+                    }}>TU</span>
                   )}
                 </div>
               )
             })}
           </div>
+
+          <SectionHeader right={`${chatMessages.length}/50`}>Chat</SectionHeader>
+          {chatLocked && (
+            <div style={{
+              margin: '-6px 0 10px',
+              padding: '9px 12px',
+              borderRadius: 12,
+              border: '1px solid rgba(248, 113, 113, 0.2)',
+              background: 'rgba(220, 38, 38, 0.08)',
+              color: '#fecaca',
+              fontFamily: 'var(--font-ui)',
+              fontSize: 12,
+              lineHeight: 1.4,
+              textAlign: 'center',
+            }}>
+              Silencio en la mesa: solo Detective e interrogado pueden escribir.
+            </div>
+          )}
+          <ChatBox messages={chatMessages} myId={myId} onSend={sendChatMessage} disabled={chatLocked} />
         </div>
       </div>
 

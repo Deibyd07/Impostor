@@ -116,10 +116,7 @@ export default function GameBoard() {
                   fontFamily: 'var(--font-num)', fontSize: 13,
                   color: 'var(--text-3)', minWidth: 18,
                 }}>{idx + 1}</span>
-                <span style={{
-                  fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--text-1)',
-                  textDecoration: player.eliminated ? 'line-through' : 'none', flex: 1,
-                }}>{player.name}</span>
+                <PlayerChip name={player.name} avatar={player.avatar} eliminated={player.eliminated} />
               </div>
             )
           })}

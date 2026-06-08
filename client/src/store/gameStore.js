@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { buildSession } from '../utils/roleAssigner.js'
+import { appendRecentWord, buildSession } from '../utils/roleAssigner.js'
 import { checkVictory, leaderInVotes, activePlayers } from '../utils/gameLogic.js'
 import { shuffle } from '../utils/random.js'
+import { avatarForPlayer } from '../data/avatars.js'
 
-const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía'].map((n, i) => ({ id: String(i), name: n }))
+const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía']
+  .map((n, i) => ({ id: String(i), name: n, avatar: avatarForPlayer({ name: n }) }))
 
 const defaultConfig = {
   players: defaultPlayers,
@@ -17,28 +19,49 @@ const defaultConfig = {
   roundTime: '3',            // 1 | 3 | 5 | free
 }
 
+function buildTrackedSession(config, recentWords) {
+  const cfg = { ...config, players: normalizePlayers(config.players) }
+  const session = buildSession(cfg, { recentWords })
+  const baseHistory = session.wordHistoryReset ? [] : recentWords
+  return {
+    session,
+    recentWords: appendRecentWord(baseHistory, session.word),
+  }
+}
+
+function normalizePlayers(players = []) {
+  return players.map((player, index) => {
+    const name = player.name || `Jugador ${index + 1}`
+    return {
+      ...player,
+      id: player.id ?? String(index),
+      name,
+      avatar: avatarForPlayer({ ...player, name }),
+    }
+  })
+}
+
 export const useGameStore = create(
   persist(
     (set, get) => ({
       config: defaultConfig,
       session: null,
+      recentWords: [],
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
-      setPlayers: (players) => set((s) => ({ config: { ...s.config, players } })),
+      setPlayers: (players) => set((s) => ({ config: { ...s.config, players: normalizePlayers(players) } })),
 
       // ----- Lifecycle -----
       startSession: () => {
         const cfg = get().config
-        const session = buildSession(cfg)
-        set({ session })
+        set(buildTrackedSession(cfg, get().recentWords))
       },
 
-      endSession: () => set({ session: null }),
+      endSession: () => set({ session: null, recentWords: [] }),
 
       rematch: () => {
         const cfg = get().config
-        const session = buildSession(cfg)
-        set({ session })
+        set(buildTrackedSession(cfg, get().recentWords))
       },
 
       // ----- Card reveal flow -----
@@ -128,7 +151,7 @@ export const useGameStore = create(
     {
       name: 'el-impostor-game',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ config: state.config, session: state.session }),
+      partialize: (state) => ({ config: state.config, session: state.session, recentWords: state.recentWords }),
     }
   )
 )

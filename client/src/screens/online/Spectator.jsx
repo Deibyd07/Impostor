@@ -34,7 +34,7 @@ export default function Spectator() {
           fontFamily: 'var(--font-ui)', fontStyle: 'italic', fontSize: 13,
           color: 'var(--text-2)', lineHeight: 1.5,
         }}>Observa cómo termina la partida. Ya no puedes votar.</div>
-        {myWord && myRole === 'citizen' && (
+        {myWord && (myRole === 'citizen' || myRole === 'detective') && (
           <div style={{
             marginTop: 24, padding: '16px',
             border: '1px solid var(--hairline-cold)',
@@ -53,7 +53,7 @@ export default function Spectator() {
         <SectionHeader>Jugadores activos</SectionHeader>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {players.map(p => (
-            <PlayerChip key={p.id} name={p.name} eliminated={p.eliminated} />
+            <PlayerChip key={p.id} name={p.name} avatar={p.avatar} eliminated={p.eliminated} />
           ))}
         </div>
       </div>

@@ -1,5 +1,6 @@
-export default function VoteCard({ name, votes = 0, isLeader = false, disabled = false, onClick }) {
+export default function VoteCard({ name, avatar, votes = 0, isLeader = false, disabled = false, onClick }) {
   const initial = (name || '?').charAt(0).toUpperCase()
+  const displayAvatar = avatar || initial
   const intensity = Math.min(1, votes / 3)
   return (
     <button
@@ -27,13 +28,14 @@ export default function VoteCard({ name, votes = 0, isLeader = false, disabled =
           ? 'linear-gradient(135deg, #2a0a0a, #1a0505)'
           : 'linear-gradient(135deg, #1a1a2e, #12121e)',
         color: votes > 0 ? 'var(--impostor)' : 'var(--gold)',
-        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 24,
+        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: avatar ? 28 : 24,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         margin: '0 auto 10px',
+        lineHeight: 1,
         boxShadow: votes > 0
           ? '0 0 20px -4px var(--impostor-glow), inset 0 0 0 1px rgba(220, 38, 38, 0.5)'
           : 'inset 0 0 0 1px rgba(245, 158, 11, 0.18)',
-      }}>{initial}</div>
+      }}>{displayAvatar}</div>
       <div style={{
         fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 500,
         color: 'var(--text-1)', marginBottom: 6,

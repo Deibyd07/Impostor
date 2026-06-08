@@ -1,7 +1,7 @@
 import Badge from './Badge.jsx'
 
 export default function ConnectedPlayer({
-  name, isHost = false, placeholder = false, status = 'ready', isYou = false,
+  name, avatar, isHost = false, placeholder = false, status = 'ready', isYou = false,
 }) {
   if (placeholder) {
     return (
@@ -22,6 +22,7 @@ export default function ConnectedPlayer({
       </div>
     )
   }
+  const displayAvatar = avatar || (name || '?').charAt(0).toUpperCase()
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
@@ -33,11 +34,12 @@ export default function ConnectedPlayer({
         width: 32, height: 32, borderRadius: 999,
         background: 'linear-gradient(135deg, #2a2a45, #15152a)',
         color: 'var(--gold)',
-        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
+        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: avatar ? 18 : 14,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: 'inset 0 0 0 1px rgba(245, 158, 11, 0.25)',
         flexShrink: 0,
-      }}>{(name || '?').charAt(0).toUpperCase()}</div>
+        lineHeight: 1,
+      }}>{displayAvatar}</div>
       <span style={{
         flex: 1, fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 500,
         color: 'var(--text-1)',

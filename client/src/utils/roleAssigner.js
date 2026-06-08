@@ -1,18 +1,56 @@
 import { shuffle, pickOne, pickWithout } from './random.js'
 import { wordBank, categories, relatedWords } from '../data/wordBank.js'
+import { avatarForPlayer } from '../data/avatars.js'
+
+export const RECENT_WORD_LIMIT = 10
+
+export function normalizeWordKey(word) {
+  return String(word ?? '').trim().toLowerCase()
+}
+
+export function appendRecentWord(recentWords = [], word, limit = RECENT_WORD_LIMIT) {
+  const wordKey = normalizeWordKey(word)
+  const current = Array.isArray(recentWords) ? recentWords : []
+  if (!wordKey) return current.slice(-limit)
+
+  const withoutCurrentWord = current.filter(item => normalizeWordKey(item) !== wordKey)
+  return [...withoutCurrentWord, word].slice(-limit)
+}
+
+export function pickWordAvoidingRecent(words, recentWords = []) {
+  const candidates = Array.isArray(words) ? words.filter(Boolean) : []
+  if (!candidates.length) return { word: null, resetHistory: false }
+
+  const recentKeys = new Set(
+    (Array.isArray(recentWords) ? recentWords : [])
+      .map(normalizeWordKey)
+      .filter(Boolean)
+  )
+  const available = candidates.filter(word => !recentKeys.has(normalizeWordKey(word)))
+  const resetHistory = available.length === 0
+
+  return {
+    word: pickOne(resetHistory ? candidates : available),
+    resetHistory,
+  }
+}
 
 // Devuelve un objeto session con jugadores, roles y palabras.
 // config = { players: [{id, name}], impostorCount, mode, category, clueType?, blindIntensity?, customClue?, roundTime }
-export function buildSession(config) {
+export function buildSession(config, options = {}) {
+  const playerCount = config.players.length
+  const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
+  const impostorCount = Math.max(1, Math.min(Math.floor(config.impostorCount || 1), maxImpostors))
   const catKey = config.category === 'random'
     ? pickOne(Object.keys(wordBank))
-    : config.category
+    : (wordBank[config.category] ? config.category : 'lugares')
   const words = wordBank[catKey] || wordBank.lugares
-  const word = pickOne(words)
+  const selectedWord = pickWordAvoidingRecent(words, options.recentWords || config.recentWords)
+  const word = selectedWord.word
 
   // Selección aleatoria de impostores
   const indices = shuffle(config.players.map((_, i) => i))
-  const impostorIndices = new Set(indices.slice(0, config.impostorCount))
+  const impostorIndices = new Set(indices.slice(0, impostorCount))
 
   const fakeWord = config.mode === 'blind'
     ? pickFakeWord(word, catKey, config.blindIntensity || 'medium')
@@ -27,6 +65,7 @@ export function buildSession(config) {
     return {
       id: p.id ?? String(i),
       name: p.name,
+      avatar: avatarForPlayer(p),
       role: isImpostor ? 'impostor' : 'citizen',
       // Palabra que verá: ciudadanos ven la real, impostores depende del modo
       seenWord: isImpostor
@@ -39,12 +78,13 @@ export function buildSession(config) {
   return {
     id: `s_${Date.now()}`,
     createdAt: Date.now(),
-    config: { ...config, category: catKey },
+    config: { ...config, category: catKey, impostorCount },
     word,
     fakeWord,
     clue,
     category: catKey,
     categoryLabel: categories[catKey]?.label || catKey,
+    wordHistoryReset: selectedWord.resetHistory,
     players: sessionPlayers,
     speakOrder: shuffle(sessionPlayers.map(p => p.id)),
     round: 1,
@@ -60,11 +100,11 @@ export function buildSession(config) {
 
 function pickFakeWord(realWord, catKey, intensity) {
   // 1) intentar palabras relacionadas explícitas
-  const related = relatedWords[realWord]
+  const related = relatedWords[catKey]?.[realWord]
   if (related && related.length) {
     if (intensity === 'near') return related[0]
-    if (intensity === 'far') return related[related.length - 1]
-    return related[Math.floor(related.length / 2)]
+    if (intensity === 'far') return related[2] || related[related.length - 1]
+    return related[1] || related[0]
   }
   // 2) palabra aleatoria de la misma categoría (medium)
   // 3) palabra de OTRA categoría (far)
@@ -103,6 +143,18 @@ function vagueDefinition(catKey) {
     historia: 'Algo del pasado',
     misterio: 'Algo inexplicable',
     colombia: 'Algo típicamente colombiano',
+    musica: 'Algo que se escucha',
+    literatura: 'Algo que se lee',
+    videojuegos: 'Un mundo interactivo',
+    seriesTv: 'Una historia por episodios',
+    mitologia: 'Un relato legendario',
+    cocteles: 'Una bebida preparada',
+    marcas: 'Un nombre reconocido',
+    arte: 'Una expresion creativa',
+    arquitectura: 'Una construccion disenada',
+    geografia: 'Un lugar o forma del planeta',
+    astronomia: 'Algo del espacio',
+    gastronomiaColombiana: 'Un sabor colombiano',
   }
   return map[catKey] || 'Algo que existe'
 }

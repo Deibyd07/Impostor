@@ -55,6 +55,7 @@ export default function WaitingLobby() {
             <ConnectedPlayer
               key={p.id}
               name={p.name}
+              avatar={p.avatar}
               isHost={p.isHost}
               isYou={p.id === myId}
               status="ready"

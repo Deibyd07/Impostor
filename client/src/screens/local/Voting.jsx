@@ -73,6 +73,7 @@ export default function Voting() {
             <VoteCard
               key={p.id}
               name={p.name}
+              avatar={p.avatar}
               votes={session.votes[p.id] || 0}
               isLeader={leader?.hasMajority && leader.winner === p.id}
               onClick={() => { sfx.vote(); castVote(p.id) }}

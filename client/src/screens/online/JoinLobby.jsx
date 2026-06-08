@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
+import AvatarPicker from '../../components/AvatarPicker.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
+import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 
 export default function JoinLobby() {
   const navigate = useNavigate()
@@ -16,6 +18,8 @@ export default function JoinLobby() {
   const phase = useOnlineStore(s => s.phase)
   const [code, setCode] = useState((search.get('code') || '').toUpperCase().slice(0, 4))
   const [name, setName] = useState('')
+  const [avatar, setAvatar] = useState(defaultAvatarForName(''))
+  const [avatarTouched, setAvatarTouched] = useState(false)
 
   useEffect(() => { connect() }, [connect])
   useEffect(() => {
@@ -24,11 +28,21 @@ export default function JoinLobby() {
   useEffect(() => {
     if (phase === 'reveal') navigate('/online/card')
   }, [phase, navigate])
+  useEffect(() => {
+    if (avatarTouched) return
+    setAvatar(savedAvatarForName(name) || defaultAvatarForName(name))
+  }, [name, avatarTouched])
 
   const codeReady = code.length === 4
   const ready = codeReady && name.trim().length > 0 && connected
 
-  const onJoin = () => { clearError(); joinRoom(code, name.trim()) }
+  const chooseAvatar = (nextAvatar) => {
+    setAvatar(nextAvatar)
+    setAvatarTouched(true)
+    if (name.trim()) rememberAvatarForName(name, nextAvatar)
+  }
+
+  const onJoin = () => { clearError(); joinRoom(code, name.trim(), avatar) }
 
   return (
     <PhoneScreen
@@ -111,6 +125,14 @@ export default function JoinLobby() {
               fontSize: 16, fontWeight: 500, outline: 'none',
             }}
           />
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          <div style={{
+            fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
+            letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 10,
+          }}>Avatar</div>
+          <AvatarPicker value={avatar} onChange={chooseAvatar} />
         </div>
 
         {error && (
