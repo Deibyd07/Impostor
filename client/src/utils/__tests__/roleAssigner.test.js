@@ -94,7 +94,7 @@ describe('buildSession - modo ciego', () => {
   })
 
   it('en intensidad near, si hay relatedWords, usa el primer relacionado', () => {
-    const realWord = Object.keys(relatedWords).find(w => wordBank.animales.includes(w))
+    const realWord = Object.keys(relatedWords.animales).find(w => wordBank.animales.includes(w))
     if (!realWord) return
     // Forzar que la palabra elegida sea esta - corremos varias veces y validamos solo cuando coincide
     let validated = false
@@ -104,7 +104,7 @@ describe('buildSession - modo ciego', () => {
         blindIntensity: 'near', category: 'animales',
       })
       if (s.word === realWord) {
-        expect(s.fakeWord).toBe(relatedWords[realWord][0])
+        expect(s.fakeWord).toBe(relatedWords.animales[realWord][0])
         validated = true
       }
     }
@@ -131,6 +131,29 @@ describe('buildSession - modo ciego', () => {
       expect(s.fakeWord).toBeTruthy()
       expect(s.fakeWord).not.toBe(s.word)
       expect(wordBank[category]).toContain(s.word)
+    })
+  })
+})
+
+describe('relatedWords - cobertura modo ciego', () => {
+  it('mapea todas las palabras del banco con minimo 3 relacionadas', () => {
+    Object.entries(wordBank).forEach(([category, words]) => {
+      words.forEach(word => {
+        expect(relatedWords[category]?.[word]?.length ?? 0).toBeGreaterThanOrEqual(3)
+      })
+    })
+  })
+
+  it('mantiene near, medium y far en la misma categoria sin repetir la palabra real', () => {
+    Object.entries(wordBank).forEach(([category, words]) => {
+      words.forEach(word => {
+        const related = relatedWords[category][word].slice(0, 3)
+        expect(new Set(related).size).toBe(3)
+        related.forEach(candidate => {
+          expect(candidate).not.toBe(word)
+          expect(wordBank[category]).toContain(candidate)
+        })
+      })
     })
   })
 })

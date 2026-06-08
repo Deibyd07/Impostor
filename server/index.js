@@ -122,11 +122,11 @@ function vagueDefinition(catKey) {
 }
 
 function pickFakeWord(realWord, catKey, intensity) {
-  const related = relatedWords[realWord]
+  const related = relatedWords[catKey]?.[realWord]
   if (related && related.length) {
     if (intensity === 'near') return related[0]
-    if (intensity === 'far')  return related[related.length - 1]
-    return related[Math.floor(related.length / 2)]
+    if (intensity === 'far') return related[2] || related[related.length - 1]
+    return related[1] || related[0]
   }
   if (intensity === 'far') {
     const otherCats = Object.keys(wordBank).filter(c => c !== catKey)

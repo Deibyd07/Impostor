@@ -56,34 +56,27 @@ export const wordBank = {
   gastronomiaColombiana: ['Ajiaco','Bandeja Paisa','Sancocho','Arepa de huevo','Arepa boyacense','Lechona','Tamal','Empanada','Pandebono','Buñuelo','Almojábana','Changua','Mute','Mondongo','Sobrebarriga','Fritanga','Patacón','Hogao','Aborrajado','Cazuela de mariscos','Mote de queso','Arroz con coco','Cabrito','Mamona','Hormigas culonas','Oblea','Natilla','Manjar blanco','Merengón','Cholado'],
 }
 
-// Pares para modo CIEGO — palabras relacionadas por proximidad
-export const relatedWords = {
-  // Lugares
-  Playa: ['Costa', 'Lago', 'Río', 'Piscina', 'Delta', 'Bahía', 'Laguna', 'Estanque'],
-  Volcán: ['Montaña', 'Cráter', 'Géiser', 'Caverna', 'Acantilado'],
-  Desierto: ['Sabana', 'Estepa', 'Duna', 'Llanura'],
-  Selva: ['Bosque', 'Jungla', 'Manglar', 'Pantano'],
-  Castillo: ['Palacio', 'Fortaleza', 'Mansión', 'Torre'],
-  // Animales
-  Elefante: ['Rinoceronte', 'Hipopótamo', 'Búfalo', 'Mamut'],
-  Delfín: ['Tiburón', 'Ballena', 'Orca', 'Foca'],
-  Tigre: ['León', 'Leopardo', 'Jaguar', 'Pantera'],
-  Águila: ['Halcón', 'Cóndor', 'Buitre', 'Búho'],
-  // Comida
-  Sushi: ['Sashimi', 'Ramen', 'Tempura', 'Maki'],
-  Pizza: ['Lasaña', 'Calzone', 'Focaccia', 'Bruschetta'],
-  Tacos: ['Burrito', 'Quesadilla', 'Enchilada', 'Tostada'],
-  Hamburguesa: ['Sándwich', 'Hot Dog', 'Wrap', 'Bocadillo'],
-  // Profesiones
-  Forense: ['Detective', 'Médico', 'Patólogo', 'Cirujano'],
-  Astronauta: ['Piloto', 'Aviador', 'Cosmonauta', 'Capitán'],
-  Bombero: ['Paramédico', 'Policía', 'Socorrista', 'Rescatista'],
-  // Tecnología
-  Dron: ['Satélite', 'Helicóptero', 'Avión', 'Misil'],
-  Robot: ['Androide', 'Cyborg', 'Autómata', 'Drone'],
-  // Naturaleza
-  Tornado: ['Huracán', 'Tifón', 'Ciclón', 'Tormenta'],
-  Iceberg: ['Glaciar', 'Témpano', 'Polo', 'Banco de Hielo'],
-  // Música
-  // Default fallbacks — si la palabra no tiene par definido, se busca otra de la misma categoría
+// Slots para modo CIEGO: [near, medium, far].
+// near usa el vecino mas cercano del banco; medium y far se alejan dentro de la misma categoria.
+export const relatedWords = buildRelatedWords(wordBank)
+
+function buildRelatedWords(bank) {
+  return Object.fromEntries(
+    Object.entries(bank).map(([category, words]) => [
+      category,
+      Object.fromEntries(
+        words.map((word, index) => [word, pickRelatedByDistance(words, index)])
+      ),
+    ])
+  )
+}
+
+function pickRelatedByDistance(words, index) {
+  const offsets = [
+    1,
+    Math.max(2, Math.floor(words.length / 3)),
+    Math.max(3, Math.floor((words.length * 2) / 3)),
+  ]
+  const related = offsets.map(offset => words[(index + offset) % words.length])
+  return [...new Set(related.filter(candidate => candidate !== words[index]))]
 }
