@@ -11,6 +11,7 @@ export default function WaitingLobby() {
   const roomCode = useOnlineStore(s => s.roomCode)
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
+  const isHost = useOnlineStore(s => s.isHost)
   const myId = useOnlineStore(s => s.myId)
   const leaveRoom = useOnlineStore(s => s.leaveRoom)
 
@@ -20,6 +21,9 @@ export default function WaitingLobby() {
   useEffect(() => {
     if (phase === 'reveal') navigate('/online/card')
   }, [phase, navigate])
+  useEffect(() => {
+    if (roomCode && isHost && phase === 'lobby') navigate('/online/host')
+  }, [roomCode, isHost, phase, navigate])
 
   return (
     <PhoneScreen>

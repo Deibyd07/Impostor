@@ -134,6 +134,15 @@ export const useOnlineStore = create((set, get) => ({
       const { myId, isHost } = get()
       set({ players, isHost: isCurrentHost(players, myId, isHost) })
     })
+    socket.on('room:hostAssigned', ({ room }) => {
+      set({
+        isHost: true,
+        players: room?.players || get().players,
+        config: room?.config || get().config,
+        phase: room?.phase || get().phase,
+      })
+      toast.success('Ahora eres el anfitrion', { duration: 3000 })
+    })
     socket.on('room:config', ({ config }) => set({ config }))
     socket.on('room:error', ({ message }) => {
       set({ error: message })

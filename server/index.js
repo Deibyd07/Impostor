@@ -425,6 +425,24 @@ function broadcastPlayers(room) {
   io.to(room.code).emit('room:players', { players: sanitizeRoom(room).players })
 }
 
+function assignHost(room) {
+  if (!room.players.length) return null
+  let host = room.players.find(p => p.id === room.hostId && !p.disconnected)
+  if (!host) {
+    host = room.players.find(p => !p.disconnected) || room.players[0]
+    room.hostId = host.id
+  }
+  room.players.forEach(p => {
+    p.isHost = p.id === room.hostId
+  })
+  return host
+}
+
+function notifyHostAssigned(room, host) {
+  if (!host?.socketId) return
+  io.to(host.socketId).emit('room:hostAssigned', { room: sanitizeRoom(room) })
+}
+
 function emitVoteUpdate(room) {
   io.to(room.code).emit('vote:update', {
     votes: room.votes,
@@ -859,19 +877,20 @@ function leaveSocket(socket, hard) {
       rooms.delete(room.code)
       return
     }
-    if (room.hostId === player.id) {
-      const newHost = room.players[0]
-      room.hostId = newHost.id
-      newHost.isHost = true
-    }
+    const hostChanged = room.hostId === player.id
+    const newHost = assignHost(room)
     broadcastPlayers(room)
+    if (hostChanged) notifyHostAssigned(room, newHost)
     if (wasActiveGame) afterPlayerListChanged(room)
     return
   }
 
   // Partida en curso → marcar desconectado y dar gracia para reconexión
   player.disconnected = true
+  const hostChanged = room.hostId === player.id
+  const newHost = assignHost(room)
   broadcastPlayers(room)
+  if (hostChanged) notifyHostAssigned(room, newHost)
   room.disconnectTimers[player.id] = setTimeout(() => {
     delete room.disconnectTimers[player.id]
     const stillThere = room.players.find(p => p.id === player.id)
@@ -886,12 +905,10 @@ function leaveSocket(socket, hard) {
       rooms.delete(room.code)
       return
     }
-    if (room.hostId === player.id) {
-      const newHost = room.players[0]
-      room.hostId = newHost.id
-      newHost.isHost = true
-    }
+    const hostChanged = room.hostId === player.id
+    const newHost = assignHost(room)
     broadcastPlayers(room)
+    if (hostChanged) notifyHostAssigned(room, newHost)
     afterPlayerListChanged(room)
   }, RECONNECT_GRACE_MS)
 }

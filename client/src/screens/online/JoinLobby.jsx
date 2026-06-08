@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
@@ -20,6 +20,7 @@ export default function JoinLobby() {
   const [name, setName] = useState('')
   const [avatar, setAvatar] = useState(defaultAvatarForName(''))
   const [avatarTouched, setAvatarTouched] = useState(false)
+  const codeInputRef = useRef(null)
 
   useEffect(() => { connect() }, [connect])
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function JoinLobby() {
   }
 
   const onJoin = () => { clearError(); joinRoom(code, name.trim(), avatar) }
+  const focusCodeInput = () => codeInputRef.current?.focus()
 
   return (
     <PhoneScreen
@@ -72,7 +74,20 @@ export default function JoinLobby() {
           color: 'var(--text-1)', textAlign: 'center', letterSpacing: '0.04em', lineHeight: 1.05,
         }}>Introduce<br />el código</div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 28 }}>
+        <button
+          type="button"
+          onClick={focusCodeInput}
+          aria-label="Escribir codigo de sala"
+          style={{
+            all: 'unset',
+            cursor: 'text',
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 10,
+            marginTop: 28,
+            width: '100%',
+          }}
+        >
           {[0, 1, 2, 3].map(i => {
             const ch = code[i]
             const active = code.length === i
@@ -85,12 +100,14 @@ export default function JoinLobby() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 32,
                 color: 'var(--text-1)', textTransform: 'uppercase',
+                cursor: 'text',
               }}>{ch || (active && <span style={{ width: 2, height: 28, background: 'var(--gold)', animation: 'caretBlink 1s steps(2) infinite' }} />)}</div>
             )
           })}
-        </div>
+        </button>
 
         <input
+          ref={codeInputRef}
           inputMode="text"
           autoComplete="off"
           autoCapitalize="characters"
@@ -98,11 +115,11 @@ export default function JoinLobby() {
           onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
           maxLength={4}
           style={{
-            display: 'block', width: 0, height: 0,
+            display: 'block', width: 1, height: 1,
             opacity: 0, position: 'absolute', pointerEvents: 'none',
           }}
         />
-        <button onClick={(e) => { const inp = e.currentTarget.parentNode.querySelector('input'); inp?.focus() }}
+        <button onClick={focusCodeInput}
           style={{
             all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center',
             marginTop: 14, color: 'var(--gold)', fontFamily: 'var(--font-ui)',
