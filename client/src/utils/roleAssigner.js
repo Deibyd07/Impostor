@@ -4,6 +4,9 @@ import { wordBank, categories, relatedWords } from '../data/wordBank.js'
 // Devuelve un objeto session con jugadores, roles y palabras.
 // config = { players: [{id, name}], impostorCount, mode, category, clueType?, blindIntensity?, customClue?, roundTime }
 export function buildSession(config) {
+  const playerCount = config.players.length
+  const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
+  const impostorCount = Math.max(1, Math.min(Math.floor(config.impostorCount || 1), maxImpostors))
   const catKey = config.category === 'random'
     ? pickOne(Object.keys(wordBank))
     : config.category
@@ -12,7 +15,7 @@ export function buildSession(config) {
 
   // Selección aleatoria de impostores
   const indices = shuffle(config.players.map((_, i) => i))
-  const impostorIndices = new Set(indices.slice(0, config.impostorCount))
+  const impostorIndices = new Set(indices.slice(0, impostorCount))
 
   const fakeWord = config.mode === 'blind'
     ? pickFakeWord(word, catKey, config.blindIntensity || 'medium')
@@ -39,7 +42,7 @@ export function buildSession(config) {
   return {
     id: `s_${Date.now()}`,
     createdAt: Date.now(),
-    config: { ...config, category: catKey },
+    config: { ...config, category: catKey, impostorCount },
     word,
     fakeWord,
     clue,

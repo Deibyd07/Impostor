@@ -17,6 +17,15 @@ describe('buildSession - clásico', () => {
     }
   })
 
+  it('limita los impostores al maximo permitido por cantidad de jugadores', () => {
+    const s = buildSession({
+      players: players(3), impostorCount: 4, mode: 'classic', category: 'animales',
+    })
+    const impostors = s.players.filter(p => p.role === 'impostor')
+    expect(impostors.length).toBe(1)
+    expect(s.config.impostorCount).toBe(1)
+  })
+
   it('los ciudadanos ven la palabra real, los impostores no', () => {
     const s = buildSession({
       players: players(4), impostorCount: 1, mode: 'classic', category: 'comida',

@@ -17,6 +17,7 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3001
 const codeGen = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 4)
+const tokenGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 24)
 
 const rooms = new Map() // code -> Room
 const RECONNECT_GRACE_MS = 60_000
@@ -47,6 +48,9 @@ function sanitizeName(raw) {
 }
 function isValidCode(s) {
   return typeof s === 'string' && /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/i.test(s)
+}
+function isValidSessionToken(s) {
+  return typeof s === 'string' && /^[0-9A-Za-z]{24}$/.test(s)
 }
 function sanitizeConfig(cfg) {
   const out = {}
@@ -80,10 +84,29 @@ function buildClue(word, catKey, type, customClue) {
     case 'category':    return categories[catKey]?.label || catKey
     case 'firstLetter': return `Empieza con "${word.charAt(0).toUpperCase()}"`
     case 'wordLength':  return `Tiene ${word.replace(/\s/g, '').length} letras`
-    case 'vague':       return 'Algo cotidiano'
+    case 'vague':       return vagueDefinition(catKey)
     case 'custom':      return customClue || '—'
     default:            return categories[catKey]?.label || catKey
   }
+}
+
+function vagueDefinition(catKey) {
+  const map = {
+    animales: 'Un ser vivo',
+    comida: 'Algo que se come',
+    lugares: 'Un lugar fisico',
+    objetos: 'Algo que se puede tocar',
+    peliculas: 'Una historia narrada',
+    deportes: 'Una actividad fisica',
+    profesiones: 'Algo que hace una persona',
+    emociones: 'Un sentimiento',
+    naturaleza: 'Un fenomeno natural',
+    tecnologia: 'Algo moderno',
+    historia: 'Algo del pasado',
+    misterio: 'Algo inexplicable',
+    colombia: 'Algo tipicamente colombiano',
+  }
+  return map[catKey] || 'Algo que existe'
 }
 
 function pickFakeWord(realWord, catKey, intensity) {
@@ -114,6 +137,7 @@ function makeRoom(hostSocketId, hostName, config) {
   const code = newCode()
   const player = {
     id: hostSocketId, socketId: hostSocketId,
+    sessionToken: tokenGen(),
     name: hostName, isHost: true, ready: false, eliminated: false, disconnected: false,
   }
   const room = {
@@ -146,6 +170,15 @@ function sanitizeRoom(room) {
   }
 }
 
+function privatePlayerPayload(player) {
+  return {
+    id: player.id,
+    name: player.name,
+    isHost: player.isHost,
+    sessionToken: player.sessionToken,
+  }
+}
+
 function getRoomBySocket(socketId) {
   for (const room of rooms.values()) {
     if (room.players.some(p => p.socketId === socketId)) return room
@@ -175,7 +208,8 @@ function assignRoles(room) {
   }
 
   const indices = shuffle(room.players.map((_, i) => i))
-  const impostorCount = Math.max(1, Math.min(cfg.impostorCount || 1, Math.floor(room.players.length / 2)))
+  const maxImpostors = Math.max(1, Math.floor(room.players.length / 3))
+  const impostorCount = Math.max(1, Math.min(cfg.impostorCount || 1, maxImpostors))
   const impostorIdx = new Set(indices.slice(0, impostorCount))
 
   room.roles = {}
@@ -226,25 +260,86 @@ function broadcastPlayers(room) {
   io.to(room.code).emit('room:players', { players: sanitizeRoom(room).players })
 }
 
-function tryResolveVotes(room) {
-  const activeIds = activePlayers(room).map(p => p.id)
-  const allVoted = activeIds.every(id => !!room.voters[id])
-  if (!allVoted) return
+function emitVoteUpdate(room) {
+  io.to(room.code).emit('vote:update', {
+    votes: room.votes,
+    votersReady: Object.keys(room.voters).length,
+  })
+}
+
+function recalculateVotes(room) {
+  const activeIds = new Set(activePlayers(room).map(p => p.id))
+  Object.entries(room.voters).forEach(([voterId, targetId]) => {
+    if (!activeIds.has(voterId) || !activeIds.has(targetId)) {
+      delete room.voters[voterId]
+    }
+  })
   const counts = {}
   Object.values(room.voters).forEach(target => {
     counts[target] = (counts[target] || 0) + 1
   })
+  room.votes = counts
+}
+
+function advanceToDiscussion(room) {
+  room.votes = {}
+  room.voters = {}
+  room.round += 1
+  room.phase = 'discussion'
+  io.to(room.code).emit('game:phase', { phase: 'discussion' })
+  io.to(room.code).emit('game:newRound', { round: room.round })
+}
+
+function resolveNoElimination(room, counts, reason) {
+  io.to(room.code).emit('game:tie', { counts, reason })
+  advanceToDiscussion(room)
+}
+
+function tryAdvanceReveal(room) {
+  if (room.phase !== 'reveal') return
+  if (room.players.every(p => p.ready)) {
+    room.phase = 'discussion'
+    io.to(room.code).emit('game:phase', { phase: 'discussion' })
+  }
+}
+
+function afterPlayerListChanged(room) {
+  if (room.phase !== 'lobby' && room.phase !== 'ended') {
+    const v = checkVictory(room)
+    if (v) {
+      room.phase = 'ended'
+      io.to(room.code).emit('game:over', gameOverPayload(room, v))
+      return
+    }
+  }
+  if (room.phase === 'reveal') {
+    tryAdvanceReveal(room)
+  }
+  if (room.phase === 'voting') {
+    recalculateVotes(room)
+    emitVoteUpdate(room)
+    tryResolveVotes(room)
+  }
+}
+
+function tryResolveVotes(room) {
+  const activeIds = activePlayers(room).map(p => p.id)
+  const allVoted = activeIds.every(id => !!room.voters[id])
+  if (!allVoted) return
+  recalculateVotes(room)
+  emitVoteUpdate(room)
+  const counts = room.votes
   const entries = Object.entries(counts)
   if (!entries.length) return
   const max = Math.max(...entries.map(([, c]) => c))
   const leaders = entries.filter(([, c]) => c === max)
+  const required = Math.floor(activeIds.length / 2) + 1
   if (leaders.length > 1 || max === 0) {
-    io.to(room.code).emit('game:tie', { counts })
-    room.votes = {}; room.voters = {}
-    room.round += 1
-    room.phase = 'discussion'
-    io.to(room.code).emit('game:phase', { phase: 'discussion' })
-    io.to(room.code).emit('game:newRound', { round: room.round })
+    resolveNoElimination(room, counts, 'tie')
+    return
+  }
+  if (max < required) {
+    resolveNoElimination(room, counts, 'noMajority')
     return
   }
   const [eliminatedId] = leaders[0]
@@ -262,11 +357,7 @@ function tryResolveVotes(room) {
     room.phase = 'ended'
     io.to(room.code).emit('game:over', gameOverPayload(room, v))
   } else {
-    room.votes = {}; room.voters = {}
-    room.round += 1
-    room.phase = 'discussion'
-    io.to(room.code).emit('game:phase', { phase: 'discussion' })
-    io.to(room.code).emit('game:newRound', { round: room.round })
+    advanceToDiscussion(room)
   }
 }
 
@@ -274,6 +365,13 @@ function findPlayerByName(room, name) {
   const n = sanitizeName(name).toLowerCase()
   if (!n) return null
   return room.players.find(p => p.name.toLowerCase() === n) || null
+}
+
+function findPlayerForResume(room, name, sessionToken) {
+  if (!isValidSessionToken(sessionToken)) return null
+  const player = findPlayerByName(room, name)
+  if (!player || player.sessionToken !== sessionToken) return null
+  return player
 }
 
 io.on('connection', (socket) => {
@@ -284,7 +382,11 @@ io.on('connection', (socket) => {
     if (!name) { socket.emit('room:error', { message: 'Nombre inválido' }); return }
     const room = makeRoom(socket.id, name, config || {})
     socket.join(room.code)
-    socket.emit('room:created', { code: room.code, room: sanitizeRoom(room) })
+    socket.emit('room:created', {
+      code: room.code,
+      room: sanitizeRoom(room),
+      you: privatePlayerPayload(room.players[0]),
+    })
   })
 
   socket.on('room:join', ({ code, playerName } = {}) => {
@@ -299,20 +401,21 @@ io.on('connection', (socket) => {
     if (findPlayerByName(room, name)) { socket.emit('room:error', { message: 'Ese nombre ya está en la sala' }); return }
     const player = {
       id: socket.id, socketId: socket.id,
+      sessionToken: tokenGen(),
       name, isHost: false, ready: false, eliminated: false, disconnected: false,
     }
     room.players.push(player)
     socket.join(room.code)
-    socket.emit('room:joined', { code: room.code, room: sanitizeRoom(room) })
+    socket.emit('room:joined', { code: room.code, room: sanitizeRoom(room), you: privatePlayerPayload(player) })
     broadcastPlayers(room)
   })
 
-  socket.on('room:resume', ({ code, name } = {}) => {
+  socket.on('room:resume', ({ code, name, sessionToken } = {}) => {
     if (!allow(socket.id, 1)) return
     if (!isValidCode(code)) return
     const room = rooms.get(code.toUpperCase())
     if (!room) return
-    const player = findPlayerByName(room, name)
+    const player = findPlayerForResume(room, name, sessionToken)
     if (!player) return
     if (!player.disconnected && player.socketId !== socket.id) {
       // Otra sesión activa con ese nombre; no robar
@@ -336,9 +439,16 @@ io.on('connection', (socket) => {
       room.voters[socket.id] = room.voters[oldId]
       delete room.voters[oldId]
     }
+    Object.entries(room.voters).forEach(([voterId, targetId]) => {
+      if (targetId === oldId) room.voters[voterId] = socket.id
+    })
+    if (room.phase === 'voting') {
+      recalculateVotes(room)
+      emitVoteUpdate(room)
+    }
     socket.join(room.code)
     const you = {
-      id: socket.id, name: player.name, isHost: player.isHost,
+      ...privatePlayerPayload(player),
       ...(rolePayloadFor(room, socket.id) || {}),
     }
     socket.emit('room:resumed', { code: room.code, room: sanitizeRoom(room), you })
@@ -381,10 +491,7 @@ io.on('connection', (socket) => {
     const player = room.players.find(p => p.id === socket.id)
     if (player) player.ready = true
     broadcastPlayers(room)
-    if (room.players.every(p => p.ready)) {
-      room.phase = 'discussion'
-      io.to(room.code).emit('game:phase', { phase: 'discussion' })
-    }
+    tryAdvanceReveal(room)
   })
 
   socket.on('game:goToVote', () => {
@@ -407,12 +514,8 @@ io.on('connection', (socket) => {
     const target = room.players.find(p => p.id === targetId)
     if (!target || target.eliminated) return
     room.voters[socket.id] = targetId
-    const counts = {}
-    Object.values(room.voters).forEach(t => { counts[t] = (counts[t] || 0) + 1 })
-    room.votes = counts
-    io.to(room.code).emit('vote:update', {
-      votes: counts, votersReady: Object.keys(room.voters).length,
-    })
+    recalculateVotes(room)
+    emitVoteUpdate(room)
     tryResolveVotes(room)
   })
 
@@ -482,6 +585,7 @@ function leaveSocket(socket, hard) {
   if (!room) return
   const player = room.players.find(p => p.socketId === socket.id)
   if (!player) return
+  const wasActiveGame = room.phase !== 'lobby' && room.phase !== 'ended'
 
   // Lobby o ended o disconnect "hard": eliminar completamente
   if (hard || room.phase === 'lobby' || room.phase === 'ended') {
@@ -494,6 +598,7 @@ function leaveSocket(socket, hard) {
       newHost.isHost = true
     }
     broadcastPlayers(room)
+    if (wasActiveGame) afterPlayerListChanged(room)
     return
   }
 
@@ -513,11 +618,7 @@ function leaveSocket(socket, hard) {
       newHost.isHost = true
     }
     broadcastPlayers(room)
-    const v = checkVictory(room)
-    if (v) {
-      room.phase = 'ended'
-      io.to(room.code).emit('game:over', gameOverPayload(room, v))
-    }
+    afterPlayerListChanged(room)
   }, RECONNECT_GRACE_MS)
 }
 

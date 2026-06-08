@@ -18,6 +18,10 @@ function saveSession(data) {
 function clearSession() {
   try { sessionStorage.removeItem(SESSION_KEY) } catch {}
 }
+function isCurrentHost(players, myId, fallback = false) {
+  const me = players.find(p => p.id === myId)
+  return me ? !!me.isHost : fallback
+}
 
 export const useOnlineStore = create((set, get) => ({
   socket: null,
@@ -46,14 +50,14 @@ export const useOnlineStore = create((set, get) => ({
     const socket = io(SERVER_URL, {
       autoConnect: true,
       transports: ['websocket', 'polling'],
-      auth: stored ? { resumeCode: stored.code, resumeName: stored.name } : {},
+      auth: stored ? { resumeCode: stored.code, resumeName: stored.name, resumeToken: stored.sessionToken } : {},
     })
 
     socket.on('connect', () => {
       set({ connected: true, myId: socket.id })
       const s = loadSession()
-      if (s?.code && s?.name) {
-        socket.emit('room:resume', { code: s.code, name: s.name })
+      if (s?.code && s?.name && s?.sessionToken) {
+        socket.emit('room:resume', { code: s.code, name: s.name, sessionToken: s.sessionToken })
       }
     })
     socket.on('disconnect', () => set({ connected: false }))
@@ -62,13 +66,17 @@ export const useOnlineStore = create((set, get) => ({
       toast.error('Sin conexión con el servidor', { title: 'Error', duration: 5000 })
     })
 
-    socket.on('room:created', ({ code, room }) => {
-      set({ roomCode: code, isHost: true, players: room.players, config: room.config, phase: 'lobby' })
-      saveSession({ code, name: get().myName })
+    socket.on('room:created', ({ code, room, you }) => {
+      const myId = you?.id || socket.id
+      const myName = you?.name || get().myName
+      set({ roomCode: code, isHost: true, myId, myName, players: room.players, config: room.config, phase: 'lobby' })
+      saveSession({ code, name: myName, sessionToken: you?.sessionToken })
     })
-    socket.on('room:joined', ({ code, room }) => {
-      set({ roomCode: code, isHost: false, players: room.players, config: room.config, phase: 'lobby' })
-      saveSession({ code, name: get().myName })
+    socket.on('room:joined', ({ code, room, you }) => {
+      const myId = you?.id || socket.id
+      const myName = you?.name || get().myName
+      set({ roomCode: code, isHost: false, myId, myName, players: room.players, config: room.config, phase: 'lobby' })
+      saveSession({ code, name: myName, sessionToken: you?.sessionToken })
     })
     socket.on('room:resumed', ({ code, room, you }) => {
       set({
@@ -80,12 +88,16 @@ export const useOnlineStore = create((set, get) => ({
         myId: socket.id,
         myName: you?.name || get().myName,
       })
+      saveSession({ code, name: you?.name || get().myName, sessionToken: you?.sessionToken })
       if (you?.role) {
         set({ myRole: you.role, myWord: you.word ?? null, myClue: you.clue ?? null })
       }
       toast.success('Te reconectaste a la sala', { duration: 2500 })
     })
-    socket.on('room:players', ({ players }) => set({ players }))
+    socket.on('room:players', ({ players }) => {
+      const { myId, isHost } = get()
+      set({ players, isHost: isCurrentHost(players, myId, isHost) })
+    })
     socket.on('room:config', ({ config }) => set({ config }))
     socket.on('room:error', ({ message }) => {
       set({ error: message })
@@ -110,9 +122,13 @@ export const useOnlineStore = create((set, get) => ({
         { kind: wasImpostor ? 'success' : 'warn', duration: 3600 }
       )
     })
-    socket.on('game:tie', ({ counts }) => {
+    socket.on('game:tie', ({ counts, reason }) => {
       set({ lastTie: { counts, at: Date.now() } })
       sfx.tie()
+      if (reason === 'noMajority') {
+        toast.warn('Sin mayoria. Nueva ronda de discusion.', { duration: 3500 })
+        return
+      }
       toast.warn('Empate. Nueva ronda de discusión.', { duration: 3500 })
     })
     socket.on('game:guessFailed', ({ socketId }) => {
@@ -135,11 +151,12 @@ export const useOnlineStore = create((set, get) => ({
         phase: 'lobby',
         players: room.players,
         config: room.config,
+        isHost: isCurrentHost(room.players, get().myId, get().isHost),
         myRole: null, myWord: null, myClue: null,
         votes: {}, votedFor: null, votersReady: 0,
         result: null, guessAttempts: 0, lastTie: null,
       })
-      saveSession({ code: get().roomCode, name: get().myName })
+      saveSession({ ...loadSession(), code: get().roomCode, name: get().myName })
       toast.success('Nueva partida en la misma sala', { duration: 2500 })
     })
 
@@ -152,7 +169,7 @@ export const useOnlineStore = create((set, get) => ({
       socket.disconnect()
     }
     clearSession()
-    set({ socket: null, connected: false, roomCode: null, players: [], phase: 'lobby', myRole: null, myWord: null })
+    set({ socket: null, connected: false, roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null })
   },
 
   createRoom: (hostName, config) => {
@@ -168,7 +185,7 @@ export const useOnlineStore = create((set, get) => ({
   leaveRoom: () => {
     get().socket?.emit('room:leave')
     clearSession()
-    set({ roomCode: null, players: [], phase: 'lobby', myRole: null, myWord: null, votes: {}, votedFor: null })
+    set({ roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null, votes: {}, votedFor: null })
   },
 
   startGame: () => {

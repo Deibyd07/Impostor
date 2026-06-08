@@ -6,7 +6,7 @@ function makeSession(players, extra = {}) {
 }
 
 describe('activePlayers', () => {
-  it('filtra a los eliminados', () => {
+  it('filters eliminated players', () => {
     const s = makeSession([
       { id: 'a', eliminated: false },
       { id: 'b', eliminated: true },
@@ -21,43 +21,50 @@ describe('leaderInVotes', () => {
     { id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' },
   ]
 
-  it('devuelve null si no hay votos', () => {
+  it('returns null when there are no votes', () => {
     expect(leaderInVotes({}, players)).toBe(null)
   })
 
-  it('un único líder con mayoría gana', () => {
-    // 4 activos, mayoría = ceil(4/2) = 2
-    const r = leaderInVotes({ a: 2, b: 1 }, players)
+  it('a single leader with strict majority wins', () => {
+    const r = leaderInVotes({ a: 3, b: 1 }, players)
     expect(r.winner).toBe('a')
     expect(r.hasMajority).toBe(true)
+    expect(r.required).toBe(3)
   })
 
-  it('líder sin mayoría no gana', () => {
+  it('a leader without strict majority does not win', () => {
+    const r = leaderInVotes({ a: 2, b: 1 }, players)
+    expect(r.winner).toBe(null)
+    expect(r.hasMajority).toBe(false)
+    expect(r.required).toBe(3)
+  })
+
+  it('a leader without majority in an odd table does not win', () => {
     const players5 = [...players, { id: 'e' }]
-    // mayoría = ceil(5/2) = 3
     const r = leaderInVotes({ a: 2, b: 1 }, players5)
     expect(r.winner).toBe(null)
     expect(r.hasMajority).toBe(false)
+    expect(r.required).toBe(3)
   })
 
-  it('empate no produce ganador', () => {
+  it('a tie does not produce a winner', () => {
     const r = leaderInVotes({ a: 2, b: 2 }, players)
     expect(r.winner).toBe(null)
     expect(r.ids.sort()).toEqual(['a', 'b'])
   })
 
-  it('ignora a los eliminados al calcular la mayoría', () => {
+  it('ignores eliminated players when calculating majority', () => {
     const ps = [
       { id: 'a' }, { id: 'b' }, { id: 'c', eliminated: true }, { id: 'd', eliminated: true },
     ]
-    // 2 activos, mayoría = 1
-    const r = leaderInVotes({ a: 1 }, ps)
+    const r = leaderInVotes({ a: 2 }, ps)
     expect(r.winner).toBe('a')
+    expect(r.required).toBe(2)
   })
 })
 
 describe('checkVictory', () => {
-  it('los ciudadanos ganan al eliminar al último impostor', () => {
+  it('citizens win when the last impostor is eliminated', () => {
     const s = makeSession([
       { id: 'a', role: 'citizen', eliminated: false },
       { id: 'b', role: 'citizen', eliminated: false },
@@ -66,7 +73,7 @@ describe('checkVictory', () => {
     expect(checkVictory(s)).toEqual({ winner: 'citizens', reason: 'allImpostorsCaught' })
   })
 
-  it('el impostor gana cuando hay tantos impostores como ciudadanos activos', () => {
+  it('the impostor wins when active impostors match active citizens', () => {
     const s = makeSession([
       { id: 'a', role: 'impostor', eliminated: false },
       { id: 'b', role: 'citizen', eliminated: false },
@@ -75,7 +82,7 @@ describe('checkVictory', () => {
     expect(checkVictory(s)?.winner).toBe('impostor')
   })
 
-  it('el impostor gana si adivina la palabra', () => {
+  it('the impostor wins after guessing the word', () => {
     const s = makeSession([
       { id: 'a', role: 'impostor', eliminated: false },
       { id: 'b', role: 'citizen', eliminated: false },
@@ -84,7 +91,7 @@ describe('checkVictory', () => {
     expect(checkVictory(s)).toEqual({ winner: 'impostor', reason: 'wordGuessed' })
   })
 
-  it('partida en curso devuelve null', () => {
+  it('returns null while the game is still running', () => {
     const s = makeSession([
       { id: 'a', role: 'impostor', eliminated: false },
       { id: 'b', role: 'citizen', eliminated: false },
@@ -96,7 +103,7 @@ describe('checkVictory', () => {
 })
 
 describe('isPlayerImpostor', () => {
-  it('reconoce al impostor', () => {
+  it('detects the impostor', () => {
     const s = makeSession([
       { id: 'a', role: 'impostor' }, { id: 'b', role: 'citizen' },
     ])

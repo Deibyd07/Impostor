@@ -12,10 +12,12 @@ export function leaderInVotes(votes, players) {
   const leaders = entries.filter(([, c]) => c === max).map(([id]) => id)
   // Necesita mayoría: > 50% de los jugadores activos
   const totalActive = players.filter(p => !p.eliminated).length
-  const hasMajority = leaders.length === 1 && max >= Math.ceil(totalActive / 2)
+  const required = Math.floor(totalActive / 2) + 1
+  const hasMajority = leaders.length === 1 && max >= required
   return {
     ids: leaders,
     count: max,
+    required,
     hasMajority,
     winner: hasMajority ? leaders[0] : null,
   }
