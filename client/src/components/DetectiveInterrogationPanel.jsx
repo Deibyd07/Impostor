@@ -18,7 +18,9 @@ export default function DetectiveInterrogationPanel({
   const [now, setNow] = useState(Date.now())
   const isDetective = role === 'detective'
   const remaining = secondsLeft(interrogation?.expiresAt, now)
-  const hasPrivatePrompt = !!interrogation?.prompt
+  const canSeePrompt = !!interrogation?.prompt && (
+    myId === interrogation.detectiveId || myId === interrogation.targetId
+  )
   const candidates = players.filter(p => !p.eliminated && !p.disconnected && p.id !== myId)
   const selected = candidates.find(p => p.id === selectedId)
 
@@ -42,7 +44,7 @@ export default function DetectiveInterrogationPanel({
       {interrogation && (
         <>
           <SectionHeader right={remaining > 0 ? `${remaining}s` : 'Cerrando'}>Interrogatorio</SectionHeader>
-          {hasPrivatePrompt ? (
+          {canSeePrompt ? (
           <div className="grain grain-heavy" style={{
             position: 'relative',
             overflow: 'hidden',

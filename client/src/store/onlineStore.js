@@ -7,6 +7,29 @@ import { normalizeAvatar, rememberAvatarForName } from '../data/avatars.js'
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 const SESSION_KEY = 'el-impostor-online-session'
 const CHAT_MESSAGE_LIMIT = 50
+const INTERROGATION_CLEAR_GRACE_MS = 1500
+
+let interrogationClearTimer = null
+
+function clearInterrogationClearTimer() {
+  if (!interrogationClearTimer) return
+  clearTimeout(interrogationClearTimer)
+  interrogationClearTimer = null
+}
+
+function scheduleInterrogationClear(interrogation, set) {
+  clearInterrogationClearTimer()
+  if (!interrogation?.id || !interrogation.expiresAt) return
+  const delay = Math.max(0, interrogation.expiresAt - Date.now() + INTERROGATION_CLEAR_GRACE_MS)
+  interrogationClearTimer = setTimeout(() => {
+    set((s) => (
+      !s.detectiveInterrogation || s.detectiveInterrogation.id === interrogation.id
+        ? { detectiveInterrogation: null }
+        : s
+    ))
+    interrogationClearTimer = null
+  }, delay)
+}
 
 function loadSession() {
   try {
@@ -114,6 +137,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
       })
+      scheduleInterrogationClear(room.interrogation, set)
       saveSession({
         code,
         name: you?.name || get().myName,
@@ -135,6 +159,7 @@ export const useOnlineStore = create((set, get) => ({
       set({ players, isHost: isCurrentHost(players, myId, isHost) })
     })
     socket.on('room:hostAssigned', ({ room }) => {
+      scheduleInterrogationClear(room?.interrogation, set)
       set({
         isHost: true,
         players: room?.players || get().players,
@@ -152,6 +177,7 @@ export const useOnlineStore = create((set, get) => ({
 
     socket.on('game:started', () => {
       sfx.startGame()
+      clearInterrogationClearTimer()
       set({
         phase: 'reveal',
         votes: {},
@@ -176,6 +202,7 @@ export const useOnlineStore = create((set, get) => ({
         ...(phase !== 'discussion' ? { detectiveInterrogation: null } : {}),
       }
       if (phase === 'voting') update.votersReady = 0
+      if (phase !== 'discussion') clearInterrogationClearTimer()
       set(update)
       if (phase === 'voting') sfx.startVoting()
     })
@@ -194,10 +221,12 @@ export const useOnlineStore = create((set, get) => ({
         detectiveInterrogation: interrogation,
         detectiveInterrogationUsed: s.detectiveInterrogationUsed || interrogation.detectiveId === s.myId,
       }))
+      scheduleInterrogationClear(interrogation, set)
       sfx.startInterrogation()
       toast.info(`Interrogatorio a ${interrogation.targetName}`, { duration: 3000 })
     })
     socket.on('game:interrogationEnded', ({ id }) => {
+      clearInterrogationClearTimer()
       set((s) => (
         !s.detectiveInterrogation || s.detectiveInterrogation.id === id
           ? { detectiveInterrogation: null }
@@ -242,6 +271,7 @@ export const useOnlineStore = create((set, get) => ({
       toast.warn(`Podrás adivinar en la ronda ${availableAt}`, { duration: 3500 })
     })
     socket.on('game:over', (result) => {
+      clearInterrogationClearTimer()
       set({ phase: 'ended', result, detectiveInterrogation: null })
       if (result?.winner === 'impostor' && result?.reason === 'wordGuessed') sfx.guessCorrect()
     })
@@ -259,6 +289,7 @@ export const useOnlineStore = create((set, get) => ({
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
       })
+      scheduleInterrogationClear(room.interrogation, set)
       saveSession({ ...loadSession(), code: get().roomCode, name: get().myName })
       toast.success('Nueva partida en la misma sala', { duration: 2500 })
     })
@@ -272,6 +303,7 @@ export const useOnlineStore = create((set, get) => ({
       socket.disconnect()
     }
     clearSession()
+    clearInterrogationClearTimer()
     set({
       socket: null,
       connected: false,
@@ -305,6 +337,7 @@ export const useOnlineStore = create((set, get) => ({
   leaveRoom: () => {
     get().socket?.emit('room:leave')
     clearSession()
+    clearInterrogationClearTimer()
     set({
       roomCode: null,
       isHost: false,
