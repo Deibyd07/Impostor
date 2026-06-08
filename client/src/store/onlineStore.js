@@ -95,7 +95,7 @@ export const useOnlineStore = create((set, get) => ({
       toast.error(message || 'Error en la sala', { title: 'Sala' })
     })
 
-    socket.on('game:started', () => set({ phase: 'reveal', votes: {}, votedFor: null, guessAttempts: 0, round: 1, lastGuessRound: -1, lastTie: null }))
+    socket.on('game:started', () => set({ phase: 'reveal', votes: {}, votedFor: null, guessAttempts: 0, round: 1, lastGuessRound: -1, speakOrder: [], lastTie: null }))
     socket.on('game:yourRole', ({ role, word, clue }) => {
       set({ myRole: role, myWord: word, myClue: clue })
     })

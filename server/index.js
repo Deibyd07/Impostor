@@ -256,8 +256,9 @@ function tryResolveVotes(room) {
     room.votes = {}; room.voters = {}
     room.round += 1
     room.phase = 'discussion'
-    io.to(room.code).emit('game:phase', { phase: 'discussion' })
-    io.to(room.code).emit('game:newRound', { round: room.round })
+    const speakOrderTie = makeSpeakOrder(room)
+    io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder: speakOrderTie })
+    io.to(room.code).emit('game:newRound', { round: room.round, speakOrder: speakOrderTie })
     return
   }
   const [eliminatedId] = leaders[0]
@@ -278,8 +279,9 @@ function tryResolveVotes(room) {
     room.votes = {}; room.voters = {}
     room.round += 1
     room.phase = 'discussion'
-    io.to(room.code).emit('game:phase', { phase: 'discussion' })
-    io.to(room.code).emit('game:newRound', { round: room.round })
+    const speakOrderElim = makeSpeakOrder(room)
+    io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder: speakOrderElim })
+    io.to(room.code).emit('game:newRound', { round: room.round, speakOrder: speakOrderElim })
   }
 }
 
