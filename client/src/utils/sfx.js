@@ -1,7 +1,44 @@
-// SFX sintetizado con Web Audio API + vibración. Sin assets.
 import { usePrefsStore } from '../store/prefsStore.js'
 
+const SOUND_BASE = '/sounds/'
+
+const MUSIC = {
+  lobby: { src: 'menu-lobby-loop.mp3', volume: 0.34 },
+  discussion: { src: 'discusion-loop.mp3', volume: 0.24 },
+  interrogation: { src: 'interrogatorio-detective-loop.mp3', volume: 0.36 },
+  voting: { src: 'votacion-loop.mp3', volume: 0.3 },
+}
+
+const EVENTS = {
+  startGame: { src: 'inicio-partida.mp3', volume: 0.72 },
+  startVoting: { src: 'inicio-votacion.mp3', volume: 0.76 },
+  startInterrogation: { src: 'inicio-interrogatorio.mp3', volume: 0.78 },
+  chatMessage: { src: 'mensaje-chat.mp3', volume: 0.52 },
+  eliminate: { src: 'jugador-eliminado.mp3', volume: 0.78 },
+  tie: { src: 'empate.mp3', volume: 0.72 },
+  guessCorrect: { src: 'adivinanza-correcta.mp3', volume: 0.78 },
+  guessWrong: { src: 'adivinanza-incorrecta.mp3', volume: 0.72 },
+  revealCitizen: { src: 'revelar-ciudadano.mp3', volume: 0.68 },
+  revealImpostor: { src: 'revelar-impostor.mp3', volume: 0.78 },
+  revealImpostorClue: { src: 'revelar-impostor-pista.mp3', volume: 0.78 },
+  revealImpostorBlind: { src: 'revelar-impostor-ciego.mp3', volume: 0.72 },
+  revealDetective: { src: 'revelar-detective.mp3', volume: 0.82 },
+  winCitizens: { src: 'victoria-ciudadanos.mp3', volume: 0.84 },
+  winImpostor: { src: 'victoria-impostor.mp3', volume: 0.84 },
+}
+
 let ctx = null
+let currentMusic = null
+let currentMusicKey = null
+let desiredMusicKey = null
+let unlockListenersReady = false
+
+const audioCache = new Map()
+
+function soundEnabled() {
+  return usePrefsStore.getState().sound
+}
+
 function ac() {
   if (typeof window === 'undefined') return null
   if (!ctx) {
@@ -13,14 +50,116 @@ function ac() {
   return ctx
 }
 
+function canUseAudio() {
+  return typeof window !== 'undefined' && typeof window.Audio === 'function'
+}
+
+function assetUrl(src) {
+  return `${SOUND_BASE}${src}`
+}
+
+function getAudio(def, { loop = false } = {}) {
+  if (!def?.src || !canUseAudio()) return null
+  const key = `${loop ? 'loop' : 'shot'}:${def.src}`
+  if (!audioCache.has(key)) {
+    const audio = new window.Audio(assetUrl(def.src))
+    audio.preload = 'auto'
+    audio.loop = loop
+    audio.volume = def.volume ?? 0.7
+    audioCache.set(key, audio)
+  }
+  const audio = audioCache.get(key)
+  audio.loop = loop
+  audio.volume = def.volume ?? audio.volume
+  return audio
+}
+
+function playEvent(name, fallback) {
+  if (!soundEnabled()) return
+  const def = EVENTS[name]
+  const audio = getAudio(def)
+  if (!audio) {
+    fallback?.()
+    return
+  }
+  try {
+    audio.pause()
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  } catch {
+    fallback?.()
+  }
+}
+
+function stopActiveMusic({ clearDesired = false } = {}) {
+  if (clearDesired) desiredMusicKey = null
+  if (!currentMusic) {
+    currentMusicKey = null
+    return
+  }
+  try {
+    currentMusic.pause()
+    currentMusic.currentTime = 0
+  } catch {}
+  currentMusic = null
+  currentMusicKey = null
+}
+
+function startMusic(key) {
+  desiredMusicKey = key
+  if (!key || !MUSIC[key]) {
+    stopActiveMusic({ clearDesired: !key })
+    return
+  }
+  if (!soundEnabled()) {
+    stopActiveMusic()
+    return
+  }
+  if (currentMusicKey === key && currentMusic) {
+    currentMusic.play().catch(() => {})
+    return
+  }
+  stopActiveMusic()
+  const audio = getAudio(MUSIC[key], { loop: true })
+  if (!audio) return
+  currentMusic = audio
+  currentMusicKey = key
+  audio.currentTime = 0
+  audio.play().catch(() => {})
+}
+
+function preloadAssets() {
+  if (!canUseAudio()) return
+  Object.values(MUSIC).forEach(def => getAudio(def, { loop: true }))
+  Object.values(EVENTS).forEach(def => getAudio(def))
+}
+
+function unlockAudio() {
+  const c = ac()
+  if (c?.state === 'suspended') c.resume().catch(() => {})
+  preloadAssets()
+  if (desiredMusicKey) startMusic(desiredMusicKey)
+}
+
+function registerUnlockListeners() {
+  if (unlockListenersReady || typeof window === 'undefined') return
+  unlockListenersReady = true
+  const unlock = () => {
+    unlockAudio()
+    window.removeEventListener('pointerdown', unlock, true)
+    window.removeEventListener('keydown', unlock, true)
+  }
+  window.addEventListener('pointerdown', unlock, true)
+  window.addEventListener('keydown', unlock, true)
+}
+
 function tone({
   freq = 440, dur = 0.2, type = 'sine',
   attack = 0.005, decay = 0.05, sustain = 0.6, release = 0.1,
   gain = 0.2, freqEnd, slideTime,
 } = {}) {
   const c = ac()
-  if (!c) return
-  if (!usePrefsStore.getState().sound) return
+  if (!c || !soundEnabled()) return
   const t0 = c.currentTime
   const osc = c.createOscillator()
   const g = c.createGain()
@@ -41,8 +180,7 @@ function tone({
 
 function noise({ dur = 0.15, gain = 0.18, filterHz = 1200 } = {}) {
   const c = ac()
-  if (!c) return
-  if (!usePrefsStore.getState().sound) return
+  if (!c || !soundEnabled()) return
   const t0 = c.currentTime
   const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate)
   const data = buf.getChannelData(0)
@@ -55,7 +193,9 @@ function noise({ dur = 0.15, gain = 0.18, filterHz = 1200 } = {}) {
   const g = c.createGain()
   g.gain.setValueAtTime(gain, t0)
   g.gain.linearRampToValueAtTime(0, t0 + dur)
-  src.connect(flt); flt.connect(g); g.connect(c.destination)
+  src.connect(flt)
+  flt.connect(g)
+  g.connect(c.destination)
   src.start(t0)
 }
 
@@ -66,37 +206,112 @@ function vibrate(pattern) {
   }
 }
 
-export const sfx = {
-  unlock() {
-    const c = ac()
-    if (c?.state === 'suspended') c.resume().catch(() => {})
-  },
-
+const fallback = {
   tap() {
     tone({ freq: 880, dur: 0.04, type: 'sine', gain: 0.08, release: 0.04 })
   },
-
-  reveal() {
-    tone({ freq: 220, freqEnd: 90, slideTime: 0.45, dur: 0.45, type: 'sawtooth', gain: 0.18, release: 0.2 })
-    setTimeout(() => noise({ dur: 0.18, gain: 0.08, filterHz: 600 }), 120)
-    vibrate([40, 30, 70])
-  },
-
   revealImpostor() {
     tone({ freq: 140, freqEnd: 50, slideTime: 0.6, dur: 0.6, type: 'square', gain: 0.16, release: 0.3 })
     tone({ freq: 70, freqEnd: 40, slideTime: 0.6, dur: 0.6, type: 'sine', gain: 0.18, release: 0.3 })
     setTimeout(() => noise({ dur: 0.3, gain: 0.12, filterHz: 400 }), 60)
-    vibrate([60, 40, 120, 50, 180])
   },
-
   revealCitizen() {
     tone({ freq: 523.25, dur: 0.18, type: 'sine', gain: 0.13 })
     setTimeout(() => tone({ freq: 783.99, dur: 0.22, type: 'sine', gain: 0.13 }), 110)
+  },
+  vote() {
+    tone({ freq: 260, dur: 0.06, type: 'triangle', gain: 0.14, release: 0.05 })
+  },
+  eliminate() {
+    tone({ freq: 330, freqEnd: 110, slideTime: 0.5, dur: 0.5, type: 'sawtooth', gain: 0.18, release: 0.2 })
+    noise({ dur: 0.22, gain: 0.1, filterHz: 800 })
+  },
+  tie() {
+    tone({ freq: 200, dur: 0.18, type: 'square', gain: 0.12 })
+    setTimeout(() => tone({ freq: 180, dur: 0.18, type: 'square', gain: 0.12 }), 200)
+  },
+  winCitizens() {
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      setTimeout(() => tone({ freq, dur: 0.18, type: 'triangle', gain: 0.16 }), i * 110)
+    })
+  },
+  winImpostor() {
+    tone({ freq: 80, dur: 0.9, type: 'sawtooth', gain: 0.2, release: 0.4 })
+    tone({ freq: 55, dur: 1.0, type: 'square', gain: 0.16, release: 0.4 })
+    setTimeout(() => noise({ dur: 0.5, gain: 0.12, filterHz: 350 }), 100)
+  },
+}
+
+usePrefsStore.subscribe((state, previous) => {
+  if (state.sound === previous.sound) return
+  if (!state.sound) {
+    stopActiveMusic()
+    return
+  }
+  unlockAudio()
+})
+
+registerUnlockListeners()
+
+export const sfx = {
+  unlock: unlockAudio,
+
+  music(key) {
+    startMusic(key)
+  },
+
+  stopMusic() {
+    stopActiveMusic({ clearDesired: true })
+  },
+
+  tap() {
+    fallback.tap()
+  },
+
+  reveal() {
+    playEvent('revealCitizen', fallback.revealCitizen)
+    vibrate([40, 30, 70])
+  },
+
+  revealCitizen() {
+    playEvent('revealCitizen', fallback.revealCitizen)
     vibrate(35)
   },
 
+  revealImpostor() {
+    playEvent('revealImpostor', fallback.revealImpostor)
+    vibrate([60, 40, 120, 50, 180])
+  },
+
+  revealImpostorClue() {
+    playEvent('revealImpostorClue', fallback.revealImpostor)
+    vibrate([60, 40, 120, 50, 180])
+  },
+
+  revealImpostorBlind({ conceal = true } = {}) {
+    if (conceal) {
+      this.revealCitizen()
+      return
+    }
+    playEvent('revealImpostorBlind', fallback.revealCitizen)
+    vibrate([35, 25, 55])
+  },
+
+  revealDetective() {
+    playEvent('revealDetective', fallback.revealCitizen)
+    vibrate([50, 30, 90])
+  },
+
+  revealRole(role, { concealBlind = true } = {}) {
+    if (role === 'detective') return this.revealDetective()
+    if (role === 'impostor-clue') return this.revealImpostorClue()
+    if (role === 'impostor-blind') return this.revealImpostorBlind({ conceal: concealBlind })
+    if (role === 'impostor') return this.revealImpostor()
+    return this.revealCitizen()
+  },
+
   vote() {
-    tone({ freq: 260, dur: 0.06, type: 'triangle', gain: 0.14, release: 0.05 })
+    fallback.vote()
     vibrate(20)
   },
 
@@ -106,30 +321,52 @@ export const sfx = {
     vibrate(30)
   },
 
+  startGame() {
+    playEvent('startGame')
+    vibrate([35, 25, 55])
+  },
+
+  startVoting() {
+    playEvent('startVoting')
+    vibrate([50, 40, 70])
+  },
+
+  startInterrogation() {
+    playEvent('startInterrogation')
+    vibrate([80, 40, 120])
+  },
+
+  chatMessage() {
+    playEvent('chatMessage')
+  },
+
   eliminate() {
-    tone({ freq: 330, freqEnd: 110, slideTime: 0.5, dur: 0.5, type: 'sawtooth', gain: 0.18, release: 0.2 })
-    noise({ dur: 0.22, gain: 0.1, filterHz: 800 })
+    playEvent('eliminate', fallback.eliminate)
     vibrate([80, 60, 120])
   },
 
   tie() {
-    tone({ freq: 200, dur: 0.18, type: 'square', gain: 0.12 })
-    setTimeout(() => tone({ freq: 180, dur: 0.18, type: 'square', gain: 0.12 }), 200)
+    playEvent('tie', fallback.tie)
     vibrate([40, 60, 40])
   },
 
+  guessWrong() {
+    playEvent('guessWrong', fallback.tie)
+    vibrate([40, 40, 80])
+  },
+
+  guessCorrect() {
+    playEvent('guessCorrect', fallback.winCitizens)
+    vibrate([50, 30, 50, 30, 100])
+  },
+
   winCitizens() {
-    const notes = [523.25, 659.25, 783.99, 1046.5]
-    notes.forEach((f, i) => setTimeout(() => {
-      tone({ freq: f, dur: 0.18, type: 'triangle', gain: 0.16 })
-    }, i * 110))
+    playEvent('winCitizens', fallback.winCitizens)
     vibrate([60, 40, 60, 40, 120])
   },
 
   winImpostor() {
-    tone({ freq: 80, dur: 0.9, type: 'sawtooth', gain: 0.2, release: 0.4 })
-    tone({ freq: 55, dur: 1.0, type: 'square', gain: 0.16, release: 0.4 })
-    setTimeout(() => noise({ dur: 0.5, gain: 0.12, filterHz: 350 }), 100)
+    playEvent('winImpostor', fallback.winImpostor)
     vibrate([120, 80, 200, 80, 300])
   },
 

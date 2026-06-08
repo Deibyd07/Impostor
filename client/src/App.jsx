@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Navigate, useLocation } from 'react-router-dom'
 
 import Home from './screens/local/Home.jsx'
 import HowToPlay from './screens/local/HowToPlay.jsx'
@@ -23,6 +24,9 @@ import EndOnline from './screens/online/EndOnline.jsx'
 
 import ToastHost from './components/ToastHost.jsx'
 import RouteTransition from './components/RouteTransition.jsx'
+import { useGameStore } from './store/gameStore.js'
+import { useOnlineStore } from './store/onlineStore.js'
+import { sfx } from './utils/sfx.js'
 
 const routes = [
   { path: '/', element: <Home /> },
@@ -54,10 +58,41 @@ export default function App() {
     <div className="app-shell">
       <div className="app-frame">
         <BrowserRouter>
+          <SoundDirector />
           <RouteTransition routes={routes} />
         </BrowserRouter>
         <ToastHost />
       </div>
     </div>
   )
+}
+
+function SoundDirector() {
+  const { pathname } = useLocation()
+  const localPhase = useGameStore(s => s.session?.phase)
+  const onlinePhase = useOnlineStore(s => s.phase)
+  const detectiveInterrogation = useOnlineStore(s => s.detectiveInterrogation)
+
+  const loop = resolveMusicLoop(pathname, {
+    localPhase,
+    onlinePhase,
+    detectiveInterrogation,
+  })
+
+  useEffect(() => {
+    if (loop) sfx.music(loop)
+    else sfx.stopMusic()
+  }, [loop])
+
+  return null
+}
+
+function resolveMusicLoop(pathname, { detectiveInterrogation }) {
+  if (['/', '/how', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
+    return 'lobby'
+  }
+  if (pathname === '/game' || pathname === '/online/spectator') return 'discussion'
+  if (pathname === '/online/discussion') return detectiveInterrogation ? 'interrogation' : 'discussion'
+  if (pathname === '/game/vote' || pathname === '/online/vote' || pathname === '/online/vote-sent') return 'voting'
+  return null
 }

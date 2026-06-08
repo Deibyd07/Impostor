@@ -9,6 +9,7 @@ import { useGameStore } from '../../store/gameStore.js'
 import { categories } from '../../data/wordBank.js'
 import { avatarForPlayer, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 import { shuffle } from '../../utils/random.js'
+import { sfx } from '../../utils/sfx.js'
 
 const nameSeeds = ['Carlos','María','Andrés','Sofía','Diego','Camila','Mateo','Valentina','Lucas','Isabella','Daniel','Lucía','Sebastián','Paula','Tomás','Renata']
 
@@ -67,6 +68,7 @@ export default function Setup() {
     }))
   }
   const onDeal = () => {
+    sfx.startGame()
     startSession()
     navigate('/game/pass')
   }

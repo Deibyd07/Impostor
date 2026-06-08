@@ -140,19 +140,22 @@ export const useOnlineStore = create((set, get) => ({
       toast.error(message || 'Error en la sala', { title: 'Sala' })
     })
 
-    socket.on('game:started', () => set({
-      phase: 'reveal',
-      votes: {},
-      votedFor: null,
-      guessAttempts: 0,
-      round: 1,
-      lastGuessRound: -1,
-      speakOrder: [],
-      lastTie: null,
-      chatMessages: [],
-      detectiveInterrogation: null,
-      detectiveInterrogationUsed: false,
-    }))
+    socket.on('game:started', () => {
+      sfx.startGame()
+      set({
+        phase: 'reveal',
+        votes: {},
+        votedFor: null,
+        guessAttempts: 0,
+        round: 1,
+        lastGuessRound: -1,
+        speakOrder: [],
+        lastTie: null,
+        chatMessages: [],
+        detectiveInterrogation: null,
+        detectiveInterrogationUsed: false,
+      })
+    })
     socket.on('game:yourRole', ({ role, word, clue, detectiveInterrogationUsed }) => {
       set({ myRole: role, myWord: word, myClue: clue, detectiveInterrogationUsed: !!detectiveInterrogationUsed })
     })
@@ -164,11 +167,13 @@ export const useOnlineStore = create((set, get) => ({
       }
       if (phase === 'voting') update.votersReady = 0
       set(update)
+      if (phase === 'voting') sfx.startVoting()
     })
     socket.on('vote:update', ({ votes, votersReady }) => set({ votes, votersReady }))
     socket.on('chat:message', ({ message }) => {
       if (!message?.id) return
       set((s) => ({ chatMessages: [...s.chatMessages, message].slice(-CHAT_MESSAGE_LIMIT) }))
+      if (message.playerId !== get().myId) sfx.chatMessage()
     })
     socket.on('chat:error', ({ message }) => {
       toast.warn(message || 'No se pudo enviar el mensaje', { duration: 2500 })
@@ -179,6 +184,7 @@ export const useOnlineStore = create((set, get) => ({
         detectiveInterrogation: interrogation,
         detectiveInterrogationUsed: s.detectiveInterrogationUsed || interrogation.detectiveId === s.myId,
       }))
+      sfx.startInterrogation()
       toast.info(`Interrogatorio a ${interrogation.targetName}`, { duration: 3000 })
     })
     socket.on('game:interrogationEnded', ({ id }) => {
@@ -214,6 +220,7 @@ export const useOnlineStore = create((set, get) => ({
     })
     socket.on('game:guessFailed', ({ socketId }) => {
       const { myId } = get()
+      sfx.guessWrong()
       if (socketId === myId) {
         set((s) => ({ guessAttempts: s.guessAttempts + 1, lastGuessRound: s.round }))
         toast.error('Palabra incorrecta', { duration: 3000 })
@@ -226,8 +233,7 @@ export const useOnlineStore = create((set, get) => ({
     })
     socket.on('game:over', (result) => {
       set({ phase: 'ended', result, detectiveInterrogation: null })
-      if (result?.winner === 'citizens') sfx.winCitizens()
-      else if (result?.winner === 'impostor') sfx.winImpostor()
+      if (result?.winner === 'impostor' && result?.reason === 'wordGuessed') sfx.guessCorrect()
     })
     socket.on('game:newRound', ({ round, speakOrder }) => set({ votes: {}, votedFor: null, phase: 'discussion', round, ...(speakOrder ? { speakOrder } : {}) }))
     socket.on('room:rematch', ({ room }) => {
@@ -318,6 +324,7 @@ export const useOnlineStore = create((set, get) => ({
 
   castVote: (targetId) => {
     get().socket?.emit('vote:cast', { targetId })
+    sfx.voteCast()
     set((s) => ({ votedFor: targetId, phase: 'voted', votersReady: s.votersReady + 1 }))
   },
 

@@ -20,9 +20,7 @@ export default function CardReveal() {
   const variant = computeVariant(session, player)
 
   useEffect(() => {
-    if (variant === 'impostor' || variant === 'impostor-clue') sfx.revealImpostor()
-    else if (variant === 'impostor-blind') sfx.revealCitizen()
-    else sfx.revealCitizen()
+    sfx.revealRole(variant, { concealBlind: true })
   }, [variant])
   const word = player.role === 'citizen' ? session.word
     : session.config.mode === 'blind' ? session.fakeWord

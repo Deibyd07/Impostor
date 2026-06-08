@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import VoteCard from '../../components/VoteCard.jsx'
 import { useGameStore } from '../../store/gameStore.js'
@@ -13,6 +13,10 @@ export default function Voting() {
   const clearVotes = useGameStore(s => s.clearVotes)
   const confirmElimination = useGameStore(s => s.confirmElimination)
   const [pendingReveal, setPendingReveal] = useState(null)
+
+  useEffect(() => {
+    sfx.startVoting()
+  }, [])
 
   if (!session) { navigate('/'); return null }
   const activePlayers = session.players.filter(p => !p.eliminated)

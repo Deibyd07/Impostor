@@ -5,6 +5,7 @@ import RoleCard from '../../components/RoleCard.jsx'
 import Badge from '../../components/Badge.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { useTimer } from '../../hooks/useTimer.js'
+import { sfx } from '../../utils/sfx.js'
 
 const TOTAL = 8
 
@@ -26,6 +27,10 @@ export default function MyCard() {
     if (phase === 'ended') navigate('/online/end')
     if (phase === 'spectator') navigate('/online/spectator')
   }, [phase, navigate])
+
+  useEffect(() => {
+    if (myRole) sfx.revealRole(myRole, { concealBlind: true })
+  }, [myRole])
 
   if (!myRole) {
     return (
