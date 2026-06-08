@@ -2,8 +2,10 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { appendRecentWord, buildSession } from '../utils/roleAssigner.js'
 import { checkVictory, leaderInVotes, activePlayers } from '../utils/gameLogic.js'
+import { avatarForPlayer } from '../data/avatars.js'
 
-const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía'].map((n, i) => ({ id: String(i), name: n }))
+const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía']
+  .map((n, i) => ({ id: String(i), name: n, avatar: avatarForPlayer({ name: n }) }))
 
 const defaultConfig = {
   players: defaultPlayers,
@@ -17,12 +19,25 @@ const defaultConfig = {
 }
 
 function buildTrackedSession(config, recentWords) {
-  const session = buildSession(config, { recentWords })
+  const cfg = { ...config, players: normalizePlayers(config.players) }
+  const session = buildSession(cfg, { recentWords })
   const baseHistory = session.wordHistoryReset ? [] : recentWords
   return {
     session,
     recentWords: appendRecentWord(baseHistory, session.word),
   }
+}
+
+function normalizePlayers(players = []) {
+  return players.map((player, index) => {
+    const name = player.name || `Jugador ${index + 1}`
+    return {
+      ...player,
+      id: player.id ?? String(index),
+      name,
+      avatar: avatarForPlayer({ ...player, name }),
+    }
+  })
 }
 
 export const useGameStore = create(
@@ -33,7 +48,7 @@ export const useGameStore = create(
       recentWords: [],
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
-      setPlayers: (players) => set((s) => ({ config: { ...s.config, players } })),
+      setPlayers: (players) => set((s) => ({ config: { ...s.config, players: normalizePlayers(players) } })),
 
       // ----- Lifecycle -----
       startSession: () => {

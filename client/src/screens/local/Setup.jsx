@@ -7,6 +7,7 @@ import ModeCard from '../../components/ModeCard.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { categories } from '../../data/wordBank.js'
+import { avatarForPlayer, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 import { shuffle } from '../../utils/random.js'
 
 const nameSeeds = ['Carlos','María','Andrés','Sofía','Diego','Camila','Mateo','Valentina','Lucas','Isabella','Daniel','Lucía','Sebastián','Paula','Tomás','Renata']
@@ -24,12 +25,23 @@ export default function Setup() {
   const playerCount = players.length
 
   const renamePlayer = (i, name) => {
-    const next = players.map((p, idx) => idx === i ? { ...p, name } : p)
+    const next = players.map((p, idx) => {
+      if (idx !== i) return p
+      const savedAvatar = savedAvatarForName(name)
+      return { ...p, name, avatar: savedAvatar || p.avatar || avatarForPlayer({ name }) }
+    })
+    setPlayers(next)
+  }
+  const changeAvatar = (i, avatar) => {
+    const next = players.map((p, idx) => idx === i ? { ...p, avatar } : p)
+    const player = next[i]
+    rememberAvatarForName(player.name, avatar)
     setPlayers(next)
   }
   const addPlayer = () => {
     if (playerCount >= 12) return
-    setPlayers([...players, { id: String(Date.now() + Math.random()), name: defaultName(playerCount) }])
+    const name = defaultName(playerCount)
+    setPlayers([...players, { id: String(Date.now() + Math.random()), name, avatar: avatarForPlayer({ name }) }])
   }
   const removePlayer = (i) => {
     if (playerCount <= 3) return
@@ -40,6 +52,7 @@ export default function Setup() {
       const extra = Array.from({ length: n - playerCount }, (_, k) => ({
         id: String(Date.now() + Math.random() + k),
         name: defaultName(playerCount + k),
+        avatar: avatarForPlayer({ name: defaultName(playerCount + k) }),
       }))
       setPlayers([...players, ...extra])
     } else {
@@ -48,7 +61,10 @@ export default function Setup() {
   }
   const randomize = () => {
     const names = shuffle(nameSeeds).slice(0, playerCount)
-    setPlayers(players.map((p, i) => ({ ...p, name: names[i] || p.name })))
+    setPlayers(players.map((p, i) => {
+      const name = names[i] || p.name
+      return { ...p, name, avatar: savedAvatarForName(name) || p.avatar || avatarForPlayer({ name }) }
+    }))
   }
   const onDeal = () => {
     startSession()
@@ -95,8 +111,10 @@ export default function Setup() {
           {players.map((p, i) => (
             <PlayerChip key={p.id}
               name={p.name}
+              avatar={p.avatar}
               editable
               onChange={(name) => renamePlayer(i, name)}
+              onAvatarChange={(avatar) => changeAvatar(i, avatar)}
               onRemove={playerCount > 3 ? () => removePlayer(i) : undefined}
             />
           ))}

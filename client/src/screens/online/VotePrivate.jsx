@@ -44,6 +44,7 @@ export default function VotePrivate() {
             <VoteCard
               key={p.id}
               name={p.name}
+              avatar={p.avatar}
               votes={0}
               disabled={!!votedFor}
               onClick={() => castVote(p.id)}

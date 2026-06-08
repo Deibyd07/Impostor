@@ -86,7 +86,13 @@ export default function Discussion() {
           <SectionHeader>En la mesa</SectionHeader>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
             {players.map(p => (
-              <PlayerChip key={p.id} name={p.name} eliminated={p.eliminated} disconnected={p.disconnected} />
+              <PlayerChip
+                key={p.id}
+                name={p.name}
+                avatar={p.avatar}
+                eliminated={p.eliminated}
+                disconnected={p.disconnected}
+              />
             ))}
           </div>
         </div>

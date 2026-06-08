@@ -4,6 +4,7 @@ import http from 'http'
 import { Server } from 'socket.io'
 import { customAlphabet } from 'nanoid'
 import { wordBank, categories, relatedWords } from './wordBank.js'
+import { normalizeAvatar } from './avatars.js'
 
 const app = express()
 app.use(cors())
@@ -177,12 +178,13 @@ function newCode() {
   return code
 }
 
-function makeRoom(hostSocketId, hostName, config) {
+function makeRoom(hostSocketId, hostName, avatar, config) {
   const code = newCode()
   const player = {
     id: hostSocketId, socketId: hostSocketId,
     sessionToken: tokenGen(),
-    name: hostName, isHost: true, ready: false, eliminated: false, disconnected: false,
+    name: hostName, avatar: normalizeAvatar(avatar, hostName),
+    isHost: true, ready: false, eliminated: false, disconnected: false,
   }
   const room = {
     code, hostId: hostSocketId,
@@ -210,7 +212,8 @@ function sanitizeRoom(room) {
     code: room.code,
     config: room.config,
     players: room.players.map(p => ({
-      id: p.id, name: p.name, isHost: p.isHost, ready: p.ready,
+      id: p.id, name: p.name, avatar: normalizeAvatar(p.avatar, p.name),
+      isHost: p.isHost, ready: p.ready,
       eliminated: p.eliminated, disconnected: !!p.disconnected,
     })),
     phase: room.phase, round: room.round,
@@ -221,6 +224,7 @@ function privatePlayerPayload(player) {
   return {
     id: player.id,
     name: player.name,
+    avatar: normalizeAvatar(player.avatar, player.name),
     isHost: player.isHost,
     sessionToken: player.sessionToken,
   }
@@ -302,7 +306,12 @@ function gameOverPayload(room, victory) {
     gameId: room.gameId,
     winner: victory.winner, reason: victory.reason,
     impostorIds, word: room.word, fakeWord: room.fakeWord,
-    players: room.players.map(p => ({ id: p.id, name: p.name, role: room.roles[p.id] })),
+    players: room.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      avatar: normalizeAvatar(p.avatar, p.name),
+      role: room.roles[p.id],
+    })),
   }
 }
 
@@ -426,11 +435,11 @@ function findPlayerForResume(room, name, sessionToken) {
 
 io.on('connection', (socket) => {
 
-  socket.on('room:create', ({ hostName, config } = {}) => {
+  socket.on('room:create', ({ hostName, avatar, config } = {}) => {
     if (!allow(socket.id, 2)) return
     const name = sanitizeName(hostName)
     if (!name) { socket.emit('room:error', { message: 'Nombre inválido' }); return }
-    const room = makeRoom(socket.id, name, config || {})
+    const room = makeRoom(socket.id, name, avatar, config || {})
     socket.join(room.code)
     socket.emit('room:created', {
       code: room.code,
@@ -439,7 +448,7 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on('room:join', ({ code, playerName } = {}) => {
+  socket.on('room:join', ({ code, playerName, avatar } = {}) => {
     if (!allow(socket.id, 2)) return
     if (!isValidCode(code)) { socket.emit('room:error', { message: 'Código inválido' }); return }
     const name = sanitizeName(playerName)
@@ -452,7 +461,8 @@ io.on('connection', (socket) => {
     const player = {
       id: socket.id, socketId: socket.id,
       sessionToken: tokenGen(),
-      name, isHost: false, ready: false, eliminated: false, disconnected: false,
+      name, avatar: normalizeAvatar(avatar, name),
+      isHost: false, ready: false, eliminated: false, disconnected: false,
     }
     room.players.push(player)
     socket.join(room.code)

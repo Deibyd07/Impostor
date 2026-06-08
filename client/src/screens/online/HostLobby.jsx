@@ -5,12 +5,14 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import ConnectedPlayer from '../../components/ConnectedPlayer.jsx'
+import AvatarPicker from '../../components/AvatarPicker.jsx'
 import CornerOrnament from '../../components/CornerOrnament.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { categories } from '../../data/wordBank.js'
+import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 
 export default function HostLobby() {
   const navigate = useNavigate()
@@ -26,11 +28,23 @@ export default function HostLobby() {
   const error = useOnlineStore(s => s.error)
   const phase = useOnlineStore(s => s.phase)
   const [hostName, setHostName] = useState('')
+  const [avatar, setAvatar] = useState(defaultAvatarForName(''))
+  const [avatarTouched, setAvatarTouched] = useState(false)
 
   useEffect(() => { connect() }, [connect])
   useEffect(() => {
     if (phase === 'reveal') navigate('/online/card')
   }, [phase, navigate])
+  useEffect(() => {
+    if (avatarTouched) return
+    setAvatar(savedAvatarForName(hostName) || defaultAvatarForName(hostName))
+  }, [hostName, avatarTouched])
+
+  const chooseAvatar = (nextAvatar) => {
+    setAvatar(nextAvatar)
+    setAvatarTouched(true)
+    if (hostName.trim()) rememberAvatarForName(hostName, nextAvatar)
+  }
 
   const joinUrl = roomCode
     ? `${window.location.origin}/online/join?code=${roomCode}`
@@ -46,7 +60,7 @@ export default function HostLobby() {
             onClick={() => createRoom(hostName.trim(), {
               impostorCount: 1, mode: 'classic', category: 'random',
               clueType: 'category', blindIntensity: 'medium', roundTime: '3',
-            })}
+            }, avatar)}
             style={{ padding: '18px 20px', letterSpacing: '0.2em' }}
           >
             {connected ? 'Crear sala' : 'Conectando…'}
@@ -79,6 +93,13 @@ export default function HostLobby() {
                 fontSize: 18, fontWeight: 500, outline: 'none', textAlign: 'center',
               }}
             />
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <div style={{
+              fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
+              letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 10,
+            }}>Avatar</div>
+            <AvatarPicker value={avatar} onChange={chooseAvatar} />
           </div>
           {error && <div style={{ marginTop: 14, color: 'var(--impostor)', textAlign: 'center', fontSize: 13 }}>{error}</div>}
         </div>
@@ -167,7 +188,7 @@ export default function HostLobby() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
           {players.map(p => (
             <ConnectedPlayer
-              key={p.id} name={p.name} isHost={p.isHost}
+              key={p.id} name={p.name} avatar={p.avatar} isHost={p.isHost}
               isYou={p.isHost}
               status={p.ready ? 'ready' : 'waiting'}
             />

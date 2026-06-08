@@ -101,7 +101,7 @@ export default function GameBoard() {
         }}>En la mesa</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24 }}>
           {session.players.map(p => (
-            <PlayerChip key={p.id} name={p.name} eliminated={p.eliminated} />
+            <PlayerChip key={p.id} name={p.name} avatar={p.avatar} eliminated={p.eliminated} />
           ))}
         </div>
 

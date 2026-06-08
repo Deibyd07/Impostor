@@ -1,5 +1,6 @@
 import { shuffle, pickOne, pickWithout } from './random.js'
 import { wordBank, categories, relatedWords } from '../data/wordBank.js'
+import { avatarForPlayer } from '../data/avatars.js'
 
 export const RECENT_WORD_LIMIT = 10
 
@@ -64,6 +65,7 @@ export function buildSession(config, options = {}) {
     return {
       id: p.id ?? String(i),
       name: p.name,
+      avatar: avatarForPlayer(p),
       role: isImpostor ? 'impostor' : 'citizen',
       // Palabra que verá: ciudadanos ven la real, impostores depende del modo
       seenWord: isImpostor

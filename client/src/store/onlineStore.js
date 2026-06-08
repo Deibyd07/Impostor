@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { io } from 'socket.io-client'
 import { toast } from './toastStore.js'
 import { sfx } from '../utils/sfx.js'
+import { normalizeAvatar, rememberAvatarForName } from '../data/avatars.js'
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 const SESSION_KEY = 'el-impostor-online-session'
@@ -30,6 +31,7 @@ export const useOnlineStore = create((set, get) => ({
   isHost: false,
   myId: null,
   myName: '',
+  myAvatar: null,
   players: [],          // [{ id, name, isHost, ready, eliminated }]
   config: null,
   phase: 'lobby',       // lobby | reveal | discussion | voting | voted | ended | spectator
@@ -69,14 +71,16 @@ export const useOnlineStore = create((set, get) => ({
     socket.on('room:created', ({ code, room, you }) => {
       const myId = you?.id || socket.id
       const myName = you?.name || get().myName
-      set({ roomCode: code, isHost: true, myId, myName, players: room.players, config: room.config, phase: 'lobby' })
-      saveSession({ code, name: myName, sessionToken: you?.sessionToken })
+      const myAvatar = normalizeAvatar(you?.avatar || get().myAvatar, myName)
+      set({ roomCode: code, isHost: true, myId, myName, myAvatar, players: room.players, config: room.config, phase: 'lobby' })
+      saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
     socket.on('room:joined', ({ code, room, you }) => {
       const myId = you?.id || socket.id
       const myName = you?.name || get().myName
-      set({ roomCode: code, isHost: false, myId, myName, players: room.players, config: room.config, phase: 'lobby' })
-      saveSession({ code, name: myName, sessionToken: you?.sessionToken })
+      const myAvatar = normalizeAvatar(you?.avatar || get().myAvatar, myName)
+      set({ roomCode: code, isHost: false, myId, myName, myAvatar, players: room.players, config: room.config, phase: 'lobby' })
+      saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
     socket.on('room:resumed', ({ code, room, you }) => {
       set({
@@ -87,8 +91,14 @@ export const useOnlineStore = create((set, get) => ({
         phase: room.phase || 'lobby',
         myId: socket.id,
         myName: you?.name || get().myName,
+        myAvatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
       })
-      saveSession({ code, name: you?.name || get().myName, sessionToken: you?.sessionToken })
+      saveSession({
+        code,
+        name: you?.name || get().myName,
+        avatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
+        sessionToken: you?.sessionToken,
+      })
       if (you?.role) {
         set({ myRole: you.role, myWord: you.word ?? null, myClue: you.clue ?? null })
       }
@@ -169,17 +179,21 @@ export const useOnlineStore = create((set, get) => ({
       socket.disconnect()
     }
     clearSession()
-    set({ socket: null, connected: false, roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null })
+    set({ socket: null, connected: false, roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null, myAvatar: null })
   },
 
-  createRoom: (hostName, config) => {
-    set({ myName: hostName, error: null })
-    get().socket?.emit('room:create', { hostName, config })
+  createRoom: (hostName, config, avatar) => {
+    const myAvatar = normalizeAvatar(avatar, hostName)
+    rememberAvatarForName(hostName, myAvatar)
+    set({ myName: hostName, myAvatar, error: null })
+    get().socket?.emit('room:create', { hostName, avatar: myAvatar, config })
   },
 
-  joinRoom: (code, playerName) => {
-    set({ myName: playerName, error: null })
-    get().socket?.emit('room:join', { code: code.toUpperCase(), playerName })
+  joinRoom: (code, playerName, avatar) => {
+    const myAvatar = normalizeAvatar(avatar, playerName)
+    rememberAvatarForName(playerName, myAvatar)
+    set({ myName: playerName, myAvatar, error: null })
+    get().socket?.emit('room:join', { code: code.toUpperCase(), playerName, avatar: myAvatar })
   },
 
   leaveRoom: () => {

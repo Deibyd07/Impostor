@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
+import AvatarPicker from './AvatarPicker.jsx'
 
 export default function PlayerChip({
-  name, eliminated = false, voted = 0, disconnected = false,
-  onChange, onRemove, editable = false,
+  name, avatar, eliminated = false, voted = 0, disconnected = false,
+  onChange, onRemove, onAvatarChange, editable = false,
 }) {
   const [editing, setEditing] = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
   const inputRef = useRef(null)
   const initial = (name || '?').trim().charAt(0).toUpperCase()
+  const displayAvatar = avatar || initial
 
   useEffect(() => {
     if (editing) inputRef.current?.select()
@@ -17,6 +20,8 @@ export default function PlayerChip({
     const cleaned = (val ?? '').trim()
     if (cleaned && cleaned !== name) onChange?.(cleaned)
   }
+
+  const canPickAvatar = editable && !eliminated && onAvatarChange
 
   return (
     <div style={{
@@ -29,17 +34,48 @@ export default function PlayerChip({
       position: 'relative',
       maxWidth: '100%',
     }}>
-      <div style={{
-        width: 26, height: 26, borderRadius: 999,
-        background: eliminated
-          ? 'linear-gradient(135deg, #2a0a0a, #110404)'
-          : 'linear-gradient(135deg, #2a2a45, #15152a)',
-        color: eliminated ? 'var(--impostor)' : 'var(--gold)',
-        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: 'inset 0 0 0 1px rgba(245, 158, 11, 0.2)',
-        flexShrink: 0,
-      }}>{initial}</div>
+      <button
+        type="button"
+        title={canPickAvatar ? 'Cambiar avatar' : undefined}
+        onClick={() => canPickAvatar && setAvatarOpen(open => !open)}
+        style={{
+          all: 'unset',
+          width: 26, height: 26, borderRadius: 999,
+          background: eliminated
+            ? 'linear-gradient(135deg, #2a0a0a, #110404)'
+            : 'linear-gradient(135deg, #2a2a45, #15152a)',
+          color: eliminated ? 'var(--impostor)' : 'var(--gold)',
+          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: avatar ? 15 : 13,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: 'inset 0 0 0 1px rgba(245, 158, 11, 0.2)',
+          flexShrink: 0,
+          cursor: canPickAvatar ? 'pointer' : 'default',
+          lineHeight: 1,
+        }}
+      >{displayAvatar}</button>
+      {avatarOpen && canPickAvatar && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          left: 0,
+          zIndex: 30,
+          width: 300,
+          maxWidth: 'calc(100vw - 48px)',
+          padding: 10,
+          borderRadius: 14,
+          background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
+          border: '1px solid var(--hairline-cold)',
+          boxShadow: 'var(--sh-card)',
+        }}>
+          <AvatarPicker
+            value={avatar}
+            onChange={(nextAvatar) => {
+              onAvatarChange(nextAvatar)
+              setAvatarOpen(false)
+            }}
+          />
+        </div>
+      )}
       {editing ? (
         <input
           ref={inputRef}

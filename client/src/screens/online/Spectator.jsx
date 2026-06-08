@@ -53,7 +53,7 @@ export default function Spectator() {
         <SectionHeader>Jugadores activos</SectionHeader>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {players.map(p => (
-            <PlayerChip key={p.id} name={p.name} eliminated={p.eliminated} />
+            <PlayerChip key={p.id} name={p.name} avatar={p.avatar} eliminated={p.eliminated} />
           ))}
         </div>
       </div>

@@ -185,6 +185,14 @@ describe('buildSession - estado inicial', () => {
     expect(s.players.map(p => p.id).sort()).toEqual(['alpha', 'beta', 'gamma'])
   })
 
+  it('mantiene el avatar elegido por jugador', () => {
+    const ps = [{ id: 'alpha', name: 'A', avatar: '👑' }, { id: 'beta', name: 'B', avatar: '🦊' }, { id: 'gamma', name: 'C', avatar: '🚀' }]
+    const s = buildSession({
+      players: ps, impostorCount: 1, mode: 'classic', category: 'animales',
+    })
+    expect(s.players.map(p => p.avatar).sort()).toEqual(['👑', '🦊', '🚀'].sort())
+  })
+
   it('category=random escoge una categoría válida', () => {
     const s = buildSession({
       players: players(4), impostorCount: 1, mode: 'classic', category: 'random',
