@@ -27,6 +27,15 @@ const CHAT_MESSAGE_LIMIT = 50
 const CHAT_TEXT_MAX_LENGTH = 20
 const CHAT_RATE_LIMIT = 20
 const CHAT_RATE_WINDOW_MS = 60_000
+const INTERROGATION_DURATION_MS = 30_000
+const INTERROGATION_PROMPTS = [
+  'Describe la palabra usando exactamente 3 palabras.',
+  'Da una pista sin mencionar la categoria.',
+  'Relaciona la palabra con una experiencia concreta.',
+  'Menciona algo cercano a la palabra, sin decir la palabra.',
+  'Da una pista que suene natural en una conversacion.',
+  'Explica por que alguien reconoceria esta palabra.',
+]
 
 // --- rate limiting (token bucket por socket) ---
 const buckets = new Map() // socketId -> { tokens, last }
@@ -86,6 +95,7 @@ function sanitizeConfig(cfg) {
   if (typeof cfg.customClue === 'string') out.customClue = cfg.customClue.slice(0, 80)
   if (typeof cfg.blindIntensity === 'string' && ['near','medium','far'].includes(cfg.blindIntensity)) out.blindIntensity = cfg.blindIntensity
   if (typeof cfg.roundTime === 'string') out.roundTime = cfg.roundTime
+  if (typeof cfg.detectiveEnabled === 'boolean') out.detectiveEnabled = cfg.detectiveEnabled
   return out
 }
 
@@ -223,6 +233,9 @@ function makeRoom(hostSocketId, hostName, avatar, config) {
     gameId: null,
     chatMessages: [],
     roles: {},
+    detectiveInterrogationUsedBy: null,
+    interrogation: null,
+    interrogationTimer: null,
     impostorGuessedWord: false,
     disconnectTimers: {},   // playerId -> timeout
   }
@@ -241,6 +254,7 @@ function sanitizeRoom(room) {
     })),
     phase: room.phase, round: room.round,
     chatMessages: room.chatMessages,
+    interrogation: room.interrogation,
   }
 }
 
@@ -262,6 +276,38 @@ function chatPayloadFor(player, text) {
     avatar: normalizeAvatar(player.avatar, player.name),
     text,
     createdAt: Date.now(),
+  }
+}
+
+function isCitizenTeamRole(role) {
+  return role === 'citizen' || role === 'detective'
+}
+
+function clearInterrogation(room, { emit = true } = {}) {
+  const current = room.interrogation
+  if (room.interrogationTimer) {
+    clearTimeout(room.interrogationTimer)
+    room.interrogationTimer = null
+  }
+  room.interrogation = null
+  if (emit && current) {
+    io.to(room.code).emit('game:interrogationEnded', { id: current.id })
+  }
+}
+
+function buildInterrogationPayload(room, detective, target) {
+  const now = Date.now()
+  return {
+    id: `${room.gameId || room.code}-${now}`,
+    detectiveId: detective.id,
+    detectiveName: detective.name,
+    detectiveAvatar: normalizeAvatar(detective.avatar, detective.name),
+    targetId: target.id,
+    targetName: target.name,
+    targetAvatar: normalizeAvatar(target.avatar, target.name),
+    prompt: pickOne(INTERROGATION_PROMPTS),
+    startedAt: now,
+    expiresAt: now + INTERROGATION_DURATION_MS,
   }
 }
 
@@ -305,12 +351,25 @@ function assignRoles(room) {
     const isImpostor = impostorIdx.has(i)
     room.roles[p.id] = isImpostor ? 'impostor' : 'citizen'
   })
+  if (cfg.detectiveEnabled) {
+    const citizenPlayers = room.players.filter(p => room.roles[p.id] === 'citizen')
+    const detective = pickOne(citizenPlayers)
+    if (detective) room.roles[detective.id] = 'detective'
+  }
 }
 
 function rolePayloadFor(room, playerId) {
   const role = room.roles[playerId]
   if (!role) return null
   if (role === 'citizen') return { role: 'citizen', word: room.word, clue: null }
+  if (role === 'detective') {
+    return {
+      role: 'detective',
+      word: room.word,
+      clue: null,
+      detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
+    }
+  }
   if (room.config.mode === 'blind') return { role: 'impostor-blind', word: room.fakeWord, clue: null }
   if (room.config.mode === 'clue')  return { role: 'impostor-clue',  word: null, clue: room.clue }
   return { role: 'impostor', word: null, clue: null }
@@ -329,7 +388,7 @@ function checkVictory(room) {
   if (room.impostorGuessedWord) return { winner: 'impostor', reason: 'wordGuessed' }
   const active = activePlayers(room)
   const activeImpostors = active.filter(p => room.roles[p.id] === 'impostor')
-  const activeCitizens = active.filter(p => room.roles[p.id] === 'citizen')
+  const activeCitizens = active.filter(p => isCitizenTeamRole(room.roles[p.id]))
   if (activeImpostors.length === 0) return { winner: 'citizens', reason: 'allImpostorsCaught' }
   if (activeImpostors.length >= activeCitizens.length) return { winner: 'impostor', reason: 'majority' }
   return null
@@ -402,6 +461,7 @@ function afterPlayerListChanged(room) {
     const v = checkVictory(room)
     if (v) {
       room.phase = 'ended'
+      clearInterrogation(room)
       io.to(room.code).emit('game:over', gameOverPayload(room, v))
       return
     }
@@ -449,6 +509,7 @@ function tryResolveVotes(room) {
   const v = checkVictory(room)
   if (v) {
     room.phase = 'ended'
+    clearInterrogation(room)
     io.to(room.code).emit('game:over', gameOverPayload(room, v))
   } else {
     advanceToDiscussion(room)
@@ -534,6 +595,13 @@ io.on('connection', (socket) => {
       room.voters[socket.id] = room.voters[oldId]
       delete room.voters[oldId]
     }
+    if (room.detectiveInterrogationUsedBy === oldId) {
+      room.detectiveInterrogationUsedBy = socket.id
+    }
+    if (room.interrogation) {
+      if (room.interrogation.detectiveId === oldId) room.interrogation.detectiveId = socket.id
+      if (room.interrogation.targetId === oldId) room.interrogation.targetId = socket.id
+    }
     Object.entries(room.voters).forEach(([voterId, targetId]) => {
       if (targetId === oldId) room.voters[voterId] = socket.id
     })
@@ -570,12 +638,14 @@ io.on('connection', (socket) => {
     }
     room.gameCounter += 1
     room.gameId = `${room.code}-${room.gameCounter}-${Date.now()}`
+    clearInterrogation(room, { emit: false })
     assignRoles(room)
     room.phase = 'reveal'
     room.round = 1
     room.votes = {}; room.voters = {}
     room.eliminatedIds = []
     room.chatMessages = []
+    room.detectiveInterrogationUsedBy = null
     room.impostorGuessedWord = false
     room.players.forEach(p => { p.eliminated = false; p.ready = false })
     io.to(room.code).emit('game:started')
@@ -596,6 +666,7 @@ io.on('connection', (socket) => {
     if (!allow(socket.id, 1)) return
     const room = getRoomBySocket(socket.id)
     if (!room || room.hostId !== socket.id) return
+    clearInterrogation(room)
     room.phase = 'voting'
     room.votes = {}; room.voters = {}
     io.to(room.code).emit('game:phase', { phase: 'voting' })
@@ -617,6 +688,42 @@ io.on('connection', (socket) => {
     const message = chatPayloadFor(player, cleanText)
     room.chatMessages = [...room.chatMessages, message].slice(-CHAT_MESSAGE_LIMIT)
     io.to(room.code).emit('chat:message', { message })
+  })
+
+  socket.on('game:detectiveInterrogate', ({ targetId } = {}) => {
+    if (!allow(socket.id, 2)) return
+    const room = getRoomBySocket(socket.id)
+    if (!room || room.phase !== 'discussion') return
+    const detective = room.players.find(p => p.id === socket.id)
+    if (!detective || detective.eliminated || detective.disconnected) return
+    if (room.roles[socket.id] !== 'detective') {
+      socket.emit('game:detectiveError', { message: 'Solo el detective puede interrogar' })
+      return
+    }
+    if (room.detectiveInterrogationUsedBy) {
+      socket.emit('game:detectiveError', { message: 'Ya usaste el interrogatorio' })
+      return
+    }
+    if (room.interrogation) {
+      socket.emit('game:detectiveError', { message: 'Ya hay un interrogatorio activo' })
+      return
+    }
+    if (typeof targetId !== 'string' || targetId === socket.id) {
+      socket.emit('game:detectiveError', { message: 'Elige otro jugador' })
+      return
+    }
+    const target = room.players.find(p => p.id === targetId)
+    if (!target || target.eliminated || target.disconnected) {
+      socket.emit('game:detectiveError', { message: 'Ese jugador no esta disponible' })
+      return
+    }
+
+    room.detectiveInterrogationUsedBy = socket.id
+    room.interrogation = buildInterrogationPayload(room, detective, target)
+    io.to(room.code).emit('game:interrogationStarted', { interrogation: room.interrogation })
+    room.interrogationTimer = setTimeout(() => {
+      clearInterrogation(room)
+    }, INTERROGATION_DURATION_MS)
   })
 
   socket.on('vote:cast', ({ targetId } = {}) => {
@@ -667,6 +774,8 @@ io.on('connection', (socket) => {
     room.gameId = null
     room.chatMessages = []
     room.roles = {}
+    room.detectiveInterrogationUsedBy = null
+    clearInterrogation(room, { emit: false })
     room.impostorGuessedWord = false
     room.players.forEach(p => {
       p.eliminated = false
@@ -688,6 +797,7 @@ io.on('connection', (socket) => {
       room.impostorGuessedWord = true
       const v = { winner: 'impostor', reason: 'wordGuessed' }
       room.phase = 'ended'
+      clearInterrogation(room)
       io.to(room.code).emit('game:over', gameOverPayload(room, v))
     } else {
       io.to(room.code).emit('game:guessFailed', { socketId: socket.id })
@@ -710,7 +820,14 @@ function leaveSocket(socket, hard) {
   if (hard || room.phase === 'lobby' || room.phase === 'ended') {
     room.players = room.players.filter(p => p.socketId !== socket.id)
     delete room.roles[player.id]
-    if (!room.players.length) { rooms.delete(room.code); return }
+    if (room.interrogation && (room.interrogation.detectiveId === player.id || room.interrogation.targetId === player.id)) {
+      clearInterrogation(room)
+    }
+    if (!room.players.length) {
+      clearInterrogation(room, { emit: false })
+      rooms.delete(room.code)
+      return
+    }
     if (room.hostId === player.id) {
       const newHost = room.players[0]
       room.hostId = newHost.id
@@ -730,7 +847,14 @@ function leaveSocket(socket, hard) {
     if (!stillThere || !stillThere.disconnected) return
     room.players = room.players.filter(p => p.id !== player.id)
     delete room.roles[player.id]
-    if (!room.players.length) { rooms.delete(room.code); return }
+    if (room.interrogation && (room.interrogation.detectiveId === player.id || room.interrogation.targetId === player.id)) {
+      clearInterrogation(room)
+    }
+    if (!room.players.length) {
+      clearInterrogation(room, { emit: false })
+      rooms.delete(room.code)
+      return
+    }
     if (room.hostId === player.id) {
       const newHost = room.players[0]
       room.hostId = newHost.id
