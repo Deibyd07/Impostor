@@ -23,9 +23,14 @@ const tokenGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
 const rooms = new Map() // code -> Room
 const RECONNECT_GRACE_MS = 60_000
 const RECENT_WORD_LIMIT = 10
+const CHAT_MESSAGE_LIMIT = 50
+const CHAT_TEXT_MAX_LENGTH = 20
+const CHAT_RATE_LIMIT = 20
+const CHAT_RATE_WINDOW_MS = 60_000
 
 // --- rate limiting (token bucket por socket) ---
 const buckets = new Map() // socketId -> { tokens, last }
+const chatWindows = new Map() // socketId -> [timestamps]
 const BUCKET_MAX = 40
 const BUCKET_REFILL_PER_SEC = 12
 function allow(socketId, cost = 1) {
@@ -43,10 +48,27 @@ function allow(socketId, cost = 1) {
   return true
 }
 
+function allowChatMessage(socketId) {
+  const now = Date.now()
+  const recent = (chatWindows.get(socketId) || [])
+    .filter(timestamp => now - timestamp < CHAT_RATE_WINDOW_MS)
+  if (recent.length >= CHAT_RATE_LIMIT) {
+    chatWindows.set(socketId, recent)
+    return false
+  }
+  recent.push(now)
+  chatWindows.set(socketId, recent)
+  return true
+}
+
 // --- helpers de validación ---
 function sanitizeName(raw) {
   if (typeof raw !== 'string') return ''
   return raw.replace(/\s+/g, ' ').trim().slice(0, 16)
+}
+function sanitizeChatText(raw) {
+  if (typeof raw !== 'string') return ''
+  return raw.replace(/\s+/g, ' ').trim().slice(0, CHAT_TEXT_MAX_LENGTH)
 }
 function isValidCode(s) {
   return typeof s === 'string' && /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/i.test(s)
@@ -199,6 +221,7 @@ function makeRoom(hostSocketId, hostName, avatar, config) {
     recentWords: [],
     gameCounter: 0,
     gameId: null,
+    chatMessages: [],
     roles: {},
     impostorGuessedWord: false,
     disconnectTimers: {},   // playerId -> timeout
@@ -217,6 +240,7 @@ function sanitizeRoom(room) {
       eliminated: p.eliminated, disconnected: !!p.disconnected,
     })),
     phase: room.phase, round: room.round,
+    chatMessages: room.chatMessages,
   }
 }
 
@@ -227,6 +251,17 @@ function privatePlayerPayload(player) {
     avatar: normalizeAvatar(player.avatar, player.name),
     isHost: player.isHost,
     sessionToken: player.sessionToken,
+  }
+}
+
+function chatPayloadFor(player, text) {
+  return {
+    id: `${Date.now()}-${player.id}-${Math.random().toString(36).slice(2, 8)}`,
+    playerId: player.id,
+    name: player.name,
+    avatar: normalizeAvatar(player.avatar, player.name),
+    text,
+    createdAt: Date.now(),
   }
 }
 
@@ -540,6 +575,7 @@ io.on('connection', (socket) => {
     room.round = 1
     room.votes = {}; room.voters = {}
     room.eliminatedIds = []
+    room.chatMessages = []
     room.impostorGuessedWord = false
     room.players.forEach(p => { p.eliminated = false; p.ready = false })
     io.to(room.code).emit('game:started')
@@ -563,6 +599,24 @@ io.on('connection', (socket) => {
     room.phase = 'voting'
     room.votes = {}; room.voters = {}
     io.to(room.code).emit('game:phase', { phase: 'voting' })
+  })
+
+  socket.on('chat:message', ({ text } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    if (!room || room.phase !== 'discussion') return
+    const player = room.players.find(p => p.id === socket.id)
+    if (!player || player.eliminated || player.disconnected) return
+    if (!allowChatMessage(socket.id)) {
+      socket.emit('chat:error', { message: 'Estas enviando mensajes muy rapido' })
+      return
+    }
+    const cleanText = sanitizeChatText(text)
+    if (!cleanText) return
+
+    const message = chatPayloadFor(player, cleanText)
+    room.chatMessages = [...room.chatMessages, message].slice(-CHAT_MESSAGE_LIMIT)
+    io.to(room.code).emit('chat:message', { message })
   })
 
   socket.on('vote:cast', ({ targetId } = {}) => {
@@ -611,6 +665,7 @@ io.on('connection', (socket) => {
     room.clue = null
     room.category = null
     room.gameId = null
+    room.chatMessages = []
     room.roles = {}
     room.impostorGuessedWord = false
     room.players.forEach(p => {
@@ -645,6 +700,7 @@ io.on('connection', (socket) => {
 function leaveSocket(socket, hard) {
   const room = getRoomBySocket(socket.id)
   buckets.delete(socket.id)
+  chatWindows.delete(socket.id)
   if (!room) return
   const player = room.players.find(p => p.socketId === socket.id)
   if (!player) return

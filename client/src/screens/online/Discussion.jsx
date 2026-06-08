@@ -4,6 +4,7 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import CompactRoleReminder from '../../components/CompactRoleReminder.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import PlayerChip from '../../components/PlayerChip.jsx'
+import ChatBox from '../../components/ChatBox.jsx'
 import GuessWordModal from '../../components/GuessWordModal.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 
@@ -16,6 +17,8 @@ export default function Discussion() {
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
   const goToVote = useOnlineStore(s => s.goToVote)
+  const chatMessages = useOnlineStore(s => s.chatMessages)
+  const sendChatMessage = useOnlineStore(s => s.sendChatMessage)
   const [showGuess, setShowGuess] = useState(false)
 
   useEffect(() => {
@@ -95,6 +98,9 @@ export default function Discussion() {
               />
             ))}
           </div>
+
+          <SectionHeader right={`${chatMessages.length}/50`}>Chat</SectionHeader>
+          <ChatBox messages={chatMessages} onSend={sendChatMessage} />
         </div>
       </div>
 

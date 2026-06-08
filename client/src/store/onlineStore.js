@@ -6,6 +6,7 @@ import { normalizeAvatar, rememberAvatarForName } from '../data/avatars.js'
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 const SESSION_KEY = 'el-impostor-online-session'
+const CHAT_MESSAGE_LIMIT = 50
 
 function loadSession() {
   try {
@@ -45,6 +46,7 @@ export const useOnlineStore = create((set, get) => ({
   error: null,
   guessAttempts: 0,     // cuántas veces el impostor ha fallado adivinanza
   lastTie: null,        // { counts, at }
+  chatMessages: [],
 
   connect: () => {
     if (get().socket) return
@@ -72,14 +74,22 @@ export const useOnlineStore = create((set, get) => ({
       const myId = you?.id || socket.id
       const myName = you?.name || get().myName
       const myAvatar = normalizeAvatar(you?.avatar || get().myAvatar, myName)
-      set({ roomCode: code, isHost: true, myId, myName, myAvatar, players: room.players, config: room.config, phase: 'lobby' })
+      set({
+        roomCode: code, isHost: true, myId, myName, myAvatar,
+        players: room.players, config: room.config, phase: 'lobby',
+        chatMessages: room.chatMessages || [],
+      })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
     socket.on('room:joined', ({ code, room, you }) => {
       const myId = you?.id || socket.id
       const myName = you?.name || get().myName
       const myAvatar = normalizeAvatar(you?.avatar || get().myAvatar, myName)
-      set({ roomCode: code, isHost: false, myId, myName, myAvatar, players: room.players, config: room.config, phase: 'lobby' })
+      set({
+        roomCode: code, isHost: false, myId, myName, myAvatar,
+        players: room.players, config: room.config, phase: 'lobby',
+        chatMessages: room.chatMessages || [],
+      })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
     socket.on('room:resumed', ({ code, room, you }) => {
@@ -92,6 +102,7 @@ export const useOnlineStore = create((set, get) => ({
         myId: socket.id,
         myName: you?.name || get().myName,
         myAvatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
+        chatMessages: room.chatMessages || [],
       })
       saveSession({
         code,
@@ -114,12 +125,19 @@ export const useOnlineStore = create((set, get) => ({
       toast.error(message || 'Error en la sala', { title: 'Sala' })
     })
 
-    socket.on('game:started', () => set({ phase: 'reveal', votes: {}, votedFor: null, guessAttempts: 0, lastTie: null }))
+    socket.on('game:started', () => set({ phase: 'reveal', votes: {}, votedFor: null, guessAttempts: 0, lastTie: null, chatMessages: [] }))
     socket.on('game:yourRole', ({ role, word, clue }) => {
       set({ myRole: role, myWord: word, myClue: clue })
     })
     socket.on('game:phase', ({ phase }) => set({ phase }))
     socket.on('vote:update', ({ votes, votersReady }) => set({ votes, votersReady }))
+    socket.on('chat:message', ({ message }) => {
+      if (!message?.id) return
+      set((s) => ({ chatMessages: [...s.chatMessages, message].slice(-CHAT_MESSAGE_LIMIT) }))
+    })
+    socket.on('chat:error', ({ message }) => {
+      toast.warn(message || 'No se pudo enviar el mensaje', { duration: 2500 })
+    })
     socket.on('game:eliminated', ({ playerId, wasImpostor, name }) => {
       set((s) => {
         const players = s.players.map(p => p.id === playerId ? { ...p, eliminated: true } : p)
@@ -165,6 +183,7 @@ export const useOnlineStore = create((set, get) => ({
         myRole: null, myWord: null, myClue: null,
         votes: {}, votedFor: null, votersReady: 0,
         result: null, guessAttempts: 0, lastTie: null,
+        chatMessages: room.chatMessages || [],
       })
       saveSession({ ...loadSession(), code: get().roomCode, name: get().myName })
       toast.success('Nueva partida en la misma sala', { duration: 2500 })
@@ -179,7 +198,7 @@ export const useOnlineStore = create((set, get) => ({
       socket.disconnect()
     }
     clearSession()
-    set({ socket: null, connected: false, roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null, myAvatar: null })
+    set({ socket: null, connected: false, roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null, myAvatar: null, chatMessages: [] })
   },
 
   createRoom: (hostName, config, avatar) => {
@@ -199,7 +218,7 @@ export const useOnlineStore = create((set, get) => ({
   leaveRoom: () => {
     get().socket?.emit('room:leave')
     clearSession()
-    set({ roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null, votes: {}, votedFor: null })
+    set({ roomCode: null, isHost: false, players: [], phase: 'lobby', myRole: null, myWord: null, votes: {}, votedFor: null, chatMessages: [] })
   },
 
   startGame: () => {
@@ -221,6 +240,10 @@ export const useOnlineStore = create((set, get) => ({
 
   guessWord: (word) => {
     get().socket?.emit('game:guessWord', { word })
+  },
+
+  sendChatMessage: (text) => {
+    get().socket?.emit('chat:message', { text })
   },
 
   rematch: () => {
