@@ -21,6 +21,7 @@ const tokenGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
 
 const rooms = new Map() // code -> Room
 const RECONNECT_GRACE_MS = 60_000
+const RECENT_WORD_LIMIT = 10
 
 // --- rate limiting (token bucket por socket) ---
 const buckets = new Map() // socketId -> { tokens, last }
@@ -77,6 +78,37 @@ function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function pickWithout(arr, exclude) {
   const filtered = arr.filter(x => x !== exclude)
   return pickOne(filtered.length ? filtered : arr)
+}
+
+function normalizeWordKey(word) {
+  return String(word ?? '').trim().toLowerCase()
+}
+
+function appendRecentWord(recentWords = [], word, limit = RECENT_WORD_LIMIT) {
+  const wordKey = normalizeWordKey(word)
+  const current = Array.isArray(recentWords) ? recentWords : []
+  if (!wordKey) return current.slice(-limit)
+
+  const withoutCurrentWord = current.filter(item => normalizeWordKey(item) !== wordKey)
+  return [...withoutCurrentWord, word].slice(-limit)
+}
+
+function pickWordAvoidingRecent(words, recentWords = []) {
+  const candidates = Array.isArray(words) ? words.filter(Boolean) : []
+  if (!candidates.length) return { word: null, resetHistory: false }
+
+  const recentKeys = new Set(
+    (Array.isArray(recentWords) ? recentWords : [])
+      .map(normalizeWordKey)
+      .filter(Boolean)
+  )
+  const available = candidates.filter(word => !recentKeys.has(normalizeWordKey(word)))
+  const resetHistory = available.length === 0
+
+  return {
+    word: pickOne(resetHistory ? candidates : available),
+    resetHistory,
+  }
 }
 
 function buildClue(word, catKey, type, customClue) {
@@ -162,6 +194,7 @@ function makeRoom(hostSocketId, hostName, config) {
     voters: {},
     eliminatedIds: [],
     word: null, fakeWord: null, clue: null, category: null,
+    recentWords: [],
     roles: {},
     impostorGuessedWord: false,
     disconnectTimers: {},   // playerId -> timeout
@@ -204,9 +237,11 @@ function assignRoles(room) {
     ? pickOne(Object.keys(wordBank))
     : (wordBank[cfg.category] ? cfg.category : pickOne(Object.keys(wordBank)))
   const words = wordBank[catKey]
-  const word = pickOne(words)
+  const selectedWord = pickWordAvoidingRecent(words, room.recentWords)
+  const word = selectedWord.word
   room.category = catKey
   room.word = word
+  room.recentWords = appendRecentWord(selectedWord.resetHistory ? [] : room.recentWords, word)
 
   if (cfg.mode === 'blind') {
     room.fakeWord = pickFakeWord(word, catKey, cfg.blindIntensity || 'medium')

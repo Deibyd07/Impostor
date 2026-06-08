@@ -1,17 +1,51 @@
 import { shuffle, pickOne, pickWithout } from './random.js'
 import { wordBank, categories, relatedWords } from '../data/wordBank.js'
 
+export const RECENT_WORD_LIMIT = 10
+
+export function normalizeWordKey(word) {
+  return String(word ?? '').trim().toLowerCase()
+}
+
+export function appendRecentWord(recentWords = [], word, limit = RECENT_WORD_LIMIT) {
+  const wordKey = normalizeWordKey(word)
+  const current = Array.isArray(recentWords) ? recentWords : []
+  if (!wordKey) return current.slice(-limit)
+
+  const withoutCurrentWord = current.filter(item => normalizeWordKey(item) !== wordKey)
+  return [...withoutCurrentWord, word].slice(-limit)
+}
+
+export function pickWordAvoidingRecent(words, recentWords = []) {
+  const candidates = Array.isArray(words) ? words.filter(Boolean) : []
+  if (!candidates.length) return { word: null, resetHistory: false }
+
+  const recentKeys = new Set(
+    (Array.isArray(recentWords) ? recentWords : [])
+      .map(normalizeWordKey)
+      .filter(Boolean)
+  )
+  const available = candidates.filter(word => !recentKeys.has(normalizeWordKey(word)))
+  const resetHistory = available.length === 0
+
+  return {
+    word: pickOne(resetHistory ? candidates : available),
+    resetHistory,
+  }
+}
+
 // Devuelve un objeto session con jugadores, roles y palabras.
 // config = { players: [{id, name}], impostorCount, mode, category, clueType?, blindIntensity?, customClue?, roundTime }
-export function buildSession(config) {
+export function buildSession(config, options = {}) {
   const playerCount = config.players.length
   const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
   const impostorCount = Math.max(1, Math.min(Math.floor(config.impostorCount || 1), maxImpostors))
   const catKey = config.category === 'random'
     ? pickOne(Object.keys(wordBank))
-    : config.category
+    : (wordBank[config.category] ? config.category : 'lugares')
   const words = wordBank[catKey] || wordBank.lugares
-  const word = pickOne(words)
+  const selectedWord = pickWordAvoidingRecent(words, options.recentWords || config.recentWords)
+  const word = selectedWord.word
 
   // Selección aleatoria de impostores
   const indices = shuffle(config.players.map((_, i) => i))
@@ -48,6 +82,7 @@ export function buildSession(config) {
     clue,
     category: catKey,
     categoryLabel: categories[catKey]?.label || catKey,
+    wordHistoryReset: selectedWord.resetHistory,
     players: sessionPlayers,
     round: 1,
     revealIndex: 0,

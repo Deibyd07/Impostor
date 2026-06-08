@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildSession } from '../roleAssigner.js'
+import {
+  RECENT_WORD_LIMIT,
+  appendRecentWord,
+  buildSession,
+  pickWordAvoidingRecent,
+} from '../roleAssigner.js'
 import { wordBank, categories, relatedWords } from '../../data/wordBank.js'
 
 const newCategoryKeys = [
@@ -192,5 +197,42 @@ describe('buildSession - estado inicial', () => {
     Object.keys(categories).forEach(category => {
       expect(wordBank[category]?.length ?? 0).toBeGreaterThanOrEqual(30)
     })
+  })
+})
+
+describe('historial de palabras', () => {
+  it('no repite palabras dentro de las ultimas 10 partidas de una categoria', () => {
+    let recentWords = []
+    const pickedWords = []
+
+    for (let i = 0; i < RECENT_WORD_LIMIT; i++) {
+      const s = buildSession({
+        players: players(4), impostorCount: 1, mode: 'classic', category: 'animales',
+      }, { recentWords })
+
+      expect(recentWords).not.toContain(s.word)
+      pickedWords.push(s.word)
+      recentWords = appendRecentWord(recentWords, s.word)
+    }
+
+    expect(new Set(pickedWords).size).toBe(RECENT_WORD_LIMIT)
+  })
+
+  it('mantiene solo las ultimas 10 palabras del historial', () => {
+    const history = wordBank.animales
+      .slice(0, RECENT_WORD_LIMIT + 1)
+      .reduce((recentWords, word) => appendRecentWord(recentWords, word), [])
+
+    expect(history).toHaveLength(RECENT_WORD_LIMIT)
+    expect(history).not.toContain(wordBank.animales[0])
+    expect(history).toContain(wordBank.animales[RECENT_WORD_LIMIT])
+  })
+
+  it('reinicia el historial cuando no quedan palabras disponibles', () => {
+    const words = wordBank.animales.slice(0, 3)
+    const selected = pickWordAvoidingRecent(words, words)
+
+    expect(selected.resetHistory).toBe(true)
+    expect(words).toContain(selected.word)
   })
 })

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { buildSession } from '../utils/roleAssigner.js'
+import { appendRecentWord, buildSession } from '../utils/roleAssigner.js'
 import { checkVictory, leaderInVotes, activePlayers } from '../utils/gameLogic.js'
 
 const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía'].map((n, i) => ({ id: String(i), name: n }))
@@ -16,11 +16,21 @@ const defaultConfig = {
   roundTime: '3',            // 1 | 3 | 5 | free
 }
 
+function buildTrackedSession(config, recentWords) {
+  const session = buildSession(config, { recentWords })
+  const baseHistory = session.wordHistoryReset ? [] : recentWords
+  return {
+    session,
+    recentWords: appendRecentWord(baseHistory, session.word),
+  }
+}
+
 export const useGameStore = create(
   persist(
     (set, get) => ({
       config: defaultConfig,
       session: null,
+      recentWords: [],
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setPlayers: (players) => set((s) => ({ config: { ...s.config, players } })),
@@ -28,16 +38,14 @@ export const useGameStore = create(
       // ----- Lifecycle -----
       startSession: () => {
         const cfg = get().config
-        const session = buildSession(cfg)
-        set({ session })
+        set(buildTrackedSession(cfg, get().recentWords))
       },
 
-      endSession: () => set({ session: null }),
+      endSession: () => set({ session: null, recentWords: [] }),
 
       rematch: () => {
         const cfg = get().config
-        const session = buildSession(cfg)
-        set({ session })
+        set(buildTrackedSession(cfg, get().recentWords))
       },
 
       // ----- Card reveal flow -----
@@ -125,7 +133,7 @@ export const useGameStore = create(
     {
       name: 'el-impostor-game',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ config: state.config, session: state.session }),
+      partialize: (state) => ({ config: state.config, session: state.session, recentWords: state.recentWords }),
     }
   )
 )
