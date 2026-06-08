@@ -46,6 +46,7 @@ export function buildSession(config) {
     category: catKey,
     categoryLabel: categories[catKey]?.label || catKey,
     players: sessionPlayers,
+    speakOrder: shuffle(sessionPlayers.map(p => p.id)),
     round: 1,
     revealIndex: 0,
     votes: {}, // { targetId: count }

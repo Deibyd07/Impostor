@@ -98,11 +98,31 @@ export default function GameBoard() {
         <div style={{
           fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
           letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 10,
-        }}>En la mesa</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24 }}>
-          {session.players.map(p => (
-            <PlayerChip key={p.id} name={p.name} eliminated={p.eliminated} />
-          ))}
+        }}>Orden de turno</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 }}>
+          {(session.speakOrder || session.players.map(p => p.id)).map((id, idx) => {
+            const player = session.players.find(p => p.id === id)
+            if (!player) return null
+            return (
+              <div key={id} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 14px',
+                background: 'var(--surface-1)',
+                border: '1px solid var(--hairline-cold)',
+                borderRadius: 10,
+                opacity: player.eliminated ? 0.32 : 1,
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-num)', fontSize: 13,
+                  color: 'var(--text-3)', minWidth: 18,
+                }}>{idx + 1}</span>
+                <span style={{
+                  fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--text-1)',
+                  textDecoration: player.eliminated ? 'line-through' : 'none', flex: 1,
+                }}>{player.name}</span>
+              </div>
+            )
+          })}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

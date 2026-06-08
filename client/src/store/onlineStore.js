@@ -40,6 +40,7 @@ export const useOnlineStore = create((set, get) => ({
   guessAttempts: 0,     // cuántas veces el impostor ha fallado adivinanza
   round: 1,             // ronda actual
   lastGuessRound: -1,   // ronda del último intento de adivinanza (-1 = nunca)
+  speakOrder: [],       // ids de jugadores en orden aleatorio de turno
   lastTie: null,        // { counts, at }
 
   connect: () => {
@@ -98,7 +99,7 @@ export const useOnlineStore = create((set, get) => ({
     socket.on('game:yourRole', ({ role, word, clue }) => {
       set({ myRole: role, myWord: word, myClue: clue })
     })
-    socket.on('game:phase', ({ phase }) => set({ phase }))
+    socket.on('game:phase', ({ phase, speakOrder }) => set(speakOrder ? { phase, speakOrder } : { phase }))
     socket.on('vote:update', ({ votes, votersReady }) => set({ votes, votersReady }))
     socket.on('game:eliminated', ({ playerId, wasImpostor, name }) => {
       set((s) => {
@@ -134,7 +135,7 @@ export const useOnlineStore = create((set, get) => ({
       if (result?.winner === 'citizens') sfx.winCitizens()
       else if (result?.winner === 'impostor') sfx.winImpostor()
     })
-    socket.on('game:newRound', ({ round }) => set({ votes: {}, votedFor: null, phase: 'discussion', round }))
+    socket.on('game:newRound', ({ round, speakOrder }) => set({ votes: {}, votedFor: null, phase: 'discussion', round, ...(speakOrder ? { speakOrder } : {}) }))
     socket.on('room:rematch', ({ room }) => {
       set({
         phase: 'lobby',

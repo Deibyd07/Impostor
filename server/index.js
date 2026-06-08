@@ -18,6 +18,18 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001
 const codeGen = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 4)
 
+function shuffleOrder(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+function makeSpeakOrder(room) {
+  return shuffleOrder(room.players.filter(p => !p.eliminated).map(p => p.id))
+}
+
 const rooms = new Map() // code -> Room
 const RECONNECT_GRACE_MS = 60_000
 
@@ -385,7 +397,8 @@ io.on('connection', (socket) => {
     broadcastPlayers(room)
     if (room.players.every(p => p.ready)) {
       room.phase = 'discussion'
-      io.to(room.code).emit('game:phase', { phase: 'discussion' })
+      const speakOrder = makeSpeakOrder(room)
+      io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder })
     }
   })
 
@@ -425,8 +438,9 @@ io.on('connection', (socket) => {
     room.round += 1
     room.votes = {}; room.voters = {}
     room.phase = 'discussion'
-    io.to(room.code).emit('game:newRound', { round: room.round })
-    io.to(room.code).emit('game:phase', { phase: 'discussion' })
+    const speakOrder = makeSpeakOrder(room)
+    io.to(room.code).emit('game:newRound', { round: room.round, speakOrder })
+    io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder })
   })
 
   socket.on('room:rematch', () => {

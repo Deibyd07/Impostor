@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { buildSession } from '../utils/roleAssigner.js'
 import { checkVictory, leaderInVotes, activePlayers } from '../utils/gameLogic.js'
+import { shuffle } from '../utils/random.js'
 
 const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía'].map((n, i) => ({ id: String(i), name: n }))
 
@@ -113,7 +114,9 @@ export const useGameStore = create(
 
       newRound: () => set((s) => {
         if (!s.session) return s
-        return { session: { ...s.session, round: s.session.round + 1, votes: {}, phase: 'discussion' } }
+        const active = s.session.players.filter(p => !p.eliminated)
+        const speakOrder = shuffle(active.map(p => p.id))
+        return { session: { ...s.session, round: s.session.round + 1, votes: {}, phase: 'discussion', speakOrder } }
       }),
 
       setPhase: (phase) => set((s) => s.session ? ({ session: { ...s.session, phase } }) : s),
