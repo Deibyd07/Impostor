@@ -33,6 +33,10 @@ export default function Discussion() {
   }, [phase, navigate])
 
   const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue' || myRole === 'impostor-blind'
+  const isInterrogationSpeaker = detectiveInterrogation
+    ? myId === detectiveInterrogation.detectiveId || myId === detectiveInterrogation.targetId
+    : true
+  const chatLocked = !!detectiveInterrogation && !isInterrogationSpeaker
 
   return (
     <PhoneScreen
@@ -116,7 +120,23 @@ export default function Discussion() {
           </div>
 
           <SectionHeader right={`${chatMessages.length}/50`}>Chat</SectionHeader>
-          <ChatBox messages={chatMessages} myId={myId} onSend={sendChatMessage} />
+          {chatLocked && (
+            <div style={{
+              margin: '-6px 0 10px',
+              padding: '9px 12px',
+              borderRadius: 12,
+              border: '1px solid rgba(248, 113, 113, 0.2)',
+              background: 'rgba(220, 38, 38, 0.08)',
+              color: '#fecaca',
+              fontFamily: 'var(--font-ui)',
+              fontSize: 12,
+              lineHeight: 1.4,
+              textAlign: 'center',
+            }}>
+              Silencio en la mesa: solo Detective e interrogado pueden escribir.
+            </div>
+          )}
+          <ChatBox messages={chatMessages} myId={myId} onSend={sendChatMessage} disabled={chatLocked} />
         </div>
       </div>
 

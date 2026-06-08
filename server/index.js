@@ -678,6 +678,14 @@ io.on('connection', (socket) => {
     if (!room || room.phase !== 'discussion') return
     const player = room.players.find(p => p.id === socket.id)
     if (!player || player.eliminated || player.disconnected) return
+    if (
+      room.interrogation &&
+      socket.id !== room.interrogation.detectiveId &&
+      socket.id !== room.interrogation.targetId
+    ) {
+      socket.emit('chat:error', { message: 'Solo el detective y el interrogado tienen la palabra' })
+      return
+    }
     if (!allowChatMessage(socket.id)) {
       socket.emit('chat:error', { message: 'Estas enviando mensajes muy rapido' })
       return

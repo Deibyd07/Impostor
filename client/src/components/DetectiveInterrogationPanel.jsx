@@ -41,61 +41,105 @@ export default function DetectiveInterrogationPanel({
       {interrogation && (
         <>
           <SectionHeader right={remaining > 0 ? `${remaining}s` : 'Cerrando'}>Interrogatorio</SectionHeader>
-          <div style={{
-            border: '1px solid rgba(245, 158, 11, 0.42)',
-            borderRadius: 14,
-            background: 'linear-gradient(180deg, rgba(245, 158, 11, 0.13), rgba(245, 158, 11, 0.04))',
-            boxShadow: '0 0 30px -18px var(--gold-glow)',
-            padding: '14px 16px',
+          <div className="grain grain-heavy" style={{
+            position: 'relative',
+            overflow: 'hidden',
+            border: '1px solid rgba(245, 158, 11, 0.68)',
+            borderRadius: 16,
+            background:
+              'radial-gradient(120% 90% at 50% -10%, rgba(245, 158, 11, 0.24), transparent 58%),' +
+              'linear-gradient(180deg, rgba(36, 12, 12, 0.98), rgba(10, 8, 18, 0.98))',
+            padding: '16px 16px 15px',
             marginBottom: isDetective ? 14 : 0,
+            animation: 'detectiveSceneIn 420ms cubic-bezier(0.2, 0.8, 0.25, 1) both, detectivePulse 1.9s ease-in-out infinite',
           }}>
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background: 'linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.18), transparent)',
+              animation: 'detectiveSweep 2.4s ease-in-out infinite',
+            }} />
+            <div style={{
+              position: 'relative',
+              zIndex: 2,
+              textAlign: 'center',
+              fontFamily: 'var(--font-ui)',
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--gold)',
+              marginBottom: 14,
+            }}>La mesa queda en silencio</div>
+
+            <div style={{
+              position: 'relative',
+              zIndex: 2,
+              display: 'grid',
+              gridTemplateColumns: '1fr auto 1fr',
               gap: 10,
-              marginBottom: 12,
+              alignItems: 'center',
+              marginBottom: 14,
             }}>
-              <Avatar value={interrogation.targetAvatar} name={interrogation.targetName} active />
-              <div style={{ minWidth: 0 }}>
-                <div style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: 'var(--text-1)',
-                  letterSpacing: '0.04em',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>{interrogation.targetName}</div>
-                <div style={{
-                  fontFamily: 'var(--font-ui)',
-                  fontSize: 11,
-                  color: 'var(--gold)',
-                  letterSpacing: '0.16em',
-                  textTransform: 'uppercase',
-                }}>Bajo presion</div>
-              </div>
+              <Speaker
+                label="Detective"
+                name={interrogation.detectiveName}
+                avatar={interrogation.detectiveAvatar}
+                align="right"
+              />
+              <div style={{
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid rgba(245, 158, 11, 0.55)',
+                color: 'var(--gold)',
+                background: 'rgba(0,0,0,0.34)',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: 13,
+                boxShadow: '0 0 22px -8px var(--gold-glow)',
+              }}>VS</div>
+              <Speaker
+                label="Interrogado"
+                name={interrogation.targetName}
+                avatar={interrogation.targetAvatar}
+              />
             </div>
 
             <div style={{
-              padding: '12px 14px',
+              position: 'relative',
+              zIndex: 2,
+              padding: '15px 14px',
               borderRadius: 12,
-              background: 'rgba(0,0,0,0.2)',
-              border: '1px solid rgba(245, 158, 11, 0.18)',
-              fontFamily: 'var(--font-ui)',
-              fontSize: 14,
-              lineHeight: 1.45,
+              background: 'rgba(0,0,0,0.32)',
+              border: '1px solid rgba(245, 158, 11, 0.28)',
+              fontFamily: 'var(--font-display)',
+              fontSize: 18,
+              lineHeight: 1.25,
               color: 'var(--text-1)',
+              textAlign: 'center',
+              textShadow: '0 0 18px rgba(245, 158, 11, 0.22)',
             }}>{interrogation.prompt}</div>
 
             <div style={{
-              marginTop: 10,
+              position: 'relative',
+              zIndex: 2,
+              marginTop: 12,
+              padding: '9px 11px',
+              borderRadius: 999,
+              background: 'rgba(220, 38, 38, 0.12)',
+              border: '1px solid rgba(248, 113, 113, 0.24)',
               fontFamily: 'var(--font-ui)',
               fontSize: 11,
-              color: 'var(--text-3)',
-              lineHeight: 1.4,
+              color: '#fecaca',
+              lineHeight: 1.35,
+              textAlign: 'center',
             }}>
-              Iniciado por {interrogation.detectiveName}. El sistema no da veredicto.
+              Solo {interrogation.detectiveName} y {interrogation.targetName} tienen la palabra.
             </div>
           </div>
         </>
@@ -208,5 +252,41 @@ function Avatar({ value, name, active = false }) {
       fontSize: active ? 18 : 15,
       lineHeight: 1,
     }}>{display}</span>
+  )
+}
+
+function Speaker({ label, name, avatar, align = 'left' }) {
+  const isRight = align === 'right'
+  return (
+    <div style={{
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: isRight ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      textAlign: isRight ? 'right' : 'left',
+    }}>
+      <Avatar value={avatar} name={name} active />
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: 9,
+          fontWeight: 800,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'var(--gold)',
+          marginBottom: 3,
+        }}>{label}</div>
+        <div style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 15,
+          fontWeight: 700,
+          color: 'var(--text-1)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>{name}</div>
+      </div>
+    </div>
   )
 }
