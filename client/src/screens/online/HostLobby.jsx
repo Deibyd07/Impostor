@@ -30,6 +30,7 @@ export default function HostLobby() {
   const [hostName, setHostName] = useState('')
   const [avatar, setAvatar] = useState(defaultAvatarForName(''))
   const [avatarTouched, setAvatarTouched] = useState(false)
+  const [copiedJoinUrl, setCopiedJoinUrl] = useState(false)
 
   useEffect(() => { connect() }, [connect])
   useEffect(() => {
@@ -49,6 +50,16 @@ export default function HostLobby() {
   const joinUrl = roomCode
     ? `${window.location.origin}/online/join?code=${roomCode}`
     : ''
+  const copyJoinUrl = async () => {
+    if (!joinUrl) return
+    try {
+      await navigator.clipboard?.writeText(joinUrl)
+      setCopiedJoinUrl(true)
+      setTimeout(() => setCopiedJoinUrl(false), 1800)
+    } catch {
+      setCopiedJoinUrl(false)
+    }
+  }
 
   if (!roomCode) {
     return (
@@ -166,13 +177,28 @@ export default function HostLobby() {
             </div>
           </div>
           <button
-            onClick={() => { navigator.clipboard?.writeText(joinUrl); }}
+            onClick={copyJoinUrl}
             style={{
               marginTop: 12, all: 'unset', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              gap: 6, maxWidth: '100%', padding: '6px 10px', borderRadius: 999,
+              background: copiedJoinUrl ? 'rgba(34, 197, 94, 0.12)' : 'transparent',
+              border: `1px solid ${copiedJoinUrl ? 'rgba(34, 197, 94, 0.45)' : 'transparent'}`,
               fontFamily: 'ui-monospace, SF Mono, monospace',
-              fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.04em',
+              fontSize: 11, color: copiedJoinUrl ? 'var(--victory)' : 'var(--text-3)', letterSpacing: '0.04em',
+              transition: 'background 160ms ease, border-color 160ms ease, color 160ms ease',
             }}
-          >{joinUrl} <span style={{ marginLeft: 6, color: 'var(--gold)' }}>copiar</span></button>
+          >
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{joinUrl}</span>
+            <span style={{
+              color: copiedJoinUrl ? 'var(--victory)' : 'var(--gold)',
+              fontFamily: 'var(--font-ui)',
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              flexShrink: 0,
+            }}>{copiedJoinUrl ? 'copiado' : 'copiar'}</span>
+          </button>
         </div>
 
         <div style={{
