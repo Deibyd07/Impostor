@@ -14,6 +14,7 @@ export default function Discussion() {
   const myRole = useOnlineStore(s => s.myRole)
   const myWord = useOnlineStore(s => s.myWord)
   const myClue = useOnlineStore(s => s.myClue)
+  const myId = useOnlineStore(s => s.myId)
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
   const goToVote = useOnlineStore(s => s.goToVote)
@@ -100,7 +101,7 @@ export default function Discussion() {
           </div>
 
           <SectionHeader right={`${chatMessages.length}/50`}>Chat</SectionHeader>
-          <ChatBox messages={chatMessages} onSend={sendChatMessage} />
+          <ChatBox messages={chatMessages} myId={myId} onSend={sendChatMessage} />
         </div>
       </div>
 

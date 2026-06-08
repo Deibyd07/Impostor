@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 const CHAT_TEXT_MAX_LENGTH = 20
 
-export default function ChatBox({ messages = [], onSend, disabled = false }) {
+export default function ChatBox({ messages = [], myId, onSend, disabled = false }) {
   const [text, setText] = useState('')
   const listRef = useRef(null)
   const cleaned = text.trim()
@@ -39,7 +39,9 @@ export default function ChatBox({ messages = [], onSend, disabled = false }) {
         }}
       >
         {messages.length ? (
-          messages.map(message => <ChatMessage key={message.id} message={message} />)
+          messages.map(message => (
+            <ChatMessage key={message.id} message={message} isOwn={message.playerId === myId} />
+          ))
         ) : (
           <div style={{
             minHeight: 96,
@@ -124,15 +126,24 @@ export default function ChatBox({ messages = [], onSend, disabled = false }) {
   )
 }
 
-function ChatMessage({ message }) {
+function ChatMessage({ message, isOwn = false }) {
   return (
-    <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: isOwn ? 'row-reverse' : 'row',
+      gap: 9,
+      alignItems: 'flex-start',
+      alignSelf: isOwn ? 'flex-end' : 'stretch',
+      maxWidth: '100%',
+    }}>
       <div style={{
         width: 28,
         height: 28,
         borderRadius: 999,
-        background: 'linear-gradient(135deg, #2a2a45, #15152a)',
-        border: '1px solid rgba(245, 158, 11, 0.2)',
+        background: isOwn
+          ? 'linear-gradient(135deg, #3a250b, #1f1608)'
+          : 'linear-gradient(135deg, #2a2a45, #15152a)',
+        border: `1px solid ${isOwn ? 'rgba(245, 158, 11, 0.48)' : 'rgba(245, 158, 11, 0.2)'}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -140,12 +151,19 @@ function ChatMessage({ message }) {
         lineHeight: 1,
         flexShrink: 0,
       }}>{message.avatar || '?'}</div>
-      <div style={{ minWidth: 0, flex: 1 }}>
+      <div style={{
+        minWidth: 0,
+        flex: isOwn ? '0 1 auto' : 1,
+        maxWidth: isOwn ? '82%' : '100%',
+        textAlign: isOwn ? 'right' : 'left',
+      }}>
         <div style={{
           display: 'flex',
+          flexDirection: isOwn ? 'row-reverse' : 'row',
           alignItems: 'baseline',
           gap: 8,
           marginBottom: 3,
+          justifyContent: isOwn ? 'flex-start' : 'flex-start',
         }}>
           <span style={{
             fontFamily: 'var(--font-ui)',
@@ -167,9 +185,9 @@ function ChatMessage({ message }) {
           display: 'inline-block',
           maxWidth: '100%',
           padding: '8px 10px',
-          borderRadius: '0 10px 10px 10px',
-          background: 'rgba(245, 158, 11, 0.08)',
-          border: '1px solid rgba(245, 158, 11, 0.18)',
+          borderRadius: isOwn ? '10px 0 10px 10px' : '0 10px 10px 10px',
+          background: isOwn ? 'rgba(59, 130, 246, 0.12)' : 'rgba(245, 158, 11, 0.08)',
+          border: `1px solid ${isOwn ? 'rgba(59, 130, 246, 0.28)' : 'rgba(245, 158, 11, 0.18)'}`,
           color: 'var(--text-1)',
           fontFamily: 'var(--font-ui)',
           fontSize: 13,
