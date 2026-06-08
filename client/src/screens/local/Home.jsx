@@ -13,6 +13,7 @@ export default function Home() {
   const onNew = () => { sfx.unlock(); endSession(); navigate('/setup') }
   const onResume = () => { sfx.unlock(); navigate('/game') }
   const onHow = () => navigate('/how')
+  const onProfile = () => navigate('/profile')
   const onHost = () => { sfx.unlock(); navigate('/online/host') }
   const onJoin = () => { sfx.unlock(); navigate('/online/join') }
 
@@ -63,6 +64,8 @@ export default function Home() {
           {hasSavedGame && (
             <button className="btn btn-secondary" onClick={onResume}>Reanudar partida</button>
           )}
+
+          <button className="btn btn-secondary" onClick={onProfile}>Perfil de jugadores</button>
 
           <div style={{
             display: 'flex', flexDirection: 'column', gap: 8,

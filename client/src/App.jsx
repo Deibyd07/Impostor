@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate } from 'react-router-dom'
 
 import Home from './screens/local/Home.jsx'
 import HowToPlay from './screens/local/HowToPlay.jsx'
+import Profile from './screens/local/Profile.jsx'
 import Setup from './screens/local/Setup.jsx'
 import PassPhone from './screens/local/PassPhone.jsx'
 import CardReveal from './screens/local/CardReveal.jsx'
@@ -26,6 +27,7 @@ import RouteTransition from './components/RouteTransition.jsx'
 const routes = [
   { path: '/', element: <Home /> },
   { path: '/how', element: <HowToPlay /> },
+  { path: '/profile', element: <Profile /> },
   { path: '/setup', element: <Setup /> },
   { path: '/game', element: <GameBoard /> },
   { path: '/game/pass', element: <PassPhone /> },

@@ -195,6 +195,8 @@ function makeRoom(hostSocketId, hostName, config) {
     eliminatedIds: [],
     word: null, fakeWord: null, clue: null, category: null,
     recentWords: [],
+    gameCounter: 0,
+    gameId: null,
     roles: {},
     impostorGuessedWord: false,
     disconnectTimers: {},   // playerId -> timeout
@@ -297,6 +299,7 @@ function checkVictory(room) {
 function gameOverPayload(room, victory) {
   const impostorIds = Object.entries(room.roles).filter(([, r]) => r === 'impostor').map(([id]) => id)
   return {
+    gameId: room.gameId,
     winner: victory.winner, reason: victory.reason,
     impostorIds, word: room.word, fakeWord: room.fakeWord,
     players: room.players.map(p => ({ id: p.id, name: p.name, role: room.roles[p.id] })),
@@ -520,6 +523,8 @@ io.on('connection', (socket) => {
       socket.emit('room:error', { message: 'Se necesitan al menos 3 jugadores' })
       return
     }
+    room.gameCounter += 1
+    room.gameId = `${room.code}-${room.gameCounter}-${Date.now()}`
     assignRoles(room)
     room.phase = 'reveal'
     room.round = 1
@@ -595,6 +600,7 @@ io.on('connection', (socket) => {
     room.fakeWord = null
     room.clue = null
     room.category = null
+    room.gameId = null
     room.roles = {}
     room.impostorGuessedWord = false
     room.players.forEach(p => {
