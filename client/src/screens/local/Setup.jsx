@@ -55,7 +55,7 @@ export default function Setup() {
     navigate('/game/pass')
   }
 
-  const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
+  const maxImpostors = playerCount
   const impostorCount = Math.min(config.impostorCount, maxImpostors)
 
   return (

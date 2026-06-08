@@ -184,7 +184,7 @@ export default function HostLobby() {
 }
 
 function HostConfigPanel({ config, setConfig, playerCount }) {
-  const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
+  const maxImpostors = Math.max(1, playerCount)
   const catOptions = [
     { value: 'random', label: '🎲 Aleatoria' },
     ...Object.entries(categories).map(([k, v]) => ({ value: k, label: `${v.icon} ${v.label}` })),

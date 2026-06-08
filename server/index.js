@@ -65,7 +65,7 @@ function sanitizeConfig(cfg) {
   if (typeof cfg !== 'object' || !cfg) return out
   if (typeof cfg.mode === 'string' && ['classic', 'clue', 'blind'].includes(cfg.mode)) out.mode = cfg.mode
   if (typeof cfg.category === 'string' && (cfg.category === 'random' || wordBank[cfg.category])) out.category = cfg.category
-  if (Number.isFinite(cfg.impostorCount)) out.impostorCount = Math.max(1, Math.min(4, Math.floor(cfg.impostorCount)))
+  if (Number.isFinite(cfg.impostorCount)) out.impostorCount = Math.max(1, Math.floor(cfg.impostorCount))
   if (typeof cfg.clueType === 'string' && ['category','firstLetter','wordLength','vague','custom'].includes(cfg.clueType)) out.clueType = cfg.clueType
   if (typeof cfg.customClue === 'string') out.customClue = cfg.customClue.slice(0, 80)
   if (typeof cfg.blindIntensity === 'string' && ['near','medium','far'].includes(cfg.blindIntensity)) out.blindIntensity = cfg.blindIntensity
@@ -188,7 +188,7 @@ function assignRoles(room) {
   }
 
   const indices = shuffle(room.players.map((_, i) => i))
-  const impostorCount = Math.max(1, Math.min(cfg.impostorCount || 1, Math.floor(room.players.length / 2)))
+  const impostorCount = Math.max(1, Math.min(cfg.impostorCount || 1, room.players.length))
   const impostorIdx = new Set(indices.slice(0, impostorCount))
 
   room.roles = {}
