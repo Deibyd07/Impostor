@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import BackgroundSilhouettes from '../../components/BackgroundSilhouettes.jsx'
-import PrefsToggle from '../../components/PrefsToggle.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { sfx } from '../../utils/sfx.js'
 
@@ -20,11 +19,6 @@ export default function Home() {
   return (
     <PhoneScreen padTop={false} padBottom={false}>
       <BackgroundSilhouettes />
-      <div style={{
-        position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 18, zIndex: 6,
-      }}>
-        <PrefsToggle />
-      </div>
       <div style={{
         position: 'relative', zIndex: 4, minHeight: '100vh',
         display: 'flex', flexDirection: 'column',

@@ -24,6 +24,7 @@ import EndOnline from './screens/online/EndOnline.jsx'
 
 import ToastHost from './components/ToastHost.jsx'
 import RouteTransition from './components/RouteTransition.jsx'
+import PrefsToggle from './components/PrefsToggle.jsx'
 import { useGameStore } from './store/gameStore.js'
 import { useOnlineStore } from './store/onlineStore.js'
 import { sfx } from './utils/sfx.js'
@@ -57,6 +58,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="app-frame">
+        <PrefsToggle />
         <BrowserRouter>
           <SoundDirector />
           <RouteTransition routes={routes} />

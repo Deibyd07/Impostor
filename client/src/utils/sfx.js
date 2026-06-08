@@ -36,7 +36,27 @@ let unlockListenersReady = false
 const audioCache = new Map()
 
 function soundEnabled() {
-  return usePrefsStore.getState().sound
+  const prefs = usePrefsStore.getState()
+  return prefs.sound && globalVolume() > 0
+}
+
+function globalVolume() {
+  const volume = Number(usePrefsStore.getState().volume)
+  return Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0.8
+}
+
+function effectiveVolume(def) {
+  return (def?.volume ?? 0.7) * globalVolume()
+}
+
+function updateCachedVolumes() {
+  if (!canUseAudio()) return
+  audioCache.forEach((audio, key) => {
+    const [, src] = key.split(':')
+    const def = Object.values(MUSIC).find(item => item.src === src)
+      || Object.values(EVENTS).find(item => item.src === src)
+    if (def) audio.volume = effectiveVolume(def)
+  })
 }
 
 function ac() {
@@ -65,12 +85,12 @@ function getAudio(def, { loop = false } = {}) {
     const audio = new window.Audio(assetUrl(def.src))
     audio.preload = 'auto'
     audio.loop = loop
-    audio.volume = def.volume ?? 0.7
+    audio.volume = effectiveVolume(def)
     audioCache.set(key, audio)
   }
   const audio = audioCache.get(key)
   audio.loop = loop
-  audio.volume = def.volume ?? audio.volume
+  audio.volume = effectiveVolume(def)
   return audio
 }
 
@@ -243,12 +263,17 @@ const fallback = {
 }
 
 usePrefsStore.subscribe((state, previous) => {
-  if (state.sound === previous.sound) return
-  if (!state.sound) {
+  const soundChanged = state.sound !== previous.sound
+  const volumeChanged = state.volume !== previous.volume
+  if (!soundChanged && !volumeChanged) return
+
+  updateCachedVolumes()
+
+  if (!state.sound || globalVolume() <= 0) {
     stopActiveMusic()
     return
   }
-  unlockAudio()
+  if (soundChanged || volumeChanged) unlockAudio()
 })
 
 registerUnlockListeners()
