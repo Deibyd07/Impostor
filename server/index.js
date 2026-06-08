@@ -256,7 +256,25 @@ function makeRoom(hostSocketId, hostName, avatar, config) {
   return room
 }
 
-function sanitizeRoom(room) {
+function interrogationPayloadFor(interrogation, viewerId = null) {
+  if (!interrogation) return null
+  const canSeePrompt = viewerId === interrogation.detectiveId || viewerId === interrogation.targetId
+  const payload = {
+    id: interrogation.id,
+    detectiveId: interrogation.detectiveId,
+    detectiveName: interrogation.detectiveName,
+    detectiveAvatar: interrogation.detectiveAvatar,
+    targetId: interrogation.targetId,
+    targetName: interrogation.targetName,
+    targetAvatar: interrogation.targetAvatar,
+    startedAt: interrogation.startedAt,
+    expiresAt: interrogation.expiresAt,
+  }
+  if (canSeePrompt) payload.prompt = interrogation.prompt
+  return payload
+}
+
+function sanitizeRoom(room, viewerId = null) {
   return {
     code: room.code,
     config: room.config,
@@ -267,7 +285,7 @@ function sanitizeRoom(room) {
     })),
     phase: room.phase, round: room.round,
     chatMessages: room.chatMessages,
-    interrogation: room.interrogation,
+    interrogation: interrogationPayloadFor(room.interrogation, viewerId),
   }
 }
 
@@ -440,7 +458,7 @@ function assignHost(room) {
 
 function notifyHostAssigned(room, host) {
   if (!host?.socketId) return
-  io.to(host.socketId).emit('room:hostAssigned', { room: sanitizeRoom(room) })
+  io.to(host.socketId).emit('room:hostAssigned', { room: sanitizeRoom(room, host.id) })
 }
 
 function emitVoteUpdate(room) {
@@ -646,7 +664,7 @@ io.on('connection', (socket) => {
       ...privatePlayerPayload(player),
       ...(rolePayloadFor(room, socket.id) || {}),
     }
-    socket.emit('room:resumed', { code: room.code, room: sanitizeRoom(room), you })
+    socket.emit('room:resumed', { code: room.code, room: sanitizeRoom(room, socket.id), you })
     broadcastPlayers(room)
   })
 
@@ -761,7 +779,12 @@ io.on('connection', (socket) => {
 
     room.detectiveInterrogationUsedBy = socket.id
     room.interrogation = buildInterrogationPayload(room, detective, target)
-    io.to(room.code).emit('game:interrogationStarted', { interrogation: room.interrogation })
+    room.players.forEach(player => {
+      if (player.disconnected || !player.socketId) return
+      io.to(player.socketId).emit('game:interrogationStarted', {
+        interrogation: interrogationPayloadFor(room.interrogation, player.id),
+      })
+    })
     room.interrogationTimer = setTimeout(() => {
       clearInterrogation(room)
     }, INTERROGATION_DURATION_MS)

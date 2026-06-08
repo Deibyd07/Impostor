@@ -18,6 +18,7 @@ export default function DetectiveInterrogationPanel({
   const [now, setNow] = useState(Date.now())
   const isDetective = role === 'detective'
   const remaining = secondsLeft(interrogation?.expiresAt, now)
+  const hasPrivatePrompt = !!interrogation?.prompt
   const candidates = players.filter(p => !p.eliminated && !p.disconnected && p.id !== myId)
   const selected = candidates.find(p => p.id === selectedId)
 
@@ -41,6 +42,7 @@ export default function DetectiveInterrogationPanel({
       {interrogation && (
         <>
           <SectionHeader right={remaining > 0 ? `${remaining}s` : 'Cerrando'}>Interrogatorio</SectionHeader>
+          {hasPrivatePrompt ? (
           <div className="grain grain-heavy" style={{
             position: 'relative',
             overflow: 'hidden',
@@ -142,6 +144,9 @@ export default function DetectiveInterrogationPanel({
               Solo {interrogation.detectiveName} y {interrogation.targetName} tienen la palabra.
             </div>
           </div>
+          ) : (
+            <ObserverNotice interrogation={interrogation} remaining={remaining} />
+          )}
         </>
       )}
 
@@ -286,6 +291,86 @@ function Speaker({ label, name, avatar, align = 'left' }) {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>{name}</div>
+      </div>
+    </div>
+  )
+}
+
+function ObserverNotice({ interrogation, remaining }) {
+  return (
+    <div style={{
+      position: 'relative',
+      overflow: 'hidden',
+      border: '1px solid rgba(245, 158, 11, 0.32)',
+      borderRadius: 14,
+      background: 'linear-gradient(180deg, rgba(245, 158, 11, 0.08), rgba(18,18,30,0.96))',
+      padding: '15px 16px',
+      marginBottom: 0,
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 10,
+      }}>
+        <div style={{
+          minWidth: 0,
+          fontFamily: 'var(--font-display)',
+          fontSize: 15,
+          fontWeight: 700,
+          color: 'var(--gold)',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+        }}>Interrogatorio en curso</div>
+        <div style={{
+          flexShrink: 0,
+          fontFamily: 'var(--font-num)',
+          fontSize: 22,
+          color: 'var(--text-2)',
+          letterSpacing: '0.04em',
+        }}>{remaining > 0 ? `${remaining}s` : '...'}</div>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 10,
+      }}>
+        <Avatar value={interrogation.detectiveAvatar} name={interrogation.detectiveName} />
+        <div style={{
+          width: 18,
+          height: 1,
+          background: 'rgba(245, 158, 11, 0.38)',
+          flexShrink: 0,
+        }} />
+        <Avatar value={interrogation.targetAvatar} name={interrogation.targetName} />
+        <div style={{
+          minWidth: 0,
+          marginLeft: 2,
+          fontFamily: 'var(--font-ui)',
+          fontSize: 12,
+          color: 'var(--text-2)',
+          lineHeight: 1.35,
+        }}>
+          <strong style={{ color: 'var(--text-1)' }}>{interrogation.detectiveName}</strong> y{' '}
+          <strong style={{ color: 'var(--text-1)' }}>{interrogation.targetName}</strong> estan hablando.
+        </div>
+      </div>
+
+      <div style={{
+        borderRadius: 12,
+        border: '1px solid rgba(245, 158, 11, 0.16)',
+        background: 'rgba(0,0,0,0.18)',
+        padding: '10px 12px',
+        fontFamily: 'var(--font-ui)',
+        fontSize: 12,
+        color: 'var(--text-3)',
+        lineHeight: 1.45,
+        textAlign: 'center',
+      }}>
+        La pregunta es privada. Escucha la conversacion y observa las respuestas.
       </div>
     </div>
   )

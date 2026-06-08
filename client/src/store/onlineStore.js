@@ -140,6 +140,7 @@ export const useOnlineStore = create((set, get) => ({
         players: room?.players || get().players,
         config: room?.config || get().config,
         phase: room?.phase || get().phase,
+        detectiveInterrogation: room?.interrogation || get().detectiveInterrogation,
       })
       toast.success('Ahora eres el anfitrion', { duration: 3000 })
     })
