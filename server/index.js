@@ -22,6 +22,7 @@ function envInt(name, fallback) {
 }
 
 const PORT = process.env.PORT || 3001
+const HOST = process.env.HOST || '0.0.0.0'
 const HTTP_RATE_LIMIT_PER_MINUTE = envInt('HTTP_RATE_LIMIT_PER_MINUTE', 120)
 const MAX_CONNECTIONS_PER_IP = envInt('MAX_CONNECTIONS_PER_IP', 5)
 const MAX_ROOM_CREATIONS_PER_IP_PER_HOUR = envInt('MAX_ROOM_CREATIONS_PER_IP_PER_HOUR', 10)
@@ -1740,6 +1741,6 @@ function leaveSocket(socket, hard) {
   saveRoom(room)
 }
 
-server.listen(PORT, () => {
-  console.log(`[el-impostor] server listening on :${PORT}`)
+server.listen(PORT, HOST, () => {
+  console.log(`[el-impostor] server listening on ${HOST}:${PORT}`)
 })
