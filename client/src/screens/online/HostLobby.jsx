@@ -172,10 +172,13 @@ export default function HostLobby() {
         />
       }
       rightPanel={
-        <LobbyStatusPanel
-          players={players}
-          config={config}
-        />
+        <div className="lobby-desktop-side-stack">
+          <LobbyStatusPanel
+            players={players}
+            config={config}
+          />
+          <VoicePanel compact />
+        </div>
       }
       footer={
         <button
@@ -217,7 +220,9 @@ export default function HostLobby() {
           />
         </div>
 
-        <VoicePanel />
+        <div className="ds-mobile-only">
+          <VoicePanel />
+        </div>
 
         <LobbyPlayersBoard players={players} />
 

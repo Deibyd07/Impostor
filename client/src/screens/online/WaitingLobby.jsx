@@ -32,11 +32,14 @@ export default function WaitingLobby() {
     <PhoneScreen
       className="online-lobby-screen online-lobby-waiting-screen"
       rightPanel={
-        <LobbyStatusPanel
-          players={players}
-          config={config}
-          note="El anfitrion esta preparando el expediente. Cuando inicie, cada jugador recibe su carta privada."
-        />
+        <div className="lobby-desktop-side-stack">
+          <LobbyStatusPanel
+            players={players}
+            config={config}
+            note="El anfitrion esta preparando el expediente. Cuando inicie, cada jugador recibe su carta privada."
+          />
+          <VoicePanel compact />
+        </div>
       }
     >
       <div className="lobby-room lobby-room--waiting">
@@ -67,7 +70,9 @@ export default function WaitingLobby() {
           />
         </div>
 
-        <VoicePanel />
+        <div className="ds-mobile-only">
+          <VoicePanel />
+        </div>
 
         <LobbyPlayersBoard players={players} myId={myId} />
       </div>
