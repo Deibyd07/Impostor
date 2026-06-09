@@ -16,6 +16,15 @@ function cleanProfileId(profileId) {
   return /^[0-9a-f-]{36}$/.test(value) ? value : null
 }
 
+function cleanEnvValue(value) {
+  return String(value ?? '').trim().replace(/^['"]|['"]$/g, '')
+}
+
+function normalizeSupabaseUrl(value) {
+  const clean = cleanEnvValue(value).replace(/\/+$/, '')
+  return clean.replace(/\/rest\/v1$/i, '')
+}
+
 function isImpostorRole(role) {
   return ['impostor', 'impostor-clue', 'impostor-blind', 'detective-impostor'].includes(role)
 }
@@ -93,11 +102,19 @@ export function createLeaderboardStore({
   serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY,
   logger = console,
 } = {}) {
-  if (!supabaseUrl || !serviceRoleKey) return disabledStore()
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl)
+  const normalizedKey = cleanEnvValue(serviceRoleKey)
+  if (!normalizedUrl || !normalizedKey) return disabledStore()
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  let supabase
+  try {
+    supabase = createClient(normalizedUrl, normalizedKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  } catch (error) {
+    logger.warn?.(`[leaderboard] Profiles disabled: ${error.message}`)
+    return disabledStore()
+  }
 
   return {
     type: 'supabase',

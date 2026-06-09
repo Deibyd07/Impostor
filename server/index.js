@@ -80,7 +80,7 @@ app.post('/profiles', async (req, res) => {
       avatar: normalizeAvatar(req.body?.avatar, name),
     })
     if (!result.profile) {
-      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Supabase no esta configurado' })
+      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Perfiles no disponibles en este momento' })
       return
     }
     res.status(201).json({ ok: true, source: leaderboardStore.type, profile: result.profile })
@@ -105,7 +105,7 @@ app.patch('/profiles/:profileId', async (req, res) => {
       avatar: req.body?.avatar == null ? undefined : normalizeAvatar(req.body.avatar, name || ''),
     })
     if (!result.profile) {
-      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Supabase no esta configurado' })
+      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Perfiles no disponibles en este momento' })
       return
     }
     res.json({ ok: true, source: leaderboardStore.type, profile: result.profile })
@@ -122,7 +122,7 @@ app.delete('/profiles/:profileId', async (req, res) => {
     }
     const result = await leaderboardStore.deleteProfile(profileId)
     if (result.available === false) {
-      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Supabase no esta configurado' })
+      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Perfiles no disponibles en este momento' })
       return
     }
     res.json({ ok: true, source: leaderboardStore.type })
