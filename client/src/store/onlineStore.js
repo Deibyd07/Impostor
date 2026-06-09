@@ -57,6 +57,8 @@ export const useOnlineStore = create((set, get) => ({
   myId: null,
   myName: '',
   myAvatar: null,
+  myProfileId: null,
+  isGuest: true,
   players: [],          // [{ id, name, isHost, ready, eliminated }]
   config: null,
   phase: 'lobby',       // lobby | reveal | discussion | voting | voted | ended | spectator
@@ -110,6 +112,8 @@ export const useOnlineStore = create((set, get) => ({
       const myAvatar = normalizeAvatar(you?.avatar || get().myAvatar, myName)
       set({
         roomCode: code, isHost: true, myId, myName, myAvatar,
+        myProfileId: you?.profileId || null,
+        isGuest: you?.isGuest !== false || !you?.profileId,
         players: room.players, config: room.config, phase: 'lobby',
         votes: room.votes || {},
         votersReady: room.votersReady || 0,
@@ -124,7 +128,7 @@ export const useOnlineStore = create((set, get) => ({
         eliminationReveal: null,
         resumePending: false,
       })
-      saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
+      saveSession({ code, name: myName, avatar: myAvatar, profileId: you?.profileId || null, isGuest: you?.isGuest !== false || !you?.profileId, sessionToken: you?.sessionToken })
     })
     socket.on('room:joined', ({ code, room, you }) => {
       const myId = you?.id || socket.id
@@ -132,6 +136,8 @@ export const useOnlineStore = create((set, get) => ({
       const myAvatar = normalizeAvatar(you?.avatar || get().myAvatar, myName)
       set({
         roomCode: code, isHost: false, myId, myName, myAvatar,
+        myProfileId: you?.profileId || null,
+        isGuest: you?.isGuest !== false || !you?.profileId,
         players: room.players, config: room.config, phase: 'lobby',
         votes: room.votes || {},
         votersReady: room.votersReady || 0,
@@ -146,7 +152,7 @@ export const useOnlineStore = create((set, get) => ({
         eliminationReveal: null,
         resumePending: false,
       })
-      saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
+      saveSession({ code, name: myName, avatar: myAvatar, profileId: you?.profileId || null, isGuest: you?.isGuest !== false || !you?.profileId, sessionToken: you?.sessionToken })
     })
     socket.on('room:resumed', ({ code, room, you }) => {
       set({
@@ -164,6 +170,8 @@ export const useOnlineStore = create((set, get) => ({
         myId: you?.id || get().myId,
         myName: you?.name || get().myName,
         myAvatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
+        myProfileId: you?.profileId || null,
+        isGuest: you?.isGuest !== false || !you?.profileId,
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         votedFor: you?.votedFor || null,
@@ -176,6 +184,8 @@ export const useOnlineStore = create((set, get) => ({
         code,
         name: you?.name || get().myName,
         avatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
+        profileId: you?.profileId || null,
+        isGuest: you?.isGuest !== false || !you?.profileId,
         sessionToken: you?.sessionToken,
       })
       if (you?.role) {
@@ -412,7 +422,9 @@ export const useOnlineStore = create((set, get) => ({
       myWord: null,
       myClue: null,
       myImpostorTeammates: [],
-      myAvatar: null,
+        myAvatar: null,
+        myProfileId: null,
+        isGuest: true,
       chatMessages: [],
       detectiveInterrogation: null,
       detectiveInterrogationUsed: false,
@@ -420,18 +432,22 @@ export const useOnlineStore = create((set, get) => ({
     })
   },
 
-  createRoom: (hostName, config, avatar) => {
+  createRoom: (hostName, config, avatar, profile = {}) => {
     const myAvatar = normalizeAvatar(avatar, hostName)
+    const profileId = profile?.isGuest === false ? profile.profileId || null : null
+    const isGuest = !profileId
     rememberAvatarForName(hostName, myAvatar)
-    set({ myName: hostName, myAvatar, error: null })
-    get().socket?.emit('room:create', { hostName, avatar: myAvatar, config })
+    set({ myName: hostName, myAvatar, myProfileId: profileId, isGuest, error: null })
+    get().socket?.emit('room:create', { hostName, avatar: myAvatar, config, profileId, isGuest })
   },
 
-  joinRoom: (code, playerName, avatar) => {
+  joinRoom: (code, playerName, avatar, profile = {}) => {
     const myAvatar = normalizeAvatar(avatar, playerName)
+    const profileId = profile?.isGuest === false ? profile.profileId || null : null
+    const isGuest = !profileId
     rememberAvatarForName(playerName, myAvatar)
-    set({ myName: playerName, myAvatar, error: null })
-    get().socket?.emit('room:join', { code: code.toUpperCase(), playerName, avatar: myAvatar })
+    set({ myName: playerName, myAvatar, myProfileId: profileId, isGuest, error: null })
+    get().socket?.emit('room:join', { code: code.toUpperCase(), playerName, avatar: myAvatar, profileId, isGuest })
   },
 
   leaveRoom: () => {
@@ -448,6 +464,8 @@ export const useOnlineStore = create((set, get) => ({
       myWord: null,
       myClue: null,
       myImpostorTeammates: [],
+      myProfileId: null,
+      isGuest: true,
       votes: {},
       votedFor: null,
       chatMessages: [],

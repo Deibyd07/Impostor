@@ -4,6 +4,65 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const patches = [
   {
+    version: '0.2.0',
+    path: '/patch-0-2-0',
+    eyebrow: 'Identidad y competencia',
+    title: 'Perfiles, puntos y ranking global',
+    summary: 'Esta version convierte cada partida en una mesa con progreso: perfiles guardados, ranking global y puntos visibles al cerrar cada ronda.',
+    highlights: [
+      {
+        code: 'PERFIL',
+        title: 'Perfiles de jugador',
+        body: 'Cada jugador puede crear su perfil con nombre y avatar para jugar como identidad fija en partidas locales u online.',
+      },
+      {
+        code: 'RANK',
+        title: 'Ranking global',
+        body: 'El menu ahora tiene una clasificacion global para ver quien va dominando entre todas las partidas registradas.',
+      },
+      {
+        code: 'PTS',
+        title: 'Puntos al final',
+        body: 'Al terminar una ronda, la pantalla de victoria muestra puntos animados y el acumulado de la sala.',
+      },
+    ],
+    sections: [
+      {
+        title: 'Perfiles',
+        items: [
+          'El menu tiene una pantalla para crear, elegir, editar y borrar perfiles.',
+          'Los perfiles se pueden usar al crear sala, unirse a una sala o preparar una partida local.',
+          'Jugar como invitado sigue disponible, pero no aparece en el ranking global.',
+          'Los perfiles antiguos del dispositivo se sincronizan al abrir las pantallas de juego.',
+        ],
+      },
+      {
+        title: 'Ranking y puntos',
+        items: [
+          'Al ganar o perder una ronda, cada jugador ve cuantos puntos sumo.',
+          'La sala mantiene un ranking acumulado durante las revanchas.',
+          'Desde esa misma vista se puede cambiar al ranking global.',
+          'El ranking global muestra partidas, victorias, rachas y puntos totales.',
+        ],
+      },
+      {
+        title: 'Experiencia de cierre',
+        items: [
+          'La victoria de ciudadanos o impostores conserva su escena dramatica.',
+          'El reparto de puntos aparece con animacion y detalle de bonificaciones.',
+          'Los mejores jugadores de la sala quedan resaltados para comparar rapido.',
+          'La pantalla de novedades y el menu principal muestran Alpha 0.2.0.',
+        ],
+      },
+    ],
+    testFlow: [
+      'Crea dos o mas perfiles desde Mis perfiles.',
+      'Juega una partida local u online eligiendo esos perfiles.',
+      'Termina la ronda y revisa la animacion de puntos de la sala.',
+      'Cambia a Global en esa misma vista y confirma que el ranking se actualiza.',
+    ],
+  },
+  {
     version: '0.1.0',
     path: '/patch-0-1-0',
     eyebrow: 'Alpha jugable',
@@ -49,7 +108,7 @@ const patches = [
         title: 'Historial de versiones',
         items: [
           'El menu principal muestra el parche actual 0.1.0.',
-          'La pantalla de novedades permite cambiar entre 0.1.0, 0.0.5, 0.0.4 y 0.0.3.',
+          'La pantalla de novedades permite cambiar entre versiones del historial alpha.',
           'Las notas se mantienen enfocadas en cambios que entienden los jugadores.',
         ],
       },
@@ -107,7 +166,7 @@ const patches = [
         title: 'Historial de versiones',
         items: [
           'El menu principal muestra el parche actual de forma clara.',
-          'La pantalla de novedades permite cambiar entre 0.1.0, 0.0.5, 0.0.4 y 0.0.3.',
+          'La pantalla de novedades permite cambiar entre las versiones del historial alpha.',
           'Cada version resume que se agrego y como probarlo en una partida.',
         ],
       },

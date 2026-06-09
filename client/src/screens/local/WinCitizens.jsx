@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Confetti from '../../components/Confetti.jsx'
 import Badge from '../../components/Badge.jsx'
+import RoundScoreboard from '../../components/RoundScoreboard.jsx'
 import { sfx } from '../../utils/sfx.js'
 
 export default function WinCitizens({
@@ -9,6 +10,8 @@ export default function WinCitizens({
   onRematch, onNew,
   rematchLabel = 'Revancha', newLabel = 'Nueva partida',
   rematchDisabled = false,
+  scoreSummary = null,
+  scoreSyncKey = null,
 }) {
   useEffect(() => { sfx.winCitizens() }, [])
   return (
@@ -84,6 +87,8 @@ export default function WinCitizens({
             </div>
           )}
         </div>
+
+        <RoundScoreboard scoreSummary={scoreSummary} syncKey={scoreSyncKey} />
 
         <div style={{ flex: 1 }} />
 

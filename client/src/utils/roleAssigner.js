@@ -67,6 +67,8 @@ export function buildSession(config, options = {}) {
       id: p.id ?? String(i),
       name: p.name,
       avatar: avatarForPlayer(p),
+      profileId: p.profileId || null,
+      isGuest: p.isGuest !== false || !p.profileId,
       role: isImpostor ? 'impostor' : 'citizen',
       // Palabra que verá: ciudadanos ven la real, impostores depende del modo
       seenWord: isImpostor

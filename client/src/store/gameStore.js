@@ -4,9 +4,10 @@ import { appendRecentWord, buildSession } from '../utils/roleAssigner.js'
 import { checkVictory, leaderInVotes, activePlayers } from '../utils/gameLogic.js'
 import { shuffle } from '../utils/random.js'
 import { avatarForPlayer } from '../data/avatars.js'
+import { buildScoreSummary } from '../utils/scoreboard.js'
 
 const defaultPlayers = ['Carlos', 'María', 'Andrés', 'Sofía']
-  .map((n, i) => ({ id: String(i), name: n, avatar: avatarForPlayer({ name: n }) }))
+  .map((n, i) => ({ id: String(i), name: n, avatar: avatarForPlayer({ name: n }), profileId: null, isGuest: true }))
 
 const defaultConfig = {
   players: defaultPlayers,
@@ -37,6 +38,8 @@ function normalizePlayers(players = []) {
       id: player.id ?? String(index),
       name,
       avatar: avatarForPlayer({ ...player, name }),
+      profileId: player.profileId || null,
+      isGuest: player.isGuest !== false || !player.profileId,
     }
   })
 }
@@ -47,6 +50,9 @@ export const useGameStore = create(
       config: defaultConfig,
       session: null,
       recentWords: [],
+      roomScores: {},
+      lastScoreSummary: null,
+      scoredGameIds: [],
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setPlayers: (players) => set((s) => ({ config: { ...s.config, players: normalizePlayers(players) } })),
@@ -54,14 +60,33 @@ export const useGameStore = create(
       // ----- Lifecycle -----
       startSession: () => {
         const cfg = get().config
-        set(buildTrackedSession(cfg, get().recentWords))
+        set({
+          ...buildTrackedSession(cfg, get().recentWords),
+          roomScores: {},
+          lastScoreSummary: null,
+          scoredGameIds: [],
+        })
       },
 
-      endSession: () => set({ session: null, recentWords: [] }),
+      endSession: () => set({ session: null, recentWords: [], roomScores: {}, lastScoreSummary: null, scoredGameIds: [] }),
 
       rematch: () => {
         const cfg = get().config
         set(buildTrackedSession(cfg, get().recentWords))
+      },
+
+      recordRoundScores: (session) => {
+        if (!session?.id || !session?.winner) return get().lastScoreSummary
+        const state = get()
+        const scoredGameIds = state.scoredGameIds || []
+        if (scoredGameIds.includes(session.id)) return state.lastScoreSummary
+        const summary = buildScoreSummary(session.players, session.winner.winner, state.roomScores)
+        set({
+          roomScores: summary.scores,
+          lastScoreSummary: summary,
+          scoredGameIds: [...scoredGameIds, session.id].slice(-100),
+        })
+        return summary
       },
 
       // ----- Card reveal flow -----
@@ -151,7 +176,14 @@ export const useGameStore = create(
     {
       name: 'el-impostor-game',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ config: state.config, session: state.session, recentWords: state.recentWords }),
+      partialize: (state) => ({
+        config: state.config,
+        session: state.session,
+        recentWords: state.recentWords,
+        roomScores: state.roomScores,
+        lastScoreSummary: state.lastScoreSummary,
+        scoredGameIds: state.scoredGameIds,
+      }),
     }
   )
 )

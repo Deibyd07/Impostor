@@ -5,6 +5,7 @@ import Home from './screens/local/Home.jsx'
 import HowToPlay from './screens/local/HowToPlay.jsx'
 import PatchNotes from './screens/local/PatchNotes.jsx'
 import Profile from './screens/local/Profile.jsx'
+import Ranking from './screens/local/Ranking.jsx'
 import Setup from './screens/local/Setup.jsx'
 import PassPhone from './screens/local/PassPhone.jsx'
 import CardReveal from './screens/local/CardReveal.jsx'
@@ -38,11 +39,13 @@ const SPLASH_SESSION_KEY = 'el-impostor-splash-seen'
 const routes = [
   { path: '/', element: <Home /> },
   { path: '/how', element: <HowToPlay /> },
+  { path: '/patch-0-2-0', element: <PatchNotes /> },
   { path: '/patch-0-1-0', element: <PatchNotes /> },
   { path: '/patch-0-0-5', element: <PatchNotes /> },
   { path: '/patch-0-0-4', element: <PatchNotes /> },
   { path: '/patch-0-0-3', element: <PatchNotes /> },
   { path: '/profile', element: <Profile /> },
+  { path: '/ranking', element: <Ranking /> },
   { path: '/setup', element: <Setup /> },
   { path: '/game', element: <GameBoard /> },
   { path: '/game/pass', element: <PassPhone /> },
@@ -176,7 +179,7 @@ function onlineTargetForPhase({ phase, isHost }) {
 }
 
 function resolveMusicLoop(pathname, { detectiveInterrogation }) {
-  if (['/', '/how', '/patch-0-1-0', '/patch-0-0-5', '/patch-0-0-4', '/patch-0-0-3', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
+  if (['/', '/how', '/patch-0-2-0', '/patch-0-1-0', '/patch-0-0-5', '/patch-0-0-4', '/patch-0-0-3', '/profile', '/ranking', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
     return 'lobby'
   }
   if (pathname === '/game' || pathname === '/online/spectator') return 'discussion'

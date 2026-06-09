@@ -35,9 +35,9 @@ const caseSteps = [
 ]
 
 const releaseNotes = [
-  'Salas online mas resistentes al recargar.',
-  'Voz reforzada en salas online.',
-  'Pruebas de microfono y sonido mas claras.',
+  'Perfiles guardados en Supabase.',
+  'Ranking global y ranking de sala.',
+  'Animacion de puntos al cerrar cada ronda.',
 ]
 
 export default function Home() {
@@ -48,8 +48,9 @@ export default function Home() {
   const onNew = () => { sfx.unlock(); endSession(); navigate('/setup') }
   const onResume = () => { sfx.unlock(); navigate('/game') }
   const onHow = () => navigate('/how')
-  const onPatch = () => navigate('/patch-0-1-0')
+  const onPatch = () => navigate('/patch-0-2-0')
   const onProfile = () => navigate('/profile')
+  const onRanking = () => navigate('/ranking')
   const onHost = () => { sfx.unlock(); navigate('/online/host') }
   const onJoin = () => { sfx.unlock(); navigate('/online/join') }
 
@@ -91,8 +92,8 @@ export default function Home() {
         <p>{hasSavedGame ? 'Puedes reanudar o abrir un caso nuevo.' : 'Prepara la mesa y reparte identidades.'}</p>
       </div>
       <button type="button" className="case-evidence-card case-release-link" onClick={onPatch}>
-        <div className="case-evidence-card__label">Alpha 0.1.0</div>
-        <strong>Salas mas estables</strong>
+        <div className="case-evidence-card__label">Alpha 0.2.0</div>
+        <strong>Perfiles y ranking</strong>
         <p>Consulta las mejoras de esta version y el historial de parches.</p>
         <ul className="case-release-list">
           {releaseNotes.map(note => <li key={note}>{note}</li>)}
@@ -137,8 +138,13 @@ export default function Home() {
             )}
 
             <button className="case-action" onClick={onProfile}>
-              <span>Historial</span>
-              <strong>Perfil de jugadores</strong>
+              <span>Identidad</span>
+              <strong>Mis perfiles</strong>
+            </button>
+
+            <button className="case-action" onClick={onRanking}>
+              <span>Global</span>
+              <strong>Ranking</strong>
             </button>
           </div>
         </section>
@@ -157,13 +163,14 @@ export default function Home() {
 
         <section className="case-menu-links" aria-label="Información del juego">
           <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
+          <button className="case-how-link" onClick={onRanking}>Ranking global</button>
           <button className="case-patch-link" onClick={onPatch}>
             <span>Novedades</span>
-            <strong>Alpha 0.1.0</strong>
+            <strong>Alpha 0.2.0</strong>
           </button>
         </section>
 
-        <div className="case-version">v0.1.0 alpha - salas online estables</div>
+        <div className="case-version">v0.2.0 alpha - perfiles y ranking global</div>
       </main>
     </PhoneScreen>
   )

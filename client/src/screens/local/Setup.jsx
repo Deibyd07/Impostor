@@ -1,11 +1,14 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import PlayerChip from '../../components/PlayerChip.jsx'
+import ProfileIdentityPicker from '../../components/ProfileIdentityPicker.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
 import { useGameStore } from '../../store/gameStore.js'
+import { usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
 import { categories } from '../../data/wordBank.js'
 import { avatarForPlayer, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 import { shuffle } from '../../utils/random.js'
@@ -21,20 +24,55 @@ export default function Setup() {
   const setConfig = useGameStore(s => s.setConfig)
   const setPlayers = useGameStore(s => s.setPlayers)
   const startSession = useGameStore(s => s.startSession)
+  const profiles = usePlayerProfilesStore(s => s.profiles)
+  const setActiveProfile = usePlayerProfilesStore(s => s.setActiveProfile)
+  const syncProfiles = usePlayerProfilesStore(s => s.syncProfiles)
 
   const players = config.players
   const playerCount = players.length
+
+  useEffect(() => { syncProfiles() }, [syncProfiles])
+
+  const assignProfile = (i, profileId) => {
+    const profile = profiles.find(item => item.id === profileId)
+    if (profile) setActiveProfile(profile.id)
+    const next = players.map((p, idx) => {
+      if (idx !== i) return p
+      if (profile && p.profileId === profile.id) return p
+      if (!profile) {
+        return { ...p, profileId: null, isGuest: true }
+      }
+      return {
+        ...p,
+        name: profile.name,
+        avatar: profile.avatar,
+        profileId: profile.id,
+        isGuest: false,
+      }
+    }).map((p, idx) => (
+      profile && idx !== i && p.profileId === profile.id
+        ? { ...p, profileId: null, isGuest: true }
+        : p
+    ))
+    setPlayers(next)
+  }
 
   const renamePlayer = (i, name) => {
     const next = players.map((p, idx) => {
       if (idx !== i) return p
       const savedAvatar = savedAvatarForName(name)
-      return { ...p, name, avatar: savedAvatar || p.avatar || avatarForPlayer({ name }) }
+      return {
+        ...p,
+        name,
+        avatar: savedAvatar || p.avatar || avatarForPlayer({ name }),
+        profileId: null,
+        isGuest: true,
+      }
     })
     setPlayers(next)
   }
   const changeAvatar = (i, avatar) => {
-    const next = players.map((p, idx) => idx === i ? { ...p, avatar } : p)
+    const next = players.map((p, idx) => idx === i ? { ...p, avatar, profileId: null, isGuest: true } : p)
     const player = next[i]
     rememberAvatarForName(player.name, avatar)
     setPlayers(next)
@@ -42,7 +80,7 @@ export default function Setup() {
   const addPlayer = () => {
     if (playerCount >= 12) return
     const name = defaultName(playerCount)
-    setPlayers([...players, { id: String(Date.now() + Math.random()), name, avatar: avatarForPlayer({ name }) }])
+    setPlayers([...players, { id: String(Date.now() + Math.random()), name, avatar: avatarForPlayer({ name }), profileId: null, isGuest: true }])
   }
   const removePlayer = (i) => {
     if (playerCount <= 3) return
@@ -54,6 +92,8 @@ export default function Setup() {
         id: String(Date.now() + Math.random() + k),
         name: defaultName(playerCount + k),
         avatar: avatarForPlayer({ name: defaultName(playerCount + k) }),
+        profileId: null,
+        isGuest: true,
       }))
       setPlayers([...players, ...extra])
     } else {
@@ -64,7 +104,7 @@ export default function Setup() {
     const names = shuffle(nameSeeds).slice(0, playerCount)
     setPlayers(players.map((p, i) => {
       const name = names[i] || p.name
-      return { ...p, name, avatar: savedAvatarForName(name) || p.avatar || avatarForPlayer({ name }) }
+      return { ...p, name, avatar: savedAvatarForName(name) || p.avatar || avatarForPlayer({ name }), profileId: null, isGuest: true }
     }))
   }
   const onDeal = () => {
@@ -111,14 +151,33 @@ export default function Setup() {
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 28 }}>
           {players.map((p, i) => (
-            <PlayerChip key={p.id}
-              name={p.name}
-              avatar={p.avatar}
-              editable
-              onChange={(name) => renamePlayer(i, name)}
-              onAvatarChange={(avatar) => changeAvatar(i, avatar)}
-              onRemove={playerCount > 3 ? () => removePlayer(i) : undefined}
-            />
+            <div key={p.id} style={{
+              flex: '1 1 180px',
+              minWidth: 170,
+              maxWidth: 260,
+              padding: 10,
+              borderRadius: 12,
+              border: '1px solid var(--hairline-cold)',
+              background: 'rgba(255,255,255,0.025)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}>
+              <PlayerChip
+                name={p.name}
+                avatar={p.avatar}
+                editable
+                onChange={(name) => renamePlayer(i, name)}
+                onAvatarChange={(avatar) => changeAvatar(i, avatar)}
+                onRemove={playerCount > 3 ? () => removePlayer(i) : undefined}
+              />
+              <ProfileIdentityPicker
+                profiles={profiles}
+                value={p.isGuest === false && p.profileId ? p.profileId : 'guest'}
+                onChange={(value) => assignProfile(i, value)}
+                label="Identidad"
+              />
+            </div>
           ))}
           {playerCount < 12 && (
             <button onClick={addPlayer} style={{

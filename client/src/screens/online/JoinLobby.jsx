@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import AvatarPicker from '../../components/AvatarPicker.jsx'
+import ProfileIdentityPicker from '../../components/ProfileIdentityPicker.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
+import { profileIdentity, usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
 import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 
 export default function JoinLobby() {
@@ -16,13 +18,22 @@ export default function JoinLobby() {
   const error = useOnlineStore(s => s.error)
   const clearError = useOnlineStore(s => s.clearError)
   const phase = useOnlineStore(s => s.phase)
+  const profiles = usePlayerProfilesStore(s => s.profiles)
+  const activeProfileId = usePlayerProfilesStore(s => s.activeProfileId)
+  const setActiveProfile = usePlayerProfilesStore(s => s.setActiveProfile)
+  const syncProfiles = usePlayerProfilesStore(s => s.syncProfiles)
   const [code, setCode] = useState((search.get('code') || '').toUpperCase().slice(0, 4))
   const [name, setName] = useState('')
   const [avatar, setAvatar] = useState(defaultAvatarForName(''))
   const [avatarTouched, setAvatarTouched] = useState(false)
+  const [identityId, setIdentityId] = useState(activeProfileId || 'guest')
   const codeInputRef = useRef(null)
+  const selectedProfile = profiles.find(profile => profile.id === identityId) || null
+  const currentName = selectedProfile?.name || name.trim()
+  const currentAvatar = selectedProfile?.avatar || avatar
 
   useEffect(() => { connect() }, [connect])
+  useEffect(() => { syncProfiles() }, [syncProfiles])
   useEffect(() => {
     if (roomCode) navigate('/online/waiting')
   }, [roomCode, navigate])
@@ -33,17 +44,36 @@ export default function JoinLobby() {
     if (avatarTouched) return
     setAvatar(savedAvatarForName(name) || defaultAvatarForName(name))
   }, [name, avatarTouched])
+  useEffect(() => {
+    const activeProfile = profiles.find(profile => profile.id === activeProfileId)
+    if (!activeProfile || name.trim() || identityId !== 'guest') return
+    setIdentityId(activeProfile.id)
+    setName(activeProfile.name)
+    setAvatar(activeProfile.avatar)
+    setAvatarTouched(true)
+  }, [activeProfileId, profiles, name, identityId])
 
   const codeReady = code.length === 4
-  const ready = codeReady && name.trim().length > 0 && connected
+  const ready = codeReady && currentName.length > 0 && connected
+
+  const chooseIdentity = (nextIdentityId) => {
+    setIdentityId(nextIdentityId)
+    const profile = profiles.find(item => item.id === nextIdentityId)
+    if (!profile) return
+    setActiveProfile(profile.id)
+    setName(profile.name)
+    setAvatar(profile.avatar)
+    setAvatarTouched(true)
+  }
 
   const chooseAvatar = (nextAvatar) => {
+    setIdentityId('guest')
     setAvatar(nextAvatar)
     setAvatarTouched(true)
     if (name.trim()) rememberAvatarForName(name, nextAvatar)
   }
 
-  const onJoin = () => { clearError(); joinRoom(code, name.trim(), avatar) }
+  const onJoin = () => { clearError(); joinRoom(code, currentName, currentAvatar, profileIdentity(selectedProfile)) }
   const focusCodeInput = () => codeInputRef.current?.focus()
 
   return (
@@ -127,12 +157,24 @@ export default function JoinLobby() {
           }}>Toca para escribir código</button>
 
         <div style={{ marginTop: 36 }}>
+          <ProfileIdentityPicker
+            profiles={profiles}
+            value={identityId}
+            onChange={chooseIdentity}
+            helper="Los invitados juegan normal, pero no entran al ranking."
+          />
+        </div>
+
+        <div style={{ marginTop: 24 }}>
           <div style={{
             fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
             letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 8,
           }}>Tu nombre</div>
           <input
-            type="text" value={name} onChange={e => setName(e.target.value)}
+            type="text"
+            value={selectedProfile ? selectedProfile.name : name}
+            disabled={!!selectedProfile}
+            onChange={e => { setIdentityId('guest'); setName(e.target.value) }}
             placeholder="Carlos" maxLength={16}
             style={{
               width: '100%', padding: '14px 16px', boxSizing: 'border-box',

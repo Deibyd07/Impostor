@@ -59,6 +59,10 @@ Variables de entorno:
 - `server/.env`: `HTTP_RATE_LIMIT_PER_MINUTE=120` para limitar solicitudes HTTP por IP.
 - `server/.env`: `MAX_CONNECTIONS_PER_IP=5` para limitar conexiones online simultaneas por IP.
 - `server/.env`: `MAX_ROOM_CREATIONS_PER_IP_PER_HOUR=10` para limitar salas creadas por IP cada hora.
+- `server/.env`: `SUPABASE_URL=https://...supabase.co` para activar perfiles con ranking global.
+- `server/.env`: `SUPABASE_SERVICE_ROLE_KEY=...` para que solo el backend registre partidas globales. No uses esta clave en el cliente.
+
+El SQL inicial de perfiles y ranking global esta en `server/supabase/schema.sql`. Si Supabase no esta configurado, el juego funciona normal como invitado, pero no se pueden crear perfiles reales ni registrar ranking global.
 
 ## Modos de juego
 

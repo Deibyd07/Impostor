@@ -4,7 +4,6 @@ import WinCitizens from '../local/WinCitizens.jsx'
 import WinImpostor from '../local/WinImpostor.jsx'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
-import { useStatsStore } from '../../store/statsStore.js'
 import { isImpostorRole } from '../../utils/roles.js'
 
 export default function EndOnline() {
@@ -14,7 +13,6 @@ export default function EndOnline() {
   const isHost = useOnlineStore(s => s.isHost)
   const leaveRoom = useOnlineStore(s => s.leaveRoom)
   const rematch = useOnlineStore(s => s.rematch)
-  const recordGameResult = useStatsStore(s => s.recordGameResult)
 
   // Si el host inicia revancha, todos vuelven al lobby (host o waiting según rol)
   useEffect(() => {
@@ -24,15 +22,6 @@ export default function EndOnline() {
       navigate('/online/card')
     }
   }, [phase, isHost, navigate])
-
-  useEffect(() => {
-    if (!result?.gameId) return
-    recordGameResult({
-      gameId: result.gameId,
-      winner: result.winner,
-      players: result.players,
-    })
-  }, [result?.gameId, result?.winner, result?.players, recordGameResult])
 
   if (!result) {
     return (
@@ -65,6 +54,8 @@ export default function EndOnline() {
         onRematch={onRematch}
         onNew={onExit}
         newLabel="Salir de la sala"
+        scoreSummary={result.scoreSummary}
+        scoreSyncKey={result.gameId}
       />
     )
   }
@@ -78,6 +69,8 @@ export default function EndOnline() {
       onRematch={onRematch}
       onNew={onExit}
       newLabel="Salir de la sala"
+      scoreSummary={result.scoreSummary}
+      scoreSyncKey={result.gameId}
     />
   )
 }

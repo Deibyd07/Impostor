@@ -1,13 +1,14 @@
 {
   "name": "el-impostor-server",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
     "start": "node index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.21.0",

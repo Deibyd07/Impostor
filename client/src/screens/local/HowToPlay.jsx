@@ -78,7 +78,7 @@ export default function HowToPlay() {
 
   const rightPanel = (
     <GuideRail
-      eyebrow="Alpha 0.1.0"
+      eyebrow="Alpha 0.2.0"
       title="Herramientas nuevas"
       items={newTools.map((item, index) => ({
         label: `0.${index + 1}`,
@@ -98,7 +98,7 @@ export default function HowToPlay() {
         <header className="guide-topbar">
           <button onClick={() => navigate(-1)}>Volver</button>
           <span>Manual de campo</span>
-          <button onClick={() => navigate('/patch-0-1-0')}>Alpha 0.1.0</button>
+          <button onClick={() => navigate('/patch-0-2-0')}>Alpha 0.2.0</button>
         </header>
 
         <section className="guide-hero" aria-labelledby="how-title">

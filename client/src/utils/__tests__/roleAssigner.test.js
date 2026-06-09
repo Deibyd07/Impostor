@@ -223,6 +223,23 @@ describe('buildSession - estado inicial', () => {
     expect(s.players.map(p => p.avatar).sort()).toEqual(['👑', '🦊', '🚀'].sort())
   })
 
+  it('mantiene perfil e invitado al repartir roles', () => {
+    const ps = [
+      { id: 'alpha', name: 'A', profileId: '11111111-1111-4111-8111-111111111111', isGuest: false },
+      { id: 'beta', name: 'B', isGuest: true },
+      { id: 'gamma', name: 'C', isGuest: true },
+    ]
+    const s = buildSession({
+      players: ps, impostorCount: 1, mode: 'classic', category: 'animales',
+    })
+    const alpha = s.players.find(player => player.id === 'alpha')
+    const beta = s.players.find(player => player.id === 'beta')
+    expect(alpha.profileId).toBe('11111111-1111-4111-8111-111111111111')
+    expect(alpha.isGuest).toBe(false)
+    expect(beta.profileId).toBe(null)
+    expect(beta.isGuest).toBe(true)
+  })
+
   it('category=random escoge una categoría válida', () => {
     const s = buildSession({
       players: players(4), impostorCount: 1, mode: 'classic', category: 'random',

@@ -1,25 +1,79 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
-import {
-  impostorRate,
-  sortedPlayerStats,
-  useStatsStore,
-  winRate,
-} from '../../store/statsStore.js'
+import AvatarPicker from '../../components/AvatarPicker.jsx'
+import { usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
+import { defaultAvatarForName } from '../../data/avatars.js'
 
 export default function Profile() {
   const navigate = useNavigate()
-  const playersByKey = useStatsStore(s => s.players)
-  const players = useMemo(() => sortedPlayerStats(playersByKey), [playersByKey])
-  const [selectedKey, setSelectedKey] = useState(null)
+  const profiles = usePlayerProfilesStore(s => s.profiles)
+  const activeProfileId = usePlayerProfilesStore(s => s.activeProfileId)
+  const loading = usePlayerProfilesStore(s => s.loading)
+  const error = usePlayerProfilesStore(s => s.error)
+  const syncProfiles = usePlayerProfilesStore(s => s.syncProfiles)
+  const createProfile = usePlayerProfilesStore(s => s.createProfile)
+  const updateProfile = usePlayerProfilesStore(s => s.updateProfile)
+  const deleteProfile = usePlayerProfilesStore(s => s.deleteProfile)
+  const setActiveProfile = usePlayerProfilesStore(s => s.setActiveProfile)
 
-  const activeKey = players.some(player => player.key === selectedKey)
-    ? selectedKey
-    : players[0]?.key
-  const selected = players.find(player => player.key === activeKey)
+  const [name, setName] = useState('')
+  const [avatar, setAvatar] = useState(defaultAvatarForName(''))
+  const [avatarTouched, setAvatarTouched] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [savingError, setSavingError] = useState(null)
+
+  const editingProfile = profiles.find(profile => profile.id === editingId) || null
+
+  useEffect(() => { syncProfiles() }, [syncProfiles])
+  useEffect(() => {
+    if (avatarTouched) return
+    setAvatar(defaultAvatarForName(name))
+  }, [name, avatarTouched])
+
+  const resetForm = () => {
+    setName('')
+    setAvatar(defaultAvatarForName(''))
+    setAvatarTouched(false)
+    setEditingId(null)
+    setSavingError(null)
+  }
+
+  const startEdit = (profile) => {
+    setEditingId(profile.id)
+    setName(profile.name)
+    setAvatar(profile.avatar)
+    setAvatarTouched(true)
+    setSavingError(null)
+  }
+
+  const onSubmit = async () => {
+    const cleanName = name.trim()
+    if (!cleanName || loading) return
+    setSavingError(null)
+    try {
+      if (editingProfile) {
+        await updateProfile(editingProfile.id, { name: cleanName, avatar })
+      } else {
+        await createProfile(cleanName, avatar)
+      }
+      resetForm()
+    } catch (err) {
+      setSavingError(err?.message || 'No se pudo guardar el perfil')
+    }
+  }
+
+  const onDelete = async (profile) => {
+    setSavingError(null)
+    try {
+      await deleteProfile(profile.id)
+      if (editingId === profile.id) resetForm()
+    } catch (err) {
+      setSavingError(err?.message || 'No se pudo borrar el perfil')
+    }
+  }
 
   return (
     <PhoneScreen>
@@ -32,212 +86,112 @@ export default function Profile() {
       }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
           <button onClick={() => navigate('/')} style={backButtonStyle}>Volver</button>
-          <Badge color="var(--gold)" dot>Perfil</Badge>
+          <Badge color="var(--gold)" dot>Supabase</Badge>
         </header>
 
         <div>
-          <div className="t-eyebrow" style={{ color: 'var(--gold)', marginBottom: 10 }}>Estadisticas</div>
+          <div className="t-eyebrow" style={{ color: 'var(--gold)', marginBottom: 10 }}>Identidad</div>
           <h1 style={{
             margin: 0,
             fontFamily: 'var(--font-display)',
-            fontSize: 34,
+            fontSize: 32,
             lineHeight: 1,
             letterSpacing: '0.04em',
             color: 'var(--text-1)',
             textShadow: '0 0 24px var(--gold-glow)',
-          }}>Jugadores</h1>
+          }}>Mis perfiles</h1>
+          <p className="t-meta" style={{ marginTop: 10, lineHeight: 1.5 }}>
+            Cada perfil se guarda en Supabase y se puede usar en partidas locales u online.
+          </p>
         </div>
 
-        {!selected ? (
-          <EmptyState />
-        ) : (
-          <>
-            <PlayerSelector players={players} activeKey={activeKey} onSelect={setSelectedKey} />
-            <PlayerSummary stats={selected} />
-            <RoleBreakdown stats={selected} />
-          </>
-        )}
+        <section>
+          <SectionHeader right={editingProfile ? 'Editando' : 'Nuevo'}>Perfil</SectionHeader>
+          <div style={panelStyle}>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={16}
+              placeholder="Nombre del jugador"
+              style={inputStyle}
+            />
+            <AvatarPicker value={avatar} onChange={(nextAvatar) => { setAvatar(nextAvatar); setAvatarTouched(true) }} />
+            <div style={{ display: 'grid', gridTemplateColumns: editingProfile ? '1fr 1fr' : '1fr', gap: 10 }}>
+              {editingProfile && (
+                <button type="button" onClick={resetForm} style={secondaryButtonStyle}>
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={!name.trim() || loading}
+                onClick={onSubmit}
+                style={primaryButtonStyle(!name.trim() || loading)}
+              >
+                {loading ? 'Guardando...' : editingProfile ? 'Guardar cambios' : 'Crear perfil'}
+              </button>
+            </div>
+            {(savingError || error) && (
+              <div style={errorStyle}>{savingError || error}</div>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader right={`${profiles.length}/12`}>Guardados</SectionHeader>
+          {profiles.length === 0 ? (
+            <div style={emptyStyle}>
+              <strong>No hay perfiles todavia</strong>
+              <span>Crea uno para aparecer en el ranking global cuando termines partidas.</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {profiles.map(profile => {
+                const active = profile.id === activeProfileId
+                return (
+                  <article key={profile.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '46px 1fr auto',
+                    gap: 11,
+                    alignItems: 'center',
+                    padding: 13,
+                    borderRadius: 14,
+                    border: `1px solid ${active ? 'var(--gold)' : 'var(--hairline-cold)'}`,
+                    background: active ? 'rgba(245, 158, 11, 0.10)' : 'rgba(255,255,255,0.03)',
+                  }}>
+                    <div style={avatarStyle}>{profile.avatar}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: 'var(--font-display)',
+                        color: 'var(--text-1)',
+                        fontSize: 18,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>{profile.name}</div>
+                      <div className="t-meta">
+                        {active ? 'Perfil activo' : 'Disponible para jugar'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <button type="button" onClick={() => setActiveProfile(profile.id)} style={miniButtonStyle(active)}>
+                        {active ? 'Activo' : 'Usar'}
+                      </button>
+                      <button type="button" onClick={() => startEdit(profile)} style={miniButtonStyle(false)}>
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => onDelete(profile)} style={dangerMiniButtonStyle}>
+                        Borrar
+                      </button>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </PhoneScreen>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className="evidence-panel profile-empty-state" style={{
-      marginTop: 42,
-      padding: '34px 22px',
-      border: '1px solid var(--hairline-cold)',
-      borderRadius: 16,
-      background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
-      textAlign: 'center',
-    }}>
-      <div style={{
-        fontFamily: 'var(--font-display)',
-        fontSize: 24,
-        color: 'var(--text-1)',
-        letterSpacing: '0.04em',
-        marginBottom: 10,
-      }}>Sin partidas</div>
-      <div className="t-meta" style={{ lineHeight: 1.5 }}>
-        Las estadisticas apareceran cuando termine una partida local u online.
-      </div>
-    </div>
-  )
-}
-
-function PlayerSelector({ players, activeKey, onSelect }) {
-  return (
-    <section>
-      <SectionHeader right={`${players.length} guardado${players.length === 1 ? '' : 's'}`}>Jugador</SectionHeader>
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        overflowX: 'auto',
-        paddingBottom: 2,
-      }}>
-        {players.map(player => {
-          const active = player.key === activeKey
-          return (
-            <button
-              key={player.key}
-              onClick={() => onSelect(player.key)}
-              className={`profile-player-tab ${active ? 'is-active' : ''}`}
-              style={{
-                flex: '0 0 auto',
-                minWidth: 104,
-                padding: '12px 14px',
-                borderRadius: 10,
-                border: active ? '1px solid var(--gold)' : '1px solid var(--hairline-cold)',
-                background: active ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255,255,255,0.03)',
-                color: active ? 'var(--gold-soft)' : 'var(--text-2)',
-                fontFamily: 'var(--font-ui)',
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              {player.name}
-            </button>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-function PlayerSummary({ stats }) {
-  const victories = winRate(stats)
-  const impostor = impostorRate(stats)
-
-  return (
-    <section>
-      <SectionHeader right={`${victories}% victorias`}>Resumen</SectionHeader>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-        gap: 10,
-      }}>
-        <Metric label="Partidas" value={stats.gamesPlayed} color="var(--gold)" />
-        <Metric label="Victorias" value={stats.wins} color="var(--victory)" />
-        <Metric label="Derrotas" value={stats.losses} color="var(--impostor)" />
-        <Metric label="Racha" value={stats.currentStreak} color="var(--citizen)" />
-      </div>
-
-      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Bar label="Victorias" value={victories} color="var(--victory)" />
-        <Bar label="Como impostor" value={impostor} color="var(--impostor)" />
-      </div>
-    </section>
-  )
-}
-
-function RoleBreakdown({ stats }) {
-  return (
-    <section>
-      <SectionHeader right={`Mejor racha ${stats.bestStreak}`}>Roles</SectionHeader>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-        gap: 10,
-      }}>
-        <RoleCard title="Impostor" games={stats.impostorGames} wins={stats.impostorWins} color="var(--impostor)" />
-        <RoleCard title="Ciudadano" games={stats.citizenGames} wins={stats.citizenWins} color="var(--citizen)" />
-      </div>
-    </section>
-  )
-}
-
-function Metric({ label, value, color }) {
-  return (
-    <div className="profile-metric-card" style={{
-      minHeight: 86,
-      padding: '16px 14px',
-      borderRadius: 12,
-      background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
-      border: '1px solid var(--hairline-cold)',
-    }}>
-      <div className="t-eyebrow" style={{ color, fontSize: 9, marginBottom: 10 }}>{label}</div>
-      <div className="t-num" style={{ fontSize: 36, lineHeight: 1 }}>{value}</div>
-    </div>
-  )
-}
-
-function Bar({ label, value, color }) {
-  const width = `${Math.max(0, Math.min(100, value))}%`
-
-  return (
-    <div>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginBottom: 7,
-        fontFamily: 'var(--font-ui)',
-        color: 'var(--text-2)',
-        fontSize: 12,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-      }}>
-        <span>{label}</span>
-        <span style={{ color }}>{value}%</span>
-      </div>
-      <div style={{
-        height: 10,
-        borderRadius: 999,
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid var(--hairline-cold)',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          width,
-          height: '100%',
-          borderRadius: 999,
-          background: color,
-          boxShadow: `0 0 16px ${color}`,
-        }} />
-      </div>
-    </div>
-  )
-}
-
-function RoleCard({ title, games, wins, color }) {
-  return (
-    <div className="profile-role-card" style={{
-      padding: '16px 14px',
-      borderRadius: 12,
-      border: `1px solid ${color}`,
-      background: 'rgba(255,255,255,0.035)',
-      minHeight: 104,
-    }}>
-      <div className="t-eyebrow" style={{ color, fontSize: 9, marginBottom: 12 }}>{title}</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span className="t-num" style={{ fontSize: 34, lineHeight: 1 }}>{games}</span>
-        <span className="t-meta">partidas</span>
-      </div>
-      <div className="t-meta" style={{ marginTop: 8 }}>{wins} victorias</div>
-    </div>
   )
 }
 
@@ -250,4 +204,115 @@ const backButtonStyle = {
   color: 'var(--text-2)',
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
+}
+
+const panelStyle = {
+  padding: 14,
+  borderRadius: 14,
+  border: '1px solid var(--hairline-cold)',
+  background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 14,
+}
+
+const inputStyle = {
+  width: '100%',
+  minHeight: 46,
+  boxSizing: 'border-box',
+  borderRadius: 10,
+  border: '1px solid var(--hairline-cold)',
+  background: 'var(--surface-1)',
+  color: 'var(--text-1)',
+  fontFamily: 'var(--font-ui)',
+  fontSize: 15,
+  fontWeight: 700,
+  outline: 'none',
+  padding: '0 12px',
+}
+
+function primaryButtonStyle(disabled) {
+  return {
+    all: 'unset',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    minHeight: 46,
+    borderRadius: 10,
+    border: `1px solid ${disabled ? 'var(--hairline-cold)' : 'var(--gold)'}`,
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'rgba(245, 158, 11, 0.14)',
+    color: disabled ? 'var(--text-3)' : 'var(--gold)',
+    fontFamily: 'var(--font-ui)',
+    fontSize: 12,
+    fontWeight: 900,
+    letterSpacing: '0.14em',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  }
+}
+
+const secondaryButtonStyle = {
+  ...primaryButtonStyle(false),
+  border: '1px solid var(--hairline-cold)',
+  background: 'rgba(255,255,255,0.03)',
+  color: 'var(--text-2)',
+}
+
+const errorStyle = {
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: '1px solid rgba(239, 68, 68, 0.35)',
+  background: 'rgba(239, 68, 68, 0.08)',
+  color: 'var(--impostor)',
+  fontFamily: 'var(--font-ui)',
+  fontSize: 12,
+  lineHeight: 1.4,
+}
+
+const emptyStyle = {
+  padding: 20,
+  borderRadius: 14,
+  border: '1px solid var(--hairline-cold)',
+  background: 'rgba(255,255,255,0.03)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  color: 'var(--text-2)',
+  fontFamily: 'var(--font-ui)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const avatarStyle = {
+  width: 44,
+  height: 44,
+  borderRadius: 999,
+  display: 'grid',
+  placeItems: 'center',
+  border: '1px solid rgba(245, 158, 11, 0.45)',
+  background: 'rgba(245, 158, 11, 0.10)',
+  fontSize: 22,
+}
+
+function miniButtonStyle(active) {
+  return {
+    all: 'unset',
+    cursor: 'pointer',
+    minWidth: 66,
+    padding: '7px 9px',
+    borderRadius: 999,
+    border: `1px solid ${active ? 'var(--gold)' : 'var(--hairline-cold)'}`,
+    color: active ? 'var(--gold)' : 'var(--text-2)',
+    background: active ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255,255,255,0.03)',
+    fontFamily: 'var(--font-ui)',
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: '0.12em',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  }
+}
+
+const dangerMiniButtonStyle = {
+  ...miniButtonStyle(false),
+  border: '1px solid rgba(239, 68, 68, 0.35)',
+  color: 'var(--impostor)',
 }

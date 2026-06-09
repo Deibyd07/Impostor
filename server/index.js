@@ -11,6 +11,8 @@ import { customAlphabet } from 'nanoid'
 import { wordBank, categories, relatedWords } from './wordBank.js'
 import { normalizeAvatar } from './avatars.js'
 import { createRoomStore } from './roomStore.js'
+import { createLeaderboardStore } from './leaderboardStore.js'
+import { applyRoomScoreSummary } from './scoreboard.js'
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true })
 
@@ -28,6 +30,7 @@ const ROOM_CREATION_WINDOW_MS = 60 * 60 * 1000
 const app = express()
 app.set('trust proxy', 1)
 app.use(cors())
+app.use(express.json({ limit: '16kb' }))
 app.use(rateLimit({
   windowMs: 60_000,
   limit: HTTP_RATE_LIMIT_PER_MINUTE,
@@ -41,12 +44,105 @@ app.use(rateLimit({
     message: 'Demasiadas solicitudes desde esta IP. Intenta de nuevo en un momento.',
   }),
 }))
-app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '0.1.0' }))
+app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '0.2.0' }))
+app.get('/leaderboard', async (req, res) => {
+  const limit = Number.parseInt(req.query.limit, 10) || 50
+  const leaderboard = await leaderboardStore.getLeaderboard({ limit })
+  res.json({
+    ok: true,
+    source: leaderboardStore.type,
+    ...leaderboard,
+  })
+})
+app.get('/profiles', async (req, res) => {
+  try {
+    const ids = String(req.query.ids || '')
+      .split(',')
+      .map(id => sanitizeProfileId(id))
+      .filter(Boolean)
+    const result = await leaderboardStore.getProfiles({ ids })
+    res.json({ ok: true, source: leaderboardStore.type, ...result })
+  } catch (error) {
+    res.status(500).json({ ok: false, error: 'profiles_read_failed', message: error.message })
+  }
+})
+app.post('/profiles', async (req, res) => {
+  try {
+    const name = sanitizeName(req.body?.name)
+    if (!name) {
+      res.status(400).json({ ok: false, error: 'invalid_name', message: 'Nombre invalido' })
+      return
+    }
+    const result = await leaderboardStore.createProfile({
+      id: sanitizeProfileId(req.body?.id),
+      name,
+      avatar: normalizeAvatar(req.body?.avatar, name),
+    })
+    if (!result.profile) {
+      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Supabase no esta configurado' })
+      return
+    }
+    res.status(201).json({ ok: true, source: leaderboardStore.type, profile: result.profile })
+  } catch (error) {
+    res.status(500).json({ ok: false, error: 'profiles_create_failed', message: error.message })
+  }
+})
+app.patch('/profiles/:profileId', async (req, res) => {
+  try {
+    const profileId = sanitizeProfileId(req.params.profileId)
+    if (!profileId) {
+      res.status(400).json({ ok: false, error: 'invalid_profile', message: 'Perfil invalido' })
+      return
+    }
+    const name = req.body?.name == null ? undefined : sanitizeName(req.body.name)
+    if (req.body?.name != null && !name) {
+      res.status(400).json({ ok: false, error: 'invalid_name', message: 'Nombre invalido' })
+      return
+    }
+    const result = await leaderboardStore.updateProfile(profileId, {
+      name,
+      avatar: req.body?.avatar == null ? undefined : normalizeAvatar(req.body.avatar, name || ''),
+    })
+    if (!result.profile) {
+      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Supabase no esta configurado' })
+      return
+    }
+    res.json({ ok: true, source: leaderboardStore.type, profile: result.profile })
+  } catch (error) {
+    res.status(500).json({ ok: false, error: 'profiles_update_failed', message: error.message })
+  }
+})
+app.delete('/profiles/:profileId', async (req, res) => {
+  try {
+    const profileId = sanitizeProfileId(req.params.profileId)
+    if (!profileId) {
+      res.status(400).json({ ok: false, error: 'invalid_profile', message: 'Perfil invalido' })
+      return
+    }
+    const result = await leaderboardStore.deleteProfile(profileId)
+    if (result.available === false) {
+      res.status(503).json({ ok: false, error: 'profiles_unavailable', message: 'Supabase no esta configurado' })
+      return
+    }
+    res.json({ ok: true, source: leaderboardStore.type })
+  } catch (error) {
+    res.status(500).json({ ok: false, error: 'profiles_delete_failed', message: error.message })
+  }
+})
+app.post('/match-results', async (req, res) => {
+  try {
+    const result = await leaderboardStore.recordMatchResult(req.body || {})
+    res.json({ ok: true, source: leaderboardStore.type, ...result })
+  } catch (error) {
+    res.status(500).json({ ok: false, error: 'match_result_failed', message: error.message })
+  }
+})
 app.get('/health', async (_, res) => res.json({
   ok: true,
   rooms: rooms.size,
   storedRooms: await roomStore.count(),
   roomStore: roomStore.type,
+  leaderboardStore: leaderboardStore.type,
 }))
 
 const server = http.createServer(app)
@@ -72,6 +168,7 @@ function makeSpeakOrder(room) {
 
 const rooms = new Map() // code -> active Room cache
 const roomStore = createRoomStore()
+const leaderboardStore = createLeaderboardStore()
 const RECONNECT_GRACE_MS = 60_000
 const ROOM_SCHEMA_VERSION = 1
 const RECENT_WORD_LIMIT = 10
@@ -262,6 +359,20 @@ function sanitizeName(raw) {
   if (typeof raw !== 'string') return ''
   return raw.replace(/\s+/g, ' ').trim().slice(0, 16)
 }
+function sanitizeProfileId(raw) {
+  if (typeof raw !== 'string') return null
+  const clean = raw.trim()
+  return /^[0-9a-fA-F-]{36}$/.test(clean) ? clean.toLowerCase() : null
+}
+
+function sanitizePlayerProfile({ profileId, isGuest } = {}) {
+  const cleanProfileId = sanitizeProfileId(profileId)
+  const guest = isGuest !== false || !cleanProfileId
+  return {
+    profileId: guest ? null : cleanProfileId,
+    isGuest: guest,
+  }
+}
 function sanitizeChatText(raw) {
   if (typeof raw !== 'string') return ''
   return raw.replace(/\s+/g, ' ').trim().slice(0, CHAT_TEXT_MAX_LENGTH)
@@ -398,6 +509,8 @@ function serializeRoom(room) {
       sessionToken: player.sessionToken,
       name: player.name,
       avatar: normalizeAvatar(player.avatar, player.name),
+      profileId: player.profileId || null,
+      isGuest: player.isGuest !== false || !player.profileId,
       isHost: player.isHost,
       ready: !!player.ready,
       eliminated: !!player.eliminated,
@@ -426,6 +539,7 @@ function serializeRoom(room) {
     speakOrder: room.speakOrder || [],
     lastTie: room.lastTie || null,
     result: room.result || null,
+    roomScores: room.roomScores || {},
     updatedAt: Date.now(),
   }
 }
@@ -443,12 +557,15 @@ function restoreRoom(snapshot) {
     .map(player => {
       const staleAfterRestart = phase !== 'ended' && !player.disconnected
       const disconnected = !!player.disconnected || staleAfterRestart
+      const playerProfile = sanitizePlayerProfile(player)
       return {
         id: player.id,
         socketId: null,
         sessionToken: player.sessionToken,
         name: sanitizeName(player.name),
         avatar: normalizeAvatar(player.avatar, player.name),
+        profileId: playerProfile.profileId,
+        isGuest: playerProfile.isGuest,
         isHost: !!player.isHost,
         ready: !!player.ready,
         eliminated: !!player.eliminated,
@@ -489,6 +606,7 @@ function restoreRoom(snapshot) {
     speakOrder: Array.isArray(snapshot.speakOrder) ? snapshot.speakOrder : [],
     lastTie: snapshot.lastTie || null,
     result: snapshot.result || null,
+    roomScores: snapshot.roomScores || {},
   }
   if (room.players.some(player => player.id === room.hostId)) {
     syncHostFlags(room)
@@ -621,12 +739,15 @@ async function newCode() {
   return code
 }
 
-async function makeRoom(hostSocketId, hostName, avatar, config) {
+async function makeRoom(hostSocketId, hostName, avatar, config, profile = {}) {
   const code = await newCode()
+  const playerProfile = sanitizePlayerProfile(profile)
   const player = {
     id: playerIdGen(), socketId: hostSocketId,
     sessionToken: tokenGen(),
     name: hostName, avatar: normalizeAvatar(avatar, hostName),
+    profileId: playerProfile.profileId,
+    isGuest: playerProfile.isGuest,
     isHost: true, ready: false, eliminated: false, disconnected: false,
     disconnectedAt: null, disconnectExpiresAt: null,
   }
@@ -655,6 +776,7 @@ async function makeRoom(hostSocketId, hostName, avatar, config) {
     speakOrder: [],
     lastTie: null,
     result: null,
+    roomScores: {},
   }
   rooms.set(code, room)
   return room
@@ -684,6 +806,8 @@ function sanitizeRoom(room, viewerId = null) {
     config: room.config,
     players: room.players.map(p => ({
       id: p.id, name: p.name, avatar: normalizeAvatar(p.avatar, p.name),
+      profileId: p.profileId || null,
+      isGuest: p.isGuest !== false || !p.profileId,
       isHost: p.isHost, ready: p.ready,
       eliminated: p.eliminated, disconnected: !!p.disconnected,
     })),
@@ -704,6 +828,8 @@ function privatePlayerPayload(player) {
     id: player.id,
     name: player.name,
     avatar: normalizeAvatar(player.avatar, player.name),
+    profileId: player.profileId || null,
+    isGuest: player.isGuest !== false || !player.profileId,
     isHost: player.isHost,
     sessionToken: player.sessionToken,
   }
@@ -949,17 +1075,30 @@ function checkVictory(room) {
 
 function gameOverPayload(room, victory) {
   const impostorIds = Object.entries(room.roles).filter(([, r]) => isImpostorRole(r)).map(([id]) => id)
-  return {
+  const result = {
     gameId: room.gameId,
     winner: victory.winner, reason: victory.reason,
     impostorIds, word: room.word, fakeWord: room.fakeWord,
+    mode: room.config?.mode || null,
+    category: room.category || room.config?.category || null,
+    playedAt: Date.now(),
     players: room.players.map(p => ({
       id: p.id,
       name: p.name,
       avatar: normalizeAvatar(p.avatar, p.name),
+      profileId: p.profileId || null,
+      isGuest: p.isGuest !== false || !p.profileId,
       role: room.roles[p.id],
     })),
   }
+  result.scoreSummary = applyRoomScoreSummary(room, result)
+  return result
+}
+
+function recordGlobalResult(result) {
+  leaderboardStore.recordMatchResult(result).catch(error => {
+    console.warn(`[leaderboard] Could not record match ${result?.gameId || ''}: ${error.message}`)
+  })
 }
 
 function broadcastPlayers(room) {
@@ -1048,6 +1187,7 @@ function afterPlayerListChanged(room) {
       room.result = gameOverPayload(room, v)
       clearInterrogation(room)
       io.to(room.code).emit('game:over', room.result)
+      recordGlobalResult(room.result)
       saveRoom(room)
       return
     }
@@ -1098,6 +1238,7 @@ function tryResolveVotes(room) {
     room.result = gameOverPayload(room, v)
     clearInterrogation(room)
     io.to(room.code).emit('game:over', room.result)
+    recordGlobalResult(room.result)
     saveRoom(room)
   } else {
     advanceToDiscussion(room)
@@ -1142,7 +1283,7 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
 
-  socket.on('room:create', async ({ hostName, avatar, config } = {}) => {
+  socket.on('room:create', async ({ hostName, avatar, config, profileId, isGuest } = {}) => {
     if (!allow(socket.id, 2)) return
     const name = sanitizeName(hostName)
     if (!name) { socket.emit('room:error', { message: 'Nombre inválido' }); return }
@@ -1152,7 +1293,7 @@ io.on('connection', (socket) => {
       })
       return
     }
-    const room = await makeRoom(socket.id, name, avatar, config || {})
+    const room = await makeRoom(socket.id, name, avatar, config || {}, { profileId, isGuest })
     socket.join(room.code)
     await persistRoom(room)
     socket.emit('room:created', {
@@ -1162,7 +1303,7 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on('room:join', async ({ code, playerName, avatar } = {}) => {
+  socket.on('room:join', async ({ code, playerName, avatar, profileId, isGuest } = {}) => {
     if (!allow(socket.id, 2)) return
     if (!isValidCode(code)) { socket.emit('room:error', { message: 'Código inválido' }); return }
     const name = sanitizeName(playerName)
@@ -1172,10 +1313,13 @@ io.on('connection', (socket) => {
     if (room.players.length >= 12) { socket.emit('room:error', { message: 'Sala llena' }); return }
     if (room.phase !== 'lobby') { socket.emit('room:error', { message: 'La partida ya empezó' }); return }
     if (findPlayerByName(room, name)) { socket.emit('room:error', { message: 'Ese nombre ya está en la sala' }); return }
+    const playerProfile = sanitizePlayerProfile({ profileId, isGuest })
     const player = {
       id: playerIdGen(), socketId: socket.id,
       sessionToken: tokenGen(),
       name, avatar: normalizeAvatar(avatar, name),
+      profileId: playerProfile.profileId,
+      isGuest: playerProfile.isGuest,
       isHost: false, ready: false, eliminated: false, disconnected: false,
       disconnectedAt: null, disconnectExpiresAt: null,
     }
@@ -1529,6 +1673,7 @@ io.on('connection', (socket) => {
       room.result = gameOverPayload(room, v)
       clearInterrogation(room)
       io.to(room.code).emit('game:over', room.result)
+      recordGlobalResult(room.result)
     } else {
       io.to(room.code).emit('game:guessFailed', { playerId: player.id })
     }

@@ -5,12 +5,14 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import AvatarPicker from '../../components/AvatarPicker.jsx'
+import ProfileIdentityPicker from '../../components/ProfileIdentityPicker.jsx'
 import CornerOrnament from '../../components/CornerOrnament.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
 import VoicePanel from '../../components/VoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
+import { profileIdentity, usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
 import { categories, wordBank } from '../../data/wordBank.js'
 import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 
@@ -27,12 +29,21 @@ export default function HostLobby() {
   const leaveRoom = useOnlineStore(s => s.leaveRoom)
   const error = useOnlineStore(s => s.error)
   const phase = useOnlineStore(s => s.phase)
+  const profiles = usePlayerProfilesStore(s => s.profiles)
+  const activeProfileId = usePlayerProfilesStore(s => s.activeProfileId)
+  const setActiveProfile = usePlayerProfilesStore(s => s.setActiveProfile)
+  const syncProfiles = usePlayerProfilesStore(s => s.syncProfiles)
   const [hostName, setHostName] = useState('')
   const [avatar, setAvatar] = useState(defaultAvatarForName(''))
   const [avatarTouched, setAvatarTouched] = useState(false)
+  const [identityId, setIdentityId] = useState(activeProfileId || 'guest')
   const [copiedJoinUrl, setCopiedJoinUrl] = useState(false)
+  const selectedProfile = profiles.find(profile => profile.id === identityId) || null
+  const currentName = selectedProfile?.name || hostName.trim()
+  const currentAvatar = selectedProfile?.avatar || avatar
 
   useEffect(() => { connect() }, [connect])
+  useEffect(() => { syncProfiles() }, [syncProfiles])
   useEffect(() => {
     if (phase === 'reveal') navigate('/online/card')
   }, [phase, navigate])
@@ -40,8 +51,27 @@ export default function HostLobby() {
     if (avatarTouched) return
     setAvatar(savedAvatarForName(hostName) || defaultAvatarForName(hostName))
   }, [hostName, avatarTouched])
+  useEffect(() => {
+    const activeProfile = profiles.find(profile => profile.id === activeProfileId)
+    if (!activeProfile || hostName.trim() || identityId !== 'guest') return
+    setIdentityId(activeProfile.id)
+    setHostName(activeProfile.name)
+    setAvatar(activeProfile.avatar)
+    setAvatarTouched(true)
+  }, [activeProfileId, profiles, hostName, identityId])
+
+  const chooseIdentity = (nextIdentityId) => {
+    setIdentityId(nextIdentityId)
+    const profile = profiles.find(item => item.id === nextIdentityId)
+    if (!profile) return
+    setActiveProfile(profile.id)
+    setHostName(profile.name)
+    setAvatar(profile.avatar)
+    setAvatarTouched(true)
+  }
 
   const chooseAvatar = (nextAvatar) => {
+    setIdentityId('guest')
     setAvatar(nextAvatar)
     setAvatarTouched(true)
     if (hostName.trim()) rememberAvatarForName(hostName, nextAvatar)
@@ -67,12 +97,12 @@ export default function HostLobby() {
         footer={
           <button
             className="btn btn-primary"
-            disabled={!hostName.trim() || !connected}
-            onClick={() => createRoom(hostName.trim(), {
+            disabled={!currentName || !connected}
+            onClick={() => createRoom(currentName, {
               impostorCount: 1, mode: 'classic', category: 'random',
               clueType: 'category', blindIntensity: 'medium', roundTime: '3',
               detectiveEnabled: false,
-            }, avatar)}
+            }, currentAvatar, profileIdentity(selectedProfile))}
             style={{ padding: '18px 20px', letterSpacing: '0.2em' }}
           >
             {connected ? 'Crear sala' : 'Conectando…'}
@@ -92,9 +122,20 @@ export default function HostLobby() {
             fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 32,
             color: 'var(--text-1)', textAlign: 'center', letterSpacing: '0.04em', lineHeight: 1.05,
           }}>¿Cuál es<br />tu nombre?</div>
+          <div style={{ marginTop: 24 }}>
+            <ProfileIdentityPicker
+              profiles={profiles}
+              value={identityId}
+              onChange={chooseIdentity}
+              helper="Los invitados juegan normal, pero no entran al ranking."
+            />
+          </div>
           <div style={{ marginTop: 32 }}>
             <input
-              type="text" value={hostName} onChange={(e) => setHostName(e.target.value)}
+              type="text"
+              value={selectedProfile ? selectedProfile.name : hostName}
+              disabled={!!selectedProfile}
+              onChange={(e) => { setIdentityId('guest'); setHostName(e.target.value) }}
               placeholder="Tu nombre"
               maxLength={16}
               style={{

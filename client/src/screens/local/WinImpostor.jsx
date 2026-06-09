@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import MaskIcon from '../../components/MaskIcon.jsx'
+import RoundScoreboard from '../../components/RoundScoreboard.jsx'
 import { sfx } from '../../utils/sfx.js'
 
 export default function WinImpostor({
@@ -8,6 +9,8 @@ export default function WinImpostor({
   onRematch, onNew,
   rematchLabel = 'Revancha', newLabel = 'Nueva partida',
   rematchDisabled = false,
+  scoreSummary = null,
+  scoreSyncKey = null,
 }) {
   useEffect(() => { sfx.winImpostor() }, [])
   const single = impostorNames.length === 1
@@ -65,6 +68,8 @@ export default function WinImpostor({
             color: 'var(--gold-soft)', fontWeight: 600, letterSpacing: '0.06em',
           }}>{word}</span>
         </div>
+
+        <RoundScoreboard scoreSummary={scoreSummary} syncKey={scoreSyncKey} />
 
         <div style={{ flex: 1 }} />
 
