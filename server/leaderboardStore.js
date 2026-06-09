@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
+import WebSocket from 'ws'
 
 const DEFAULT_LEADERBOARD_LIMIT = 50
 
@@ -110,6 +111,7 @@ export function createLeaderboardStore({
   try {
     supabase = createClient(normalizedUrl, normalizedKey, {
       auth: { persistSession: false, autoRefreshToken: false },
+      realtime: { transport: WebSocket },
     })
   } catch (error) {
     logger.warn?.(`[leaderboard] Profiles disabled: ${error.message}`)
