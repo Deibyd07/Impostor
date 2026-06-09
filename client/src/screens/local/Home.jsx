@@ -35,9 +35,9 @@ const caseSteps = [
 ]
 
 const releaseNotes = [
-  'Voz online mas estable.',
-  'Icono cuando alguien habla.',
-  'Complices visibles para impostores.',
+  'Voz reforzada en salas online.',
+  'Menos casos de conectado sin audio.',
+  'Pruebas de microfono y sonido.',
 ]
 
 export default function Home() {
@@ -48,7 +48,7 @@ export default function Home() {
   const onNew = () => { sfx.unlock(); endSession(); navigate('/setup') }
   const onResume = () => { sfx.unlock(); navigate('/game') }
   const onHow = () => navigate('/how')
-  const onPatch = () => navigate('/patch-1-2-1')
+  const onPatch = () => navigate('/patch-1-2-2')
   const onProfile = () => navigate('/profile')
   const onHost = () => { sfx.unlock(); navigate('/online/host') }
   const onJoin = () => { sfx.unlock(); navigate('/online/join') }
@@ -91,8 +91,8 @@ export default function Home() {
         <p>{hasSavedGame ? 'Puedes reanudar o abrir un caso nuevo.' : 'Prepara la mesa y reparte identidades.'}</p>
       </div>
       <button type="button" className="case-evidence-card case-release-link" onClick={onPatch}>
-        <div className="case-evidence-card__label">Parche 1.2.1</div>
-        <strong>Voz y complices</strong>
+        <div className="case-evidence-card__label">Parche 1.2.2</div>
+        <strong>Voz reforzada</strong>
         <p>Consulta las mejoras de esta version y el historial de parches.</p>
         <ul className="case-release-list">
           {releaseNotes.map(note => <li key={note}>{note}</li>)}
@@ -159,11 +159,11 @@ export default function Home() {
           <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
           <button className="case-patch-link" onClick={onPatch}>
             <span>Novedades</span>
-            <strong>Version 1.2.1</strong>
+            <strong>Version 1.2.2</strong>
           </button>
         </section>
 
-        <div className="case-version">v1.2.1 - voz estable y complices</div>
+        <div className="case-version">v1.2.2 - voz online reforzada</div>
       </main>
     </PhoneScreen>
   )

@@ -4,6 +4,64 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const patches = [
   {
+    version: '1.2.2',
+    path: '/patch-1-2-2',
+    eyebrow: 'Audio reforzado',
+    title: 'Voz online mas estable',
+    summary: 'Parche enfocado en que las salas online se escuchen mejor, especialmente cuando los jugadores aparecian conectados pero no recibian audio.',
+    highlights: [
+      {
+        code: 'VOZ',
+        title: 'Audio con respaldo',
+        body: 'La voz ahora tiene un camino alternativo para reducir casos donde todos aparecen conectados pero nadie se escucha.',
+      },
+      {
+        code: 'SALA',
+        title: 'Conexion mas resistente',
+        body: 'Las salas manejan mejor la entrada de varios jugadores a voz y la recuperacion cuando alguien refresca o vuelve a entrar.',
+      },
+      {
+        code: 'PRUEBA',
+        title: 'Diagnostico mas claro',
+        body: 'Las pruebas de microfono y sonido ayudan a confirmar si el problema viene de permisos, entrada o salida de audio.',
+      },
+    ],
+    sections: [
+      {
+        title: 'Chat de voz',
+        items: [
+          'Menos casos donde un jugador aparece conectado pero no escucha a la sala.',
+          'Menos casos donde el microfono detecta voz local, pero los demas no la reciben.',
+          'La voz mantiene volumen general y volumen por jugador para ajustar cada participante.',
+          'El indicador de habla sigue mostrando quien esta hablando en la sala.',
+        ],
+      },
+      {
+        title: 'Salas online',
+        items: [
+          'El lobby y la discusion comparten la mejora de voz.',
+          'La voz conserva los canales especiales durante el interrogatorio del Detective.',
+          'Los jugadores pueden volver a activar voz despues de refrescar o reconectar.',
+          'La experiencia queda preparada para pruebas con grupos mas grandes.',
+        ],
+      },
+      {
+        title: 'Historial de versiones',
+        items: [
+          'El menu principal muestra el parche actual 1.2.2.',
+          'La pantalla de novedades permite cambiar entre 1.2.2, 1.2.1, 1.2 y 1.1.',
+          'Las notas se mantienen enfocadas en cambios que entienden los jugadores.',
+        ],
+      },
+    ],
+    testFlow: [
+      'Crea una sala online con tres o mas jugadores.',
+      'Todos activen voz, prueben microfono y prueben sonido.',
+      'Hablen por turnos y confirmen que el indicador de habla coincide con quien habla.',
+      'Ajusta volumen general y volumen personal de cada jugador si alguien suena bajo.',
+    ],
+  },
+  {
     version: '1.2.1',
     path: '/patch-1-2-1',
     eyebrow: 'Mejoras de mesa',
@@ -49,7 +107,7 @@ const patches = [
         title: 'Historial de versiones',
         items: [
           'El menu principal muestra el parche actual de forma clara.',
-          'La pantalla de novedades permite cambiar entre 1.2.1, 1.2 y 1.1.',
+          'La pantalla de novedades permite cambiar entre 1.2.2, 1.2.1, 1.2 y 1.1.',
           'Cada version resume que se agrego y como probarlo en una partida.',
         ],
       },

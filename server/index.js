@@ -8,7 +8,7 @@ import { normalizeAvatar } from './avatars.js'
 
 const app = express()
 app.use(cors())
-app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '1.2.1' }))
+app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '1.2.2' }))
 app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size }))
 
 const server = http.createServer(app)
