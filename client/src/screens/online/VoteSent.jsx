@@ -24,7 +24,7 @@ export default function VoteSent() {
   return (
     <PhoneScreen>
       <div style={{ padding: '60px 24px 24px', textAlign: 'center' }}>
-        <div style={{
+        <div className="vote-sent-seal" style={{
           width: 100, height: 100, borderRadius: 999, margin: '0 auto 22px',
           border: '1px solid var(--victory)',
           background: 'rgba(34, 197, 94, 0.06)',
@@ -57,7 +57,7 @@ export default function VoteSent() {
           {active.map(p => {
             const hasVoted = false /* el servidor no expone quién votó a quién, solo cuántos */
             return (
-              <div key={p.id} style={{
+              <div key={p.id} className="evidence-row" style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 12px', borderRadius: 12,
                 background: 'var(--surface-1)',

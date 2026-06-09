@@ -64,7 +64,7 @@ export default function Profile() {
 
 function EmptyState() {
   return (
-    <div style={{
+    <div className="evidence-panel profile-empty-state" style={{
       marginTop: 42,
       padding: '34px 22px',
       border: '1px solid var(--hairline-cold)',
@@ -102,6 +102,7 @@ function PlayerSelector({ players, activeKey, onSelect }) {
             <button
               key={player.key}
               onClick={() => onSelect(player.key)}
+              className={`profile-player-tab ${active ? 'is-active' : ''}`}
               style={{
                 flex: '0 0 auto',
                 minWidth: 104,
@@ -171,7 +172,7 @@ function RoleBreakdown({ stats }) {
 
 function Metric({ label, value, color }) {
   return (
-    <div style={{
+    <div className="profile-metric-card" style={{
       minHeight: 86,
       padding: '16px 14px',
       borderRadius: 12,
@@ -223,7 +224,7 @@ function Bar({ label, value, color }) {
 
 function RoleCard({ title, games, wins, color }) {
   return (
-    <div style={{
+    <div className="profile-role-card" style={{
       padding: '16px 14px',
       borderRadius: 12,
       border: `1px solid ${color}`,

@@ -35,7 +35,7 @@ export default function Spectator() {
           color: 'var(--text-2)', lineHeight: 1.5,
         }}>Observa cómo termina la partida. Ya no puedes votar.</div>
         {myWord && (myRole === 'citizen' || myRole === 'detective') && (
-          <div style={{
+          <div className="evidence-panel spectator-word-card" style={{
             marginTop: 24, padding: '16px',
             border: '1px solid var(--hairline-cold)',
             borderRadius: 14, background: 'var(--surface-1)',

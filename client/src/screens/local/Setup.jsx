@@ -167,7 +167,7 @@ export default function Setup() {
           {[{ v: 'random', label: '🎲 Aleatoria' },
             ...Object.entries(categories).map(([v, c]) => ({ v, label: `${c.icon || ''} ${c.label}`.trim() })),
           ].map(c => (
-            <button key={c.v} onClick={() => setConfig({ category: c.v })} style={{
+            <button key={c.v} className={`chip-option ${config.category === c.v ? 'is-active' : ''}`} onClick={() => setConfig({ category: c.v })} style={{
               all: 'unset', cursor: 'pointer', flexShrink: 0,
               padding: '10px 16px', borderRadius: 999,
               fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 500,
@@ -180,7 +180,7 @@ export default function Setup() {
         </div>
 
         <SectionHeader>Opciones</SectionHeader>
-        <div style={{
+        <div className="evidence-panel setup-options-panel" style={{
           background: 'var(--surface-1)',
           border: '1px solid var(--hairline-cold)',
           borderRadius: 14, padding: 16, marginBottom: 24,

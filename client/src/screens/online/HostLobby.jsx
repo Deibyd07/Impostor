@@ -4,14 +4,13 @@ import { QRCodeSVG } from 'qrcode.react'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
-import ConnectedPlayer from '../../components/ConnectedPlayer.jsx'
 import AvatarPicker from '../../components/AvatarPicker.jsx'
 import CornerOrnament from '../../components/CornerOrnament.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
-import { categories } from '../../data/wordBank.js'
+import { categories, wordBank } from '../../data/wordBank.js'
 import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
 
 export default function HostLobby() {
@@ -121,6 +120,21 @@ export default function HostLobby() {
 
   return (
     <PhoneScreen
+      className="online-lobby-screen online-lobby-host-screen"
+      leftPanel={
+        <LobbyInvitePanel
+          roomCode={roomCode}
+          joinUrl={joinUrl}
+          copied={copiedJoinUrl}
+          onCopy={copyJoinUrl}
+        />
+      }
+      rightPanel={
+        <LobbyStatusPanel
+          players={players}
+          config={config}
+        />
+      }
       footer={
         <button
           className="btn btn-primary"
@@ -132,110 +146,158 @@ export default function HostLobby() {
         </button>
       }
     >
-      <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={() => { leaveRoom(); navigate('/') }} style={{
-          all: 'unset', cursor: 'pointer', color: 'var(--text-2)',
-          fontFamily: 'var(--font-ui)', fontSize: 13,
-        }}>← Salir</button>
-        <Badge color="var(--gold)" dot>Anfitrión</Badge>
-      </div>
+      <div className="lobby-room">
+        <div className="lobby-room__nav">
+          <button onClick={() => { leaveRoom(); navigate('/') }}>← Salir</button>
+          <Badge color="var(--gold)" dot>Anfitrión</Badge>
+        </div>
 
-      <div style={{ padding: '0 20px' }}>
-        <div className="grain" style={{
-          background: 'linear-gradient(180deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02) 60%, transparent)',
-          border: '1px solid rgba(245, 158, 11, 0.35)',
-          borderRadius: 22, padding: '24px 20px 20px',
-          textAlign: 'center', position: 'relative', overflow: 'hidden',
-          boxShadow: '0 0 60px -20px rgba(245, 158, 11, 0.4)',
-        }}>
-          <CornerOrnament color="rgba(245, 158, 11, 0.5)" />
-          <div className="t-eyebrow" style={{ marginBottom: 10 }}>Código de sala</div>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 56,
-            color: 'var(--text-1)', letterSpacing: '0.18em', lineHeight: 1,
-            textShadow: '0 0 28px var(--gold-glow), 0 2px 1px rgba(0,0,0,0.6)',
-            display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap',
-          }}>
+        <section className="lobby-command">
+          <CornerOrnament color="rgba(245, 158, 11, 0.42)" />
+          <div className="lobby-command__copy">
+            <div className="t-eyebrow">Sala privada</div>
+            <h1>Mesa abierta</h1>
+            <p>Reúne a los sospechosos, ajusta el expediente y reparte identidades cuando la mesa esté lista.</p>
+          </div>
+          <div className="lobby-code-stack" aria-label={`Codigo de sala ${roomCode}`}>
             {roomCode.split('').map((ch, i) => (
-              <span key={i} style={{
-                display: 'inline-block', minWidth: 38,
-                padding: '4px 6px', borderRadius: 8,
-                background: 'rgba(245, 158, 11, 0.05)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-              }}>{ch}</span>
+              <span key={i}>{ch}</span>
             ))}
           </div>
-          <div className="hr-gold-soft" style={{ margin: '20px auto', width: '60%' }} />
-          <div style={{
-            fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-2)',
-            letterSpacing: '0.04em', lineHeight: 1.5,
-          }}>Comparte el código o escanea el QR<br />desde otro dispositivo.</div>
+        </section>
 
-          <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center' }}>
-            <div style={{ padding: 8, background: '#f1f5f9', borderRadius: 10 }}>
-              <QRCodeSVG value={joinUrl} size={120} bgColor="#f1f5f9" fgColor="#07070f" />
-            </div>
-          </div>
-          <button
-            onClick={copyJoinUrl}
-            style={{
-              marginTop: 12, all: 'unset', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              gap: 6, maxWidth: '100%', padding: '6px 10px', borderRadius: 999,
-              background: copiedJoinUrl ? 'rgba(34, 197, 94, 0.12)' : 'transparent',
-              border: `1px solid ${copiedJoinUrl ? 'rgba(34, 197, 94, 0.45)' : 'transparent'}`,
-              fontFamily: 'ui-monospace, SF Mono, monospace',
-              fontSize: 11, color: copiedJoinUrl ? 'var(--victory)' : 'var(--text-3)', letterSpacing: '0.04em',
-              transition: 'background 160ms ease, border-color 160ms ease, color 160ms ease',
-            }}
-          >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{joinUrl}</span>
-            <span style={{
-              color: copiedJoinUrl ? 'var(--victory)' : 'var(--gold)',
-              fontFamily: 'var(--font-ui)',
-              fontWeight: 800,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              flexShrink: 0,
-            }}>{copiedJoinUrl ? 'copiado' : 'copiar'}</span>
-          </button>
+        <div className="ds-mobile-only">
+          <LobbyInvitePanel
+            roomCode={roomCode}
+            joinUrl={joinUrl}
+            copied={copiedJoinUrl}
+            onCopy={copyJoinUrl}
+          />
         </div>
 
-        <div style={{
-          marginTop: 20,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        }}>
-          <SectionHeader>Jugadores conectados</SectionHeader>
-          <div style={{
-            fontFamily: 'var(--font-num)', fontSize: 22,
-            color: 'var(--gold)', letterSpacing: '0.05em',
-          }}>{players.length}<span style={{ color: 'var(--text-faint)', fontSize: 14 }}> / 12</span></div>
-        </div>
+        <LobbyPlayersBoard players={players} />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {players.map(p => (
-            <ConnectedPlayer
-              key={p.id} name={p.name} avatar={p.avatar} isHost={p.isHost}
-              isYou={p.isHost}
-              status={p.ready ? 'ready' : 'waiting'}
-            />
-          ))}
-          {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
-            <ConnectedPlayer key={`ph${i}`} placeholder />
-          ))}
-        </div>
-
-        {config && <HostConfigPanel config={config} setConfig={setConfig} playerCount={players.length} />}
+        {config && (
+          <section className="lobby-config-panel">
+            <HostConfigPanel config={config} setConfig={setConfig} playerCount={players.length} />
+          </section>
+        )}
       </div>
     </PhoneScreen>
+  )
+}
+
+function LobbyInvitePanel({ roomCode, joinUrl, copied, onCopy }) {
+  return (
+    <section className="lobby-invite-card">
+      <div className="case-rail__stamp">Invitación</div>
+      <div className="lobby-invite-card__code">
+        {roomCode.split('').map((ch, i) => (
+          <span key={i}>{ch}</span>
+        ))}
+      </div>
+      <div className="lobby-invite-card__qr">
+        <QRCodeSVG value={joinUrl} size={132} bgColor="#f1f5f9" fgColor="#07070f" />
+      </div>
+      <button
+        type="button"
+        className={`lobby-copy-link ${copied ? 'is-copied' : ''}`}
+        onClick={onCopy}
+      >
+        <span>{joinUrl}</span>
+        <strong>{copied ? 'copiado' : 'copiar'}</strong>
+      </button>
+    </section>
+  )
+}
+
+function LobbyPlayersBoard({ players }) {
+  const missing = Math.max(0, 3 - players.length)
+
+  return (
+    <section className="lobby-players-board">
+      <div className="lobby-section-title">
+        <span>Jugadores conectados</span>
+        <strong>{players.length}<small>/12</small></strong>
+      </div>
+      <div className="lobby-player-grid">
+        {players.map((player, index) => (
+          <div key={player.id} className={`lobby-player-card ${player.isHost ? 'is-host' : ''} ${player.ready ? 'is-ready' : ''}`}>
+            <span className="lobby-player-card__index">{String(index + 1).padStart(2, '0')}</span>
+            <span className="lobby-player-card__avatar">{player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}</span>
+            <span className="lobby-player-card__name">{player.name}</span>
+            <span className="lobby-player-card__status">
+              {player.isHost ? 'Anfitrión' : player.ready ? 'Listo' : 'En espera'}
+            </span>
+          </div>
+        ))}
+        {Array.from({ length: missing }).map((_, index) => (
+          <div key={`missing-${index}`} className="lobby-player-card is-empty">
+            <span className="lobby-player-card__index">{String(players.length + index + 1).padStart(2, '0')}</span>
+            <span className="lobby-player-card__avatar">+</span>
+            <span className="lobby-player-card__name">Falta jugador</span>
+            <span className="lobby-player-card__status">Mínimo requerido</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function LobbyStatusPanel({ players, config }) {
+  const activeCategory = config?.category || 'random'
+  const categoryLabel = activeCategory === 'random'
+    ? 'Aleatoria'
+    : categories[activeCategory]?.label || 'Sin categoría'
+  const modeLabel = {
+    classic: 'Clásico',
+    clue: 'Con pista',
+    blind: 'Ciego',
+  }[config?.mode] || 'Sin modo'
+
+  return (
+    <aside className="lobby-status-panel">
+      <div className="case-rail__stamp">Estado del caso</div>
+      <div className="lobby-status-panel__metric">
+        <span>En mesa</span>
+        <strong>{players.length}<small>/12</small></strong>
+      </div>
+      <div className="lobby-status-list">
+        <div>
+          <span>Modo</span>
+          <strong>{modeLabel}</strong>
+        </div>
+        <div>
+          <span>Categoría</span>
+          <strong>{categoryLabel}</strong>
+        </div>
+        <div>
+          <span>Detective</span>
+          <strong>{config?.detectiveEnabled ? 'Activo' : 'Inactivo'}</strong>
+        </div>
+      </div>
+      <p className="lobby-status-panel__note">
+        Cuando todos estén en la mesa, inicia la partida para repartir cartas privadas.
+      </p>
+    </aside>
   )
 }
 
 function HostConfigPanel({ config, setConfig, playerCount }) {
   const maxImpostors = Math.max(1, playerCount)
   const catOptions = [
-    { value: 'random', label: '🎲 Aleatoria' },
-    ...Object.entries(categories).map(([k, v]) => ({ value: k, label: `${v.icon} ${v.label}` })),
+    {
+      value: 'random',
+      label: 'Aleatoria',
+      icon: '🎲',
+      meta: `${Object.keys(categories).length} archivos`,
+    },
+    ...Object.entries(categories).map(([k, v]) => ({
+      value: k,
+      label: v.label,
+      icon: v.icon,
+      meta: `${wordBank[k]?.length || 0} palabras`,
+    })),
   ]
   return (
     <>
@@ -322,31 +384,14 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
         </div>
       </button>
 
-      <SectionHeader>Categoría</SectionHeader>
-      <div style={{
-        display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 18,
-        WebkitOverflowScrolling: 'touch',
-      }}>
-        {catOptions.map(opt => {
-          const active = (config.category || 'random') === opt.value
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setConfig({ category: opt.value })}
-              style={{
-                all: 'unset', cursor: 'pointer', flexShrink: 0,
-                padding: '8px 14px', borderRadius: 999,
-                fontFamily: 'var(--font-ui)', fontSize: 12.5, fontWeight: 500,
-                background: active ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-1)',
-                border: `1px solid ${active ? 'var(--gold)' : 'var(--hairline-cold)'}`,
-                color: active ? 'var(--gold)' : 'var(--text-2)',
-                whiteSpace: 'nowrap',
-              }}
-            >{opt.label}</button>
-          )
-        })}
-      </div>
+      <SectionHeader right={catOptions.find(opt => opt.value === (config.category || 'random'))?.meta}>
+        Categoría
+      </SectionHeader>
+      <CategorySelector
+        options={catOptions}
+        value={config.category || 'random'}
+        onChange={(category) => setConfig({ category })}
+      />
 
       {config.mode === 'clue' && (
         <>
@@ -391,5 +436,44 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
         </>
       )}
     </>
+  )
+}
+
+function CategorySelector({ options, value, onChange }) {
+  const selected = options.find(opt => opt.value === value) || options[0]
+
+  return (
+    <div className="category-dossier">
+      <div className="category-dossier__active">
+        <span className="category-dossier__stamp">Archivo seleccionado</span>
+        <span className="category-dossier__icon">{selected.icon}</span>
+        <div className="category-dossier__copy">
+          <strong>{selected.label}</strong>
+          <span>{selected.meta}</span>
+        </div>
+      </div>
+
+      <div className="category-grid" role="radiogroup" aria-label="Categoria de palabras">
+        {options.map((option, index) => {
+          const active = option.value === value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              className={`category-card ${option.value === 'random' ? 'category-card--random' : ''} ${active ? 'is-active' : ''}`}
+              onClick={() => onChange(option.value)}
+            >
+              <span className="category-card__index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="category-card__icon">{option.icon}</span>
+              <span className="category-card__label">{option.label}</span>
+              <span className="category-card__meta">{option.meta}</span>
+              {active && <span className="category-card__mark">Activo</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

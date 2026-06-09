@@ -37,6 +37,7 @@ export default function GuessWordModal({ open, onClose }) {
   return (
     <div
       role="dialog" aria-modal="true" aria-label="Adivinar palabra"
+      className="guess-modal"
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 800,
@@ -48,6 +49,7 @@ export default function GuessWordModal({ open, onClose }) {
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
+        className="guess-modal__panel"
         style={{
           width: '100%', maxWidth: 380,
           background: 'linear-gradient(180deg, #1a0b12 0%, #0e0710 100%)',

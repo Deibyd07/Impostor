@@ -1,7 +1,7 @@
 export default function Badge({ children, color = 'var(--gold)', dot = false, warn = false, size = 'md' }) {
   const fs = size === 'sm' ? 9 : 10
   return (
-    <span style={{
+    <span className={`case-badge case-badge--${size}`} style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
       padding: size === 'sm' ? '4px 8px 4px 7px' : '5px 10px 5px 8px',
       background: 'rgba(0,0,0,0.4)',

@@ -45,7 +45,7 @@ export default function DetectiveInterrogationPanel({
         <>
           <SectionHeader right={remaining > 0 ? `${remaining}s` : 'Cerrando'}>Interrogatorio</SectionHeader>
           {canSeePrompt ? (
-          <div className="grain grain-heavy" style={{
+          <div className="detective-scene grain grain-heavy" style={{
             position: 'relative',
             overflow: 'hidden',
             border: '1px solid rgba(245, 158, 11, 0.68)',
@@ -155,7 +155,7 @@ export default function DetectiveInterrogationPanel({
       {isDetective && !interrogation && (
         <>
           <SectionHeader>Detective</SectionHeader>
-          <div style={{
+          <div className="evidence-panel detective-control-panel" style={{
             border: '1px solid var(--hairline-cold)',
             borderRadius: 14,
             background: 'var(--surface-1)',
@@ -181,6 +181,7 @@ export default function DetectiveInterrogationPanel({
                     <button
                       key={player.id}
                       type="button"
+                      className={`detective-target ${selectedId === player.id ? 'is-selected' : ''}`}
                       onClick={() => setSelectedId(player.id)}
                       style={{
                         all: 'unset',
@@ -300,7 +301,7 @@ function Speaker({ label, name, avatar, align = 'left' }) {
 
 function ObserverNotice({ interrogation, remaining }) {
   return (
-    <div style={{
+    <div className="detective-observer-notice" style={{
       position: 'relative',
       overflow: 'hidden',
       border: '1px solid rgba(245, 158, 11, 0.32)',

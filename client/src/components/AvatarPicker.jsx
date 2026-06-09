@@ -2,7 +2,7 @@ import { PLAYER_AVATARS } from '../data/avatars.js'
 
 export default function AvatarPicker({ value, onChange, columns = 6 }) {
   return (
-    <div style={{
+    <div className="avatar-picker" style={{
       display: 'grid',
       gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
       gap: 8,
@@ -16,6 +16,7 @@ export default function AvatarPicker({ value, onChange, columns = 6 }) {
             title={`Avatar ${avatar}`}
             aria-label={`Elegir avatar ${avatar}`}
             aria-pressed={selected}
+            className={`avatar-option ${selected ? 'is-selected' : ''}`}
             onClick={() => onChange?.(avatar)}
             style={{
               all: 'unset',

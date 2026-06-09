@@ -51,7 +51,7 @@ function CitizenCard({
 }) {
   const displayWord = (word || '—').toUpperCase()
   return (
-    <div className="grain" style={{
+    <div className={`role-card role-card--${timerAccent} grain`} style={{
       position: 'relative',
       width: '100%',
       borderRadius: 24,
@@ -129,7 +129,7 @@ function CitizenCard({
 
 function ImpostorCard({ withClue = false, clue, seconds, totalSeconds }) {
   return (
-    <div className="grain grain-heavy" style={{
+    <div className="role-card role-card--impostor grain grain-heavy" style={{
       position: 'relative',
       width: '100%',
       borderRadius: 24,

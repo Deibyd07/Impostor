@@ -22,7 +22,7 @@ export default function WinCitizens({
         <div className="t-eyebrow" style={{ color: 'var(--citizen)', marginBottom: 10, fontSize: 11 }}>
           Victoria · Ciudadanos
         </div>
-        <div style={{
+        <div className="evidence-result-card evidence-result-card--citizens" style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 38,
           color: 'var(--text-1)', letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1,
           textShadow: '0 0 40px var(--victory-glow)',

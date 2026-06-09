@@ -5,7 +5,7 @@ export default function ConnectedPlayer({
 }) {
   if (placeholder) {
     return (
-      <div style={{
+      <div className="connected-player connected-player--placeholder" style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 12px', borderRadius: 12,
         border: '1px dashed rgba(245, 158, 11, 0.2)',
@@ -24,7 +24,7 @@ export default function ConnectedPlayer({
   }
   const displayAvatar = avatar || (name || '?').charAt(0).toUpperCase()
   return (
-    <div style={{
+    <div className={`connected-player ${isYou ? 'is-you' : ''}`} style={{
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '10px 12px', borderRadius: 12,
       background: isYou ? 'rgba(245, 158, 11, 0.06)' : 'var(--surface-1)',

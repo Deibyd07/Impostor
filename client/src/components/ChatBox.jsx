@@ -19,7 +19,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
   }
 
   return (
-    <div style={{
+    <div className="chat-box" style={{
       background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
       border: '1px solid var(--hairline-cold)',
       borderRadius: 14,
@@ -27,6 +27,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
       marginBottom: 24,
     }}>
       <div
+        className="chat-box__list"
         ref={listRef}
         style={{
           maxHeight: 210,
@@ -60,7 +61,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
         )}
       </div>
 
-      <div style={{
+      <div className="chat-box__composer" style={{
         display: 'flex',
         gap: 8,
         padding: 10,
@@ -112,7 +113,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
           Enviar
         </button>
       </div>
-      <div style={{
+      <div className="chat-box__counter" style={{
         padding: '0 12px 10px',
         textAlign: 'right',
         fontFamily: 'var(--font-ui)',
@@ -128,7 +129,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
 
 function ChatMessage({ message, isOwn = false }) {
   return (
-    <div style={{
+    <div className={`chat-message ${isOwn ? 'is-own' : ''}`} style={{
       display: 'flex',
       flexDirection: isOwn ? 'row-reverse' : 'row',
       gap: 9,

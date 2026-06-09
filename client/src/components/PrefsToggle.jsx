@@ -45,7 +45,7 @@ export default function PrefsToggle({ style }) {
   }
 
   return (
-    <div ref={rootRef} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 14px)', right: 14, zIndex: 1200, ...style }}>
+    <div className="prefs-toggle" ref={rootRef} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 14px)', right: 14, zIndex: 1200, ...style }}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -53,6 +53,7 @@ export default function PrefsToggle({ style }) {
         aria-expanded={open}
         aria-controls="audio-preferences-panel"
         title={active ? `Sonido ${volumePercent}%` : 'Sin sonido'}
+        className={`prefs-toggle__button ${active ? 'is-active' : ''}`}
         style={mainButton(active)}
       >
         <SoundIcon on={active} />
@@ -63,6 +64,7 @@ export default function PrefsToggle({ style }) {
           id="audio-preferences-panel"
           role="dialog"
           aria-label="Preferencias de audio"
+          className="prefs-panel"
           style={panelStyle}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 12 }}>

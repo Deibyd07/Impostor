@@ -1,7 +1,7 @@
 export default function ChipGroup({ options, value, onChange, accent = 'gold' }) {
   const color = accent === 'red' ? 'var(--impostor)' : 'var(--gold)'
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className={`chip-group chip-group--${accent}`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       {options.map(opt => {
         const v = typeof opt === 'string' ? opt : opt.value
         const label = typeof opt === 'string' ? opt : opt.label
@@ -10,6 +10,7 @@ export default function ChipGroup({ options, value, onChange, accent = 'gold' })
           <button
             type="button"
             key={v}
+            className={`chip-option ${active ? 'is-active' : ''}`}
             onClick={() => onChange(v)}
             style={{
               all: 'unset', cursor: 'pointer',

@@ -2,7 +2,7 @@ export default function Stepper({ value, min = 1, max = 99, onChange, accent = '
   const color = accent === 'red' ? 'var(--impostor)' : 'var(--gold)'
   const big = size === 'lg'
   return (
-    <div style={{
+    <div className={`stepper stepper--${accent} ${big ? 'stepper--lg' : ''}`} style={{
       display: 'inline-flex', alignItems: 'center',
       background: 'var(--surface-1)',
       borderRadius: 999,

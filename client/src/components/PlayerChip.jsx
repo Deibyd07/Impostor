@@ -24,7 +24,7 @@ export default function PlayerChip({
   const canPickAvatar = editable && !eliminated && onAvatarChange
 
   return (
-    <div style={{
+    <div className={`player-chip ${eliminated ? 'is-eliminated' : ''}`} style={{
       display: 'inline-flex', alignItems: 'center', gap: 8,
       background: eliminated ? 'rgba(15, 15, 25, 0.6)' : 'var(--surface-2)',
       border: `1px solid ${eliminated ? 'rgba(220,38,38,0.25)' : 'var(--hairline-cold)'}`,

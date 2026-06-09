@@ -9,6 +9,7 @@ export default function ModeCard({ icon, title, description, accent, selected, o
   return (
     <button
       type="button"
+      className={`mode-card mode-card--${accent || 'gold'} ${selected ? 'is-selected' : ''}`}
       onClick={onClick}
       style={{
         all: 'unset', boxSizing: 'border-box',

@@ -5,6 +5,7 @@ export default function VoteCard({ name, avatar, votes = 0, isLeader = false, di
   return (
     <button
       type="button"
+      className={`vote-card ${isLeader ? 'is-leader' : ''} ${votes > 0 ? 'has-votes' : ''}`}
       onClick={onClick}
       disabled={disabled}
       style={{

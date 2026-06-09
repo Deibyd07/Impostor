@@ -92,7 +92,7 @@ export default function JoinLobby() {
             const ch = code[i]
             const active = code.length === i
             return (
-              <div key={i} style={{
+              <div key={i} className={`code-slot ${active ? 'is-active' : ''} ${ch ? 'has-value' : ''}`} style={{
                 width: 56, height: 64, borderRadius: 12,
                 background: 'var(--surface-1)',
                 border: `1px solid ${active ? 'var(--gold)' : ch ? 'rgba(245, 158, 11, 0.35)' : 'var(--hairline-cold)'}`,

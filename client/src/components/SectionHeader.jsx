@@ -1,7 +1,7 @@
 export default function SectionHeader({ children, accent = 'gold', right }) {
   const color = accent === 'red' ? 'var(--impostor)' : 'var(--gold)'
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div className={`section-header section-header--${accent}`} style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
         <span className="t-eyebrow" style={{ color }}>{children}</span>
         <span style={{

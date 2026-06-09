@@ -51,7 +51,7 @@ export default function GameBoard() {
       </div>
 
       <div style={{ padding: '0 20px' }}>
-        <div style={{
+        <div className="evidence-panel evidence-panel--hero" style={{
           background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
           border: '1px solid var(--hairline-cold)',
           borderRadius: 18, padding: '18px 18px 16px',
@@ -104,7 +104,7 @@ export default function GameBoard() {
             const player = session.players.find(p => p.id === id)
             if (!player) return null
             return (
-              <div key={id} style={{
+              <div key={id} className="evidence-row" style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 14px',
                 background: 'var(--surface-1)',
@@ -143,7 +143,7 @@ function ActionTile({ icon, label, accent, primary, onClick }) {
   const glow = accent === 'red' ? 'var(--impostor-glow)'
              : accent === 'gold' ? 'var(--gold-glow)' : 'transparent'
   return (
-    <button type="button" onClick={onClick} style={{
+    <button type="button" onClick={onClick} className={`evidence-action-tile ${primary ? 'is-primary' : ''}`} style={{
       all: 'unset', cursor: 'pointer',
       padding: '20px 14px',
       background: primary
@@ -174,7 +174,7 @@ function RevealModal({ session, onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>
-      <div onClick={(e) => e.stopPropagation()} style={{
+      <div onClick={(e) => e.stopPropagation()} className="evidence-modal-panel" style={{
         width: '100%', maxWidth: 360,
         background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
         border: '1px solid var(--gold)',

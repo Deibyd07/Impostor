@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
-import CompactRoleReminder from '../../components/CompactRoleReminder.jsx'
+import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
-import PlayerChip from '../../components/PlayerChip.jsx'
 import ChatBox from '../../components/ChatBox.jsx'
 import DetectiveInterrogationPanel from '../../components/DetectiveInterrogationPanel.jsx'
 import GuessWordModal from '../../components/GuessWordModal.jsx'
@@ -35,6 +34,12 @@ export default function Discussion() {
     if (phase === 'spectator') navigate('/online/spectator')
   }, [phase, navigate])
 
+  const orderedPlayers = useMemo(() => {
+    const order = speakOrder.length ? speakOrder : players.map(player => player.id)
+    return order.map(id => players.find(player => player.id === id)).filter(Boolean)
+  }, [players, speakOrder])
+
+  const activeSpeaker = orderedPlayers.find(player => !player.eliminated && !player.disconnected) || orderedPlayers[0]
   const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue'
   const canGuess = isImpostor && (round - lastGuessRound >= 2)
   const guessAvailableAt = lastGuessRound + 2
@@ -42,78 +47,84 @@ export default function Discussion() {
     ? myId === detectiveInterrogation.detectiveId || myId === detectiveInterrogation.targetId
     : true
   const chatLocked = !!detectiveInterrogation && !isInterrogationSpeaker
+  const strategy = strategyForRole(myRole)
+
+  const actions = (
+    <DiscussionActions
+      isHost={isHost}
+      isImpostor={isImpostor}
+      canGuess={canGuess}
+      guessAvailableAt={guessAvailableAt}
+      onGuess={() => setShowGuess(true)}
+      onVote={goToVote}
+    />
+  )
+  const chatPanel = (
+    <DiscussionChatPanel
+      messages={chatMessages}
+      myId={myId}
+      onSend={sendChatMessage}
+      locked={chatLocked}
+    />
+  )
 
   return (
     <PhoneScreen
-      footer={
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {isImpostor && (
-            canGuess ? (
-              <button
-                onClick={() => setShowGuess(true)}
-                style={{
-                  padding: '13px 18px',
-                  background: 'linear-gradient(180deg, rgba(217, 38, 56, 0.18) 0%, rgba(120, 18, 30, 0.22) 100%)',
-                  border: '1px solid rgba(255, 64, 80, 0.55)',
-                  borderRadius: 12,
-                  color: 'var(--impostor)',
-                  fontFamily: 'var(--font-ui)', fontWeight: 600,
-                  fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase',
-                  cursor: 'pointer',
-                }}
-              >
-                Adivinar palabra
-              </button>
-            ) : (
-              <div style={{
-                padding: '13px 18px', borderRadius: 12, textAlign: 'center',
-                border: '1px solid rgba(255, 64, 80, 0.2)',
-                background: 'rgba(255, 64, 80, 0.05)',
-                fontFamily: 'var(--font-ui)', fontSize: 11,
-                color: 'var(--text-3)', letterSpacing: '0.18em', textTransform: 'uppercase',
-              }}>
-                Adivinar disponible en ronda {guessAvailableAt}
-              </div>
-            )
-          )}
-          {isHost ? (
-            <button className="btn btn-primary" onClick={goToVote}
-              style={{ padding: '18px 20px', letterSpacing: '0.2em' }}>
-              Ir a votar
-            </button>
-          ) : (
-            <div style={{
-              textAlign: 'center', fontFamily: 'var(--font-ui)', fontSize: 12,
-              color: 'var(--text-3)', letterSpacing: '0.16em', textTransform: 'uppercase',
-              paddingBottom: 4,
-            }}>Esperando al anfitrion...</div>
-          )}
-        </div>
+      className="online-discussion-screen"
+      leftPanel={
+        <DiscussionDossier
+          role={myRole}
+          word={myWord}
+          clue={myClue}
+          round={round}
+          strategy={strategy}
+          canGuess={canGuess}
+          guessAvailableAt={guessAvailableAt}
+        />
       }
+      rightPanel={chatPanel}
+      footer={actions}
     >
-      <div style={{ padding: '0 20px' }}>
-        <CompactRoleReminder role={myRole} word={myWord} clue={myClue} />
-
-        <div style={{ padding: '20px 0 0' }}>
-          <SectionHeader>Estrategia</SectionHeader>
-          <div style={{
-            background: 'var(--surface-1)',
-            border: '1px solid var(--hairline-cold)',
-            borderRadius: 14, padding: '14px 16px',
-            fontFamily: 'var(--font-ui)', fontSize: 13, lineHeight: 1.5,
-            color: 'var(--text-2)', fontStyle: 'italic', marginBottom: 24,
-          }}>
-            {myRole === 'impostor' || myRole === 'impostor-clue' ? (
-              <>Escucha primero. Se vago, mezcla detalles. <strong style={{ color: 'var(--impostor)', fontStyle: 'normal' }}>No te delates.</strong></>
-            ) : myRole === 'impostor-blind' ? (
-              <>Describe lo que crees que es. Si los demas suenan distinto, algo no cuadra.</>
-            ) : myRole === 'detective' ? (
-              <>Elige bien a quien presionar. El interrogatorio no da veredicto, pero ordena la conversacion.</>
-            ) : (
-              <>Describe la palabra <strong style={{ color: 'var(--citizen)', fontStyle: 'normal' }}>sin decirla</strong>. Observa quien improvisa demasiado.</>
-            )}
+      <div className="discussion-room">
+        <div className="discussion-topbar">
+          <div>
+            <span className="t-eyebrow">Sala de discusion</span>
+            <strong>Ronda {round}</strong>
           </div>
+          <Badge color="var(--gold)" dot>{players.length} en mesa</Badge>
+        </div>
 
+        <div className="ds-mobile-only">
+          <DiscussionDossier
+            role={myRole}
+            word={myWord}
+            clue={myClue}
+            round={round}
+            strategy={strategy}
+            canGuess={canGuess}
+            guessAvailableAt={guessAvailableAt}
+          />
+        </div>
+
+        <section className="discussion-stage">
+          <div className="discussion-stage__copy">
+            <span className="t-eyebrow">Turno sugerido</span>
+            <h1>{activeSpeaker?.name || 'Mesa abierta'}</h1>
+            <p>
+              Mantengan la conversacion en llamada. Usa el orden como guia y observa quien fuerza detalles.
+            </p>
+          </div>
+          <div className="discussion-speaker-card">
+            <Avatar value={activeSpeaker?.avatar} name={activeSpeaker?.name} />
+            <div>
+              <span>Primera voz</span>
+              <strong>{activeSpeaker?.name || 'Sin jugador'}</strong>
+              <small>{activeSpeaker?.id === myId ? 'Tu empiezas' : 'Escucha primero'}</small>
+            </div>
+          </div>
+        </section>
+
+        <div className="discussion-interrogation-slot">
           <DetectiveInterrogationPanel
             players={players}
             myId={myId}
@@ -122,66 +133,164 @@ export default function Discussion() {
             used={detectiveInterrogationUsed}
             onStart={startDetectiveInterrogation}
           />
+        </div>
 
-          <SectionHeader>Orden de turno</SectionHeader>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-            {(speakOrder.length ? speakOrder : players.map(p => p.id)).map((id, idx) => {
-              const player = players.find(p => p.id === id)
-              if (!player) return null
-              const isMe = id === myId
-              return (
-                <div key={id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 14px',
-                  background: isMe ? 'rgba(100,210,255,0.07)' : 'var(--surface-1)',
-                  border: `1px solid ${isMe ? 'rgba(100,210,255,0.28)' : 'var(--hairline-cold)'}`,
-                  borderRadius: 10,
-                  opacity: player.eliminated ? 0.32 : 1,
-                }}>
-                  <span style={{
-                    fontFamily: 'var(--font-num)', fontSize: 13,
-                    color: 'var(--text-3)', minWidth: 18,
-                  }}>{idx + 1}</span>
-                  <PlayerChip
-                    name={player.name}
-                    avatar={player.avatar}
-                    eliminated={player.eliminated}
-                    disconnected={player.disconnected}
-                  />
-                  {isMe && (
-                    <span style={{
-                      marginLeft: 'auto',
-                      fontFamily: 'var(--font-ui)', fontSize: 10,
-                      color: 'var(--citizen)', letterSpacing: '0.18em',
-                    }}>TU</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+        <DiscussionTable players={orderedPlayers} myId={myId} />
 
-          <SectionHeader right={`${chatMessages.length}/50`}>Chat</SectionHeader>
-          {chatLocked && (
-            <div style={{
-              margin: '-6px 0 10px',
-              padding: '9px 12px',
-              borderRadius: 12,
-              border: '1px solid rgba(248, 113, 113, 0.2)',
-              background: 'rgba(220, 38, 38, 0.08)',
-              color: '#fecaca',
-              fontFamily: 'var(--font-ui)',
-              fontSize: 12,
-              lineHeight: 1.4,
-              textAlign: 'center',
-            }}>
-              Silencio en la mesa: solo Detective e interrogado pueden escribir.
-            </div>
-          )}
-          <ChatBox messages={chatMessages} myId={myId} onSend={sendChatMessage} disabled={chatLocked} />
+        <div className="ds-mobile-only">
+          {chatPanel}
         </div>
       </div>
 
       <GuessWordModal open={showGuess} onClose={() => setShowGuess(false)} />
     </PhoneScreen>
   )
+}
+
+function DiscussionDossier({ role, word, clue, round, strategy, canGuess, guessAvailableAt }) {
+  const meta = roleMeta(role)
+  const revealWord = meta.showsWord && word
+  const revealClue = role === 'impostor-clue' && clue
+
+  return (
+    <aside className={`discussion-dossier discussion-dossier--${meta.tone}`}>
+      <div className="case-rail__stamp">Mi expediente</div>
+      <div className="discussion-dossier__role">
+        <Badge color={meta.color} dot warn={meta.tone === 'red'}>{meta.label}</Badge>
+        <span>Ronda {round}</span>
+      </div>
+      <div className="discussion-dossier__secret">
+        <span>{meta.secretLabel}</span>
+        <strong>{revealWord ? word.toUpperCase() : meta.secretValue}</strong>
+        {revealClue && <small>Pista: {clue}</small>}
+      </div>
+      <div className="discussion-dossier__strategy">
+        <span>Estrategia</span>
+        <p>{strategy}</p>
+      </div>
+      {meta.tone === 'red' && (
+        <div className="discussion-dossier__status">
+          {canGuess ? 'Adivinanza disponible' : `Adivinar en ronda ${guessAvailableAt}`}
+        </div>
+      )}
+    </aside>
+  )
+}
+
+function DiscussionChatPanel({ messages, myId, onSend, locked }) {
+  return (
+    <aside className="discussion-chat-panel">
+      <SectionHeader right={`${messages.length}/50`}>Chat en vivo</SectionHeader>
+      {locked && (
+        <div className="discussion-chat-lock">
+          Silencio en la mesa: solo Detective e interrogado pueden escribir.
+        </div>
+      )}
+      <ChatBox messages={messages} myId={myId} onSend={onSend} disabled={locked} />
+    </aside>
+  )
+}
+
+function DiscussionTable({ players, myId }) {
+  return (
+    <section className="discussion-table">
+      <SectionHeader right={`${players.length} jugadores`}>Orden de turno</SectionHeader>
+      <div className="discussion-player-grid">
+        {players.map((player, index) => {
+          const isMe = player.id === myId
+          const isFirst = index === 0
+          return (
+            <article
+              key={player.id}
+              className={`discussion-player-card ${isMe ? 'is-you' : ''} ${isFirst ? 'is-first' : ''} ${player.eliminated ? 'is-out' : ''}`}
+            >
+              <span className="discussion-player-card__index">{String(index + 1).padStart(2, '0')}</span>
+              <Avatar value={player.avatar} name={player.name} />
+              <div className="discussion-player-card__body">
+                <strong>{player.name}</strong>
+                <span>{player.eliminated ? 'Eliminado' : player.disconnected ? 'Desconectado' : isFirst ? 'Abre la ronda' : 'En escucha'}</span>
+              </div>
+              {isMe && <span className="discussion-player-card__you">Tu</span>}
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function DiscussionActions({ isHost, isImpostor, canGuess, guessAvailableAt, onGuess, onVote }) {
+  return (
+    <div className="discussion-actions">
+      {isImpostor && (
+        canGuess ? (
+          <button type="button" className="discussion-action discussion-action--danger" onClick={onGuess}>
+            Adivinar palabra
+          </button>
+        ) : (
+          <div className="discussion-action discussion-action--muted">
+            Adivinar disponible en ronda {guessAvailableAt}
+          </div>
+        )
+      )}
+      {isHost ? (
+        <button type="button" className="btn btn-primary discussion-action--vote" onClick={onVote}>
+          Ir a votar
+        </button>
+      ) : (
+        <div className="discussion-action discussion-action--waiting">
+          Esperando al anfitrion...
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Avatar({ value, name }) {
+  const display = value || (name || '?').trim().charAt(0).toUpperCase()
+  return <span className="discussion-avatar">{display}</span>
+}
+
+function roleMeta(role) {
+  if (role === 'impostor' || role === 'impostor-clue') {
+    return {
+      label: 'Impostor',
+      color: 'var(--impostor)',
+      tone: 'red',
+      secretLabel: role === 'impostor-clue' ? 'Pista privada' : 'Palabra',
+      secretValue: role === 'impostor-clue' ? 'Tienes una pista' : 'No conoces la palabra',
+      showsWord: false,
+    }
+  }
+  if (role === 'detective') {
+    return {
+      label: 'Detective',
+      color: 'var(--gold)',
+      tone: 'gold',
+      secretLabel: 'Palabra',
+      secretValue: 'Investiga sin revelar',
+      showsWord: true,
+    }
+  }
+  return {
+    label: 'Ciudadano',
+    color: 'var(--citizen)',
+    tone: 'blue',
+    secretLabel: 'Palabra',
+    secretValue: 'Sin palabra',
+    showsWord: true,
+  }
+}
+
+function strategyForRole(role) {
+  if (role === 'impostor' || role === 'impostor-clue') {
+    return 'Escucha primero. Se vago, mezcla detalles y no contradigas demasiado pronto.'
+  }
+  if (role === 'impostor-blind') {
+    return 'Describe lo que crees que es. Si la mesa suena distinta, algo no cuadra.'
+  }
+  if (role === 'detective') {
+    return 'Presiona con calma. El interrogatorio no da veredicto, pero ordena la conversacion.'
+  }
+  return 'Describe la palabra sin decirla. Observa quien improvisa o evita detalles concretos.'
 }
