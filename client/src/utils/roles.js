@@ -1,7 +1,8 @@
 export const ROLE_DETECTIVE_IMPOSTOR = 'detective-impostor'
+export const ROLE_DETECTIVE_BLIND = 'detective-blind'
 
 export function isDetectiveRole(role) {
-  return role === 'detective' || role === ROLE_DETECTIVE_IMPOSTOR
+  return role === 'detective' || role === ROLE_DETECTIVE_IMPOSTOR || role === ROLE_DETECTIVE_BLIND
 }
 
 export function isImpostorRole(role) {
@@ -12,7 +13,7 @@ export function isImpostorRole(role) {
 }
 
 export function isCitizenTeamRole(role) {
-  return role === 'citizen' || role === 'detective'
+  return role === 'citizen' || role === 'detective' || role === ROLE_DETECTIVE_BLIND
 }
 
 export function canGuessWordRole(role) {

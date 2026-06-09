@@ -1,7 +1,7 @@
 import { shuffle, pickOne, pickWithout } from './random.js'
 import { wordBank, categories, relatedWords } from '../data/wordBank.js'
 import { avatarForPlayer } from '../data/avatars.js'
-import { isImpostorRole } from './roles.js'
+import { ROLE_DETECTIVE_BLIND, isImpostorRole } from './roles.js'
 
 export const RECENT_WORD_LIMIT = 10
 
@@ -80,10 +80,20 @@ export function buildSession(config, options = {}) {
     const detective = pickOne(sessionPlayers)
     if (detective) {
       const wasImpostor = isImpostorRole(detective.role)
-      detective.role = wasImpostor ? 'detective-impostor' : 'detective'
-      detective.seenWord = wasImpostor
-        ? (config.mode === 'blind' ? fakeWord : null)
-        : word
+      if (wasImpostor && config.mode === 'blind') {
+        detective.role = ROLE_DETECTIVE_BLIND
+        detective.seenWord = fakeWord
+        const replacement = pickOne(sessionPlayers.filter(player => (
+          player.id !== detective.id && player.role === 'citizen'
+        )))
+        if (replacement) {
+          replacement.role = 'impostor'
+          replacement.seenWord = fakeWord
+        }
+      } else {
+        detective.role = wasImpostor ? 'detective-impostor' : 'detective'
+        detective.seenWord = wasImpostor ? null : word
+      }
     }
   }
 

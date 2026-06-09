@@ -312,7 +312,7 @@ function chatPayloadFor(player, text) {
 }
 
 function isDetectiveRole(role) {
-  return role === 'detective' || role === 'detective-impostor'
+  return role === 'detective' || role === 'detective-impostor' || role === 'detective-blind'
 }
 
 function isImpostorRole(role) {
@@ -320,7 +320,12 @@ function isImpostorRole(role) {
 }
 
 function isCitizenTeamRole(role) {
-  return role === 'citizen' || role === 'detective'
+  return role === 'citizen' || role === 'detective' || role === 'detective-blind'
+}
+
+function canGuessWord(room, playerId) {
+  if (!room || room.config?.mode === 'blind') return false
+  return isImpostorRole(room.roles[playerId])
 }
 
 function clearInterrogation(room, { emit = true } = {}) {
@@ -420,9 +425,16 @@ function assignRoles(room) {
   if (cfg.detectiveEnabled) {
     const detective = pickOne(room.players)
     if (detective) {
-      room.roles[detective.id] = isImpostorRole(room.roles[detective.id])
-        ? 'detective-impostor'
-        : 'detective'
+      const wasImpostor = isImpostorRole(room.roles[detective.id])
+      if (wasImpostor && cfg.mode === 'blind') {
+        room.roles[detective.id] = 'detective-blind'
+        const replacement = pickOne(room.players.filter(player => (
+          player.id !== detective.id && room.roles[player.id] === 'citizen'
+        )))
+        if (replacement) room.roles[replacement.id] = 'impostor'
+      } else {
+        room.roles[detective.id] = wasImpostor ? 'detective-impostor' : 'detective'
+      }
     }
   }
 }
@@ -436,6 +448,24 @@ function rolePayloadFor(room, playerId) {
     return {
       role: 'detective',
       word: room.word,
+      clue: null,
+      impostorTeammates: [],
+      detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
+    }
+  }
+  if (role === 'detective-blind') {
+    return {
+      role: 'detective',
+      word: room.fakeWord,
+      clue: null,
+      impostorTeammates: [],
+      detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
+    }
+  }
+  if (role === 'detective-impostor' && room.config.mode === 'blind') {
+    return {
+      role: 'detective',
+      word: room.fakeWord,
       clue: null,
       impostorTeammates: [],
       detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
@@ -458,7 +488,7 @@ function rolePayloadFor(room, playerId) {
 function impostorTeammatesFor(room, playerId) {
   const role = room.roles[playerId]
   if (!isImpostorRole(role)) return []
-  if (role !== 'detective-impostor' && room.config.mode === 'blind') return []
+  if (room.config.mode === 'blind') return []
   return room.players
     .filter(player => player.id !== playerId && isImpostorRole(room.roles[player.id]))
     .map(player => ({
@@ -959,7 +989,7 @@ io.on('connection', (socket) => {
     const room = getRoomBySocket(socket.id)
     if (!room) return
     const player = getPlayerBySocket(room, socket.id)
-    if (!player || !isImpostorRole(room.roles[player.id])) return
+    if (!player || !canGuessWord(room, player.id)) return
     if (room.phase === 'ended') return
     const lastRound = room.lastGuessRounds[player.id] ?? -1
     if (room.round - lastRound < 2) {

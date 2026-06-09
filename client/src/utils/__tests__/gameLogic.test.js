@@ -91,6 +91,15 @@ describe('checkVictory', () => {
     expect(checkVictory(s)).toEqual({ winner: 'impostor', reason: 'majority' })
   })
 
+  it('detective-blind counts as citizen team', () => {
+    const s = makeSession([
+      { id: 'a', role: 'impostor', eliminated: false },
+      { id: 'b', role: 'detective-blind', eliminated: false },
+      { id: 'c', role: 'citizen', eliminated: false },
+    ])
+    expect(checkVictory(s)).toBe(null)
+  })
+
   it('the impostor wins after guessing the word', () => {
     const s = makeSession([
       { id: 'a', role: 'impostor', eliminated: false },
@@ -128,5 +137,14 @@ describe('isPlayerImpostor', () => {
     ])
     expect(isPlayerImpostor(s, 'a')).toBe(true)
     expect(isPlayerImpostor(s, 'b')).toBe(false)
+  })
+
+  it('does not detect detective-blind as impostor', () => {
+    const s = makeSession([
+      { id: 'a', role: 'detective-blind' },
+      { id: 'b', role: 'impostor' },
+    ])
+    expect(isPlayerImpostor(s, 'a')).toBe(false)
+    expect(isPlayerImpostor(s, 'b')).toBe(true)
   })
 })

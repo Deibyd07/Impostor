@@ -80,7 +80,7 @@ export default function CardReveal() {
 
 function computeVariant(session, player) {
   if (player.role === 'detective-impostor') return 'detective-impostor'
-  if (player.role === 'detective') return 'detective'
+  if (player.role === 'detective' || player.role === 'detective-blind') return 'detective'
   if (player.role === 'citizen') return 'citizen'
   // impostor
   if (session.config.mode === 'blind') return 'impostor-blind'

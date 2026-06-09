@@ -6,7 +6,7 @@ import {
   pickWordAvoidingRecent,
 } from '../roleAssigner.js'
 import { wordBank, categories, relatedWords } from '../../data/wordBank.js'
-import { isDetectiveRole, isImpostorRole } from '../roles.js'
+import { canGuessWordRole, isDetectiveRole, isImpostorRole } from '../roles.js'
 
 const newCategoryKeys = [
   'videojuegos',
@@ -138,6 +138,24 @@ describe('buildSession - modo ciego', () => {
       expect(p.seenWord).not.toBe(s.word)
     })
   })
+
+  it('el detective en ciego no se revela como impostor ni puede adivinar', () => {
+    for (let i = 0; i < 80; i++) {
+      const s = buildSession({
+        players: players(6), impostorCount: 2, mode: 'blind',
+        blindIntensity: 'medium', category: 'lugares', detectiveEnabled: true,
+      })
+      const detectives = s.players.filter(p => isDetectiveRole(p.role))
+      const impostors = s.players.filter(p => isImpostorRole(p.role))
+
+      expect(detectives).toHaveLength(1)
+      expect(impostors).toHaveLength(2)
+      expect(detectives[0].role).not.toBe('detective-impostor')
+      expect(canGuessWordRole(detectives[0].role)).toBe(false)
+      expect([s.word, s.fakeWord]).toContain(detectives[0].seenWord)
+    }
+  })
+
   it('funciona con las categorias nuevas', () => {
     newCategoryKeys.forEach(category => {
       const s = buildSession({

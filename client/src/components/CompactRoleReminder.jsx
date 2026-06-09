@@ -6,7 +6,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
   const [open, setOpen] = useState(false)
   const isImpostor = isImpostorRole(role) && role !== 'impostor-blind'
   const isDetective = isDetectiveRole(role)
-  const looksLikeCitizen = role === 'citizen' || role === 'impostor-blind' || role === 'detective'
+  const looksLikeCitizen = role === 'citizen' || role === 'impostor-blind' || role === 'detective' || role === 'detective-blind'
   const color = isImpostor ? 'var(--impostor)' : isDetective ? 'var(--gold)' : 'var(--citizen)'
   const label = role === 'detective-impostor' ? 'DETECTIVE IMPOSTOR' : isImpostor ? 'IMPOSTOR' : isDetective ? 'DETECTIVE' : 'CIUDADANO'
 
@@ -46,7 +46,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
           color: 'var(--text-2)', lineHeight: 1.4,
         }}>
           {role === 'citizen' && <>Describe la palabra sin decirla. Observa a los demas.</>}
-          {role === 'detective' && <>Puedes iniciar un interrogatorio publico una vez por partida.</>}
+          {(role === 'detective' || role === 'detective-blind') && <>Puedes iniciar un interrogatorio publico una vez por partida.</>}
           {role === 'detective-impostor' && <>Puedes interrogar una vez, pero ganas con los impostores.</>}
           {role === 'impostor' && <>Escucha, se vago, mezcla. Si te descubren, adivina la palabra.</>}
           {role === 'impostor-clue' && (

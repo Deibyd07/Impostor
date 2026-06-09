@@ -298,7 +298,7 @@ function roleMeta(role) {
       showsWord: false,
     }
   }
-  if (role === 'detective') {
+  if (role === 'detective' || role === 'detective-blind') {
     return {
       label: 'Detective',
       color: 'var(--gold)',
@@ -328,7 +328,7 @@ function strategyForRole(role) {
   if (role === 'impostor-blind') {
     return 'Describe lo que crees que es. Si la mesa suena distinta, algo no cuadra.'
   }
-  if (role === 'detective') {
+  if (role === 'detective' || role === 'detective-blind') {
     return 'Presiona con calma. El interrogatorio no da veredicto, pero ordena la conversacion.'
   }
   return 'Describe la palabra sin decirla. Observa quien improvisa o evita detalles concretos.'
