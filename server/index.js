@@ -14,7 +14,7 @@ dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.
 
 const app = express()
 app.use(cors())
-app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '1.2.2' }))
+app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '0.1.0' }))
 app.get('/health', async (_, res) => res.json({
   ok: true,
   rooms: rooms.size,

@@ -4,21 +4,21 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const patches = [
   {
-    version: '1.2.2',
-    path: '/patch-1-2-2',
-    eyebrow: 'Audio reforzado',
-    title: 'Voz online mas estable',
-    summary: 'Parche enfocado en que las salas online se escuchen mejor, especialmente cuando los jugadores aparecian conectados pero no recibian audio.',
+    version: '0.1.0',
+    path: '/patch-0-1-0',
+    eyebrow: 'Alpha jugable',
+    title: 'Salas online mas resistentes',
+    summary: 'Version alpha enfocada en que las partidas online se recuperen mejor cuando alguien recarga, se cae o vuelve a entrar durante la partida.',
     highlights: [
       {
         code: 'VOZ',
-        title: 'Audio con respaldo',
-        body: 'La voz ahora tiene un camino alternativo para reducir casos donde todos aparecen conectados pero nadie se escucha.',
+        title: 'Voz mas confiable',
+        body: 'La voz online se siente mas estable y reduce casos donde todos aparecen conectados pero nadie se escucha.',
       },
       {
         code: 'SALA',
         title: 'Conexion mas resistente',
-        body: 'Las salas manejan mejor la entrada de varios jugadores a voz y la recuperacion cuando alguien refresca o vuelve a entrar.',
+        body: 'Las salas recuperan mejor la partida cuando alguien refresca, pierde conexion o vuelve a entrar.',
       },
       {
         code: 'PRUEBA',
@@ -39,31 +39,31 @@ const patches = [
       {
         title: 'Salas online',
         items: [
-          'El lobby y la discusion comparten la mejora de voz.',
-          'La voz conserva los canales especiales durante el interrogatorio del Detective.',
-          'Los jugadores pueden volver a activar voz despues de refrescar o reconectar.',
+          'Las salas recuperan mejor jugadores que refrescan durante una partida.',
+          'El anfitrion se conserva mejor durante desconexiones cortas.',
+          'Una partida en discusion vuelve a abrir en la fase correcta al reconectar.',
           'La experiencia queda preparada para pruebas con grupos mas grandes.',
         ],
       },
       {
         title: 'Historial de versiones',
         items: [
-          'El menu principal muestra el parche actual 1.2.2.',
-          'La pantalla de novedades permite cambiar entre 1.2.2, 1.2.1, 1.2 y 1.1.',
+          'El menu principal muestra el parche actual 0.1.0.',
+          'La pantalla de novedades permite cambiar entre 0.1.0, 0.0.5, 0.0.4 y 0.0.3.',
           'Las notas se mantienen enfocadas en cambios que entienden los jugadores.',
         ],
       },
     ],
     testFlow: [
       'Crea una sala online con tres o mas jugadores.',
-      'Todos activen voz, prueben microfono y prueben sonido.',
-      'Hablen por turnos y confirmen que el indicador de habla coincide con quien habla.',
-      'Ajusta volumen general y volumen personal de cada jugador si alguien suena bajo.',
+      'Lleguen a discusion y recarguen una pestana para confirmar que vuelve a la misma fase.',
+      'Prueben voz, microfono y sonido con todos los jugadores conectados.',
+      'Apaguen y vuelvan a levantar el servidor para confirmar que la sala se puede recuperar.',
     ],
   },
   {
-    version: '1.2.1',
-    path: '/patch-1-2-1',
+    version: '0.0.5',
+    path: '/patch-0-0-5',
     eyebrow: 'Mejoras de mesa',
     title: 'Voz estable y complices visibles',
     summary: 'Ajuste centrado en estabilidad online, mejor lectura del chat de voz y equipo impostor visible para partidas con varios impostores.',
@@ -107,7 +107,7 @@ const patches = [
         title: 'Historial de versiones',
         items: [
           'El menu principal muestra el parche actual de forma clara.',
-          'La pantalla de novedades permite cambiar entre 1.2.2, 1.2.1, 1.2 y 1.1.',
+          'La pantalla de novedades permite cambiar entre 0.1.0, 0.0.5, 0.0.4 y 0.0.3.',
           'Cada version resume que se agrego y como probarlo en una partida.',
         ],
       },
@@ -120,8 +120,8 @@ const patches = [
     ],
   },
   {
-    version: '1.2',
-    path: '/patch-1-2',
+    version: '0.0.4',
+    path: '/patch-0-0-4',
     eyebrow: 'Expediente',
     title: 'Doble identidad en la mesa',
     summary: 'Parche centrado en voz online, canales privados de interrogatorio y la nueva identidad Detective-impostor.',
@@ -179,8 +179,8 @@ const patches = [
     ],
   },
   {
-    version: '1.1',
-    path: '/patch-1-1',
+    version: '0.0.3',
+    path: '/patch-0-0-3',
     eyebrow: 'Archivo anterior',
     title: 'Mas contenido y partida persistente',
     summary: 'Parche de expansion del banco de palabras, perfiles, chat, avatares, sonidos y mejoras de flujo para salas online.',

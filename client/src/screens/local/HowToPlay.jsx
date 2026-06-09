@@ -47,11 +47,11 @@ const rules = [
 ]
 
 const newTools = [
+  'Las salas online recuperan mejor a jugadores que recargan o vuelven a entrar.',
   'El Detective puede ser ciudadano o impostor; no aumenta el total de impostores.',
   'Durante el interrogatorio, Detective e interrogado tienen un canal de voz privado.',
   'El resto de la mesa puede hablar aparte sin escuchar el interrogatorio.',
   'Cada jugador en voz tiene volumen individual y volumen general.',
-  'El chat online guarda los últimos 50 mensajes y muestra nombre más avatar.',
 ]
 
 const tips = [
@@ -78,10 +78,10 @@ export default function HowToPlay() {
 
   const rightPanel = (
     <GuideRail
-      eyebrow="Parche 1.2.2"
+      eyebrow="Alpha 0.1.0"
       title="Herramientas nuevas"
       items={newTools.map((item, index) => ({
-        label: `1.${index + 1}`,
+        label: `0.${index + 1}`,
         title: item,
       }))}
     />
@@ -98,7 +98,7 @@ export default function HowToPlay() {
         <header className="guide-topbar">
           <button onClick={() => navigate(-1)}>Volver</button>
           <span>Manual de campo</span>
-          <button onClick={() => navigate('/patch-1-2-2')}>Version 1.2.2</button>
+          <button onClick={() => navigate('/patch-0-1-0')}>Alpha 0.1.0</button>
         </header>
 
         <section className="guide-hero" aria-labelledby="how-title">
@@ -138,8 +138,8 @@ export default function HowToPlay() {
         <GuideSection title="Online y Detective" accent="gold">
           <p>
             En online puedes crear una sala privada, compartir código o enlace, usar chat
-            durante la discusión y mantener la partida aunque el anfitrión salga: el host se
-            transfiere a otro jugador conectado.
+            durante la discusión y recuperar mejor la partida cuando alguien recarga o vuelve
+            a entrar.
           </p>
           <p>
             Si activan Detective, ese rol puede abrir un interrogatorio corto y dramático.
