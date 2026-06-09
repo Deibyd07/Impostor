@@ -49,6 +49,7 @@ export function createRoomStore({
 
   const redis = new Redis(redisUrl, {
     lazyConnect: true,
+    connectTimeout: 1000,
     maxRetriesPerRequest: 2,
     enableReadyCheck: false,
   })

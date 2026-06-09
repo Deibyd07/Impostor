@@ -137,7 +137,14 @@ app.post('/match-results', async (req, res) => {
     res.status(500).json({ ok: false, error: 'match_result_failed', message: error.message })
   }
 })
-app.get('/health', async (_, res) => res.json({
+app.get('/health', (_, res) => res.json({
+  ok: true,
+  rooms: rooms.size,
+  roomStore: roomStore.type,
+  leaderboardStore: leaderboardStore.type,
+}))
+
+app.get('/health/details', async (_, res) => res.json({
   ok: true,
   rooms: rooms.size,
   storedRooms: await roomStore.count(),
