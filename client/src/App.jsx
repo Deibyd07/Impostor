@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, useLocation } from 'react-router-dom'
 
 import Home from './screens/local/Home.jsx'
 import HowToPlay from './screens/local/HowToPlay.jsx'
+import PatchNotes from './screens/local/PatchNotes.jsx'
 import Profile from './screens/local/Profile.jsx'
 import Setup from './screens/local/Setup.jsx'
 import PassPhone from './screens/local/PassPhone.jsx'
@@ -36,6 +37,7 @@ const SPLASH_SESSION_KEY = 'el-impostor-splash-seen'
 const routes = [
   { path: '/', element: <Home /> },
   { path: '/how', element: <HowToPlay /> },
+  { path: '/patch-1-1', element: <PatchNotes /> },
   { path: '/profile', element: <Profile /> },
   { path: '/setup', element: <Setup /> },
   { path: '/game', element: <GameBoard /> },
@@ -123,7 +125,7 @@ function SoundDirector() {
 }
 
 function resolveMusicLoop(pathname, { detectiveInterrogation }) {
-  if (['/', '/how', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
+  if (['/', '/how', '/patch-1-1', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
     return 'lobby'
   }
   if (pathname === '/game' || pathname === '/online/spectator') return 'discussion'

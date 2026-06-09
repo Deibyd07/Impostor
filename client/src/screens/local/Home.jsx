@@ -34,6 +34,12 @@ const caseSteps = [
   'Voten antes de que el impostor escape.',
 ]
 
+const releaseNotes = [
+  'Detective opcional con interrogatorio.',
+  'Chat online durante la discusión.',
+  'Perfil, avatares, sonidos y eliminación dramática.',
+]
+
 export default function Home() {
   const navigate = useNavigate()
   const hasSavedGame = useGameStore(s => s.hasSavedGame())
@@ -42,6 +48,7 @@ export default function Home() {
   const onNew = () => { sfx.unlock(); endSession(); navigate('/setup') }
   const onResume = () => { sfx.unlock(); navigate('/game') }
   const onHow = () => navigate('/how')
+  const onPatch = () => navigate('/patch-1-1')
   const onProfile = () => navigate('/profile')
   const onHost = () => { sfx.unlock(); navigate('/online/host') }
   const onJoin = () => { sfx.unlock(); navigate('/online/join') }
@@ -83,6 +90,14 @@ export default function Home() {
         <strong>{hasSavedGame ? 'Partida en curso' : 'Sin expediente abierto'}</strong>
         <p>{hasSavedGame ? 'Puedes reanudar o abrir un caso nuevo.' : 'Prepara la mesa y reparte identidades.'}</p>
       </div>
+      <button type="button" className="case-evidence-card case-release-link" onClick={onPatch}>
+        <div className="case-evidence-card__label">Parche 1.1</div>
+        <strong>Nuevo expediente</strong>
+        <p>Consulta las mejoras de esta versión antes de abrir la sala.</p>
+        <ul className="case-release-list">
+          {releaseNotes.map(note => <li key={note}>{note}</li>)}
+        </ul>
+      </button>
     </div>
   )
 
@@ -140,8 +155,15 @@ export default function Home() {
           </div>
         </section>
 
-        <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
-        <div className="case-version">v1.0 · mesa de evidencias</div>
+        <section className="case-menu-links" aria-label="Información del juego">
+          <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
+          <button className="case-patch-link" onClick={onPatch}>
+            <span>Novedades</span>
+            <strong>Versión 1.1</strong>
+          </button>
+        </section>
+
+        <div className="case-version">v1.1 · parche de sospecha</div>
       </main>
     </PhoneScreen>
   )

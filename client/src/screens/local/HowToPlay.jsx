@@ -2,54 +2,186 @@ import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 
+const flow = [
+  {
+    title: 'Configura la mesa',
+    body: 'Elige jugadores, categoría, modo, número de impostores y si habrá Detective.',
+  },
+  {
+    title: 'Revela tu rol',
+    body: 'Cada jugador ve su carta en secreto. Los ciudadanos reciben la palabra real.',
+  },
+  {
+    title: 'Discute sin decir la palabra',
+    body: 'Usen turnos, pistas sutiles y presión social para detectar contradicciones.',
+  },
+  {
+    title: 'Voten y revelen',
+    body: 'La mesa elimina a un sospechoso y el juego revela si era impostor o ciudadano.',
+  },
+]
+
+const modes = [
+  {
+    title: 'Clásico',
+    body: 'El impostor no conoce la palabra. Debe escuchar, copiar el tono de la mesa y sobrevivir.',
+    accent: 'red',
+  },
+  {
+    title: 'Con pista',
+    body: 'El impostor recibe una pista controlada para improvisar sin quedar perdido desde el inicio.',
+    accent: 'gold',
+  },
+  {
+    title: 'Ciego',
+    body: 'El impostor cree ser ciudadano y recibe una palabra falsa relacionada. Nadie sabe que está mintiendo.',
+    accent: 'blue',
+  },
+]
+
+const rules = [
+  'Los ciudadanos ganan si eliminan a todos los impostores.',
+  'Los impostores ganan si igualan o superan en número a los ciudadanos.',
+  'En modo clásico, el impostor puede intentar adivinar la palabra antes de caer.',
+  'No repitas la palabra ni variantes demasiado obvias durante la discusión.',
+]
+
+const newTools = [
+  'El Detective puede activar un interrogatorio opcional una sola vez por partida.',
+  'Durante el interrogatorio solo hablan el Detective y el jugador interrogado.',
+  'El resto de ciudadanos ve un aviso de silencio, sin leer la pregunta privada.',
+  'El chat online guarda los últimos 50 mensajes y muestra nombre más avatar.',
+  'El perfil local acumula partidas, victorias, rachas y rendimiento por rol.',
+]
+
+const tips = [
+  'Ciudadano: da detalles reales, pero no regales la palabra.',
+  'Impostor: escucha primero y reutiliza el vocabulario de la mesa.',
+  'Detective: interroga a quien ya parezca raro, no al azar.',
+  'En llamada: respeten los turnos y usen el chat como apoyo, no como reemplazo.',
+]
+
 export default function HowToPlay() {
   const navigate = useNavigate()
+
+  const leftPanel = (
+    <GuideRail
+      eyebrow="Flujo recomendado"
+      title="De apertura a votación"
+      items={flow.map((item, index) => ({
+        label: String(index + 1).padStart(2, '0'),
+        title: item.title,
+        body: item.body,
+      }))}
+    />
+  )
+
+  const rightPanel = (
+    <GuideRail
+      eyebrow="Parche 1.1"
+      title="Herramientas nuevas"
+      items={newTools.map((item, index) => ({
+        label: `1.${index + 1}`,
+        title: item,
+      }))}
+    />
+  )
+
   return (
     <PhoneScreen
-      footer={<button className="btn btn-primary" onClick={() => navigate('/')}>Volver al inicio</button>}
+      className="guide-screen"
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
+      footer={<button className="btn btn-primary" onClick={() => navigate('/setup')}>Abrir caso</button>}
     >
-      <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={() => navigate(-1)} style={{
-          all: 'unset', cursor: 'pointer', color: 'var(--text-2)',
-          fontFamily: 'var(--font-ui)', fontSize: 13,
-        }}>← Volver</button>
-        <div className="t-eyebrow" style={{ color: 'var(--text-2)' }}>Cómo jugar</div>
-        <span style={{ width: 50 }} />
-      </div>
+      <div className="guide-page">
+        <header className="guide-topbar">
+          <button onClick={() => navigate(-1)}>Volver</button>
+          <span>Manual de campo</span>
+          <button onClick={() => navigate('/patch-1-1')}>Versión 1.1</button>
+        </header>
 
-      <div style={{ padding: '0 24px', lineHeight: 1.6, color: 'var(--text-1)', fontFamily: 'var(--font-ui)' }}>
-        <SectionHeader>Objetivo</SectionHeader>
-        <p style={{ fontSize: 14, color: 'var(--text-2)' }}>
-          Hay <strong style={{ color: 'var(--citizen)' }}>ciudadanos</strong> que conocen la palabra secreta
-          y al menos un <strong style={{ color: 'var(--impostor)' }}>impostor</strong> que no la conoce.
-          En turnos, todos describen la palabra sin decirla. Al final, votan para eliminar a quien creen
-          que es el impostor.
-        </p>
+        <section className="guide-hero" aria-labelledby="how-title">
+          <div className="guide-hero__case">IM-Manual</div>
+          <h1 id="how-title">Cómo se juega</h1>
+          <p>
+            El Impostor enfrenta a una mesa de ciudadanos contra jugadores que deben fingir
+            conocer una palabra secreta. La partida se gana con atención, actuación y voto frío.
+          </p>
+        </section>
 
-        <div style={{ height: 18 }} />
-        <SectionHeader>Modos</SectionHeader>
-        <ul style={{ paddingLeft: 18, fontSize: 14, color: 'var(--text-2)' }}>
-          <li><strong style={{ color: 'var(--impostor)' }}>Clásico:</strong> el impostor no conoce la palabra.</li>
-          <li><strong style={{ color: 'var(--gold)' }}>Con pista:</strong> el impostor recibe una pista para improvisar.</li>
-          <li><strong style={{ color: 'var(--citizen)' }}>Ciego:</strong> el impostor cree ser ciudadano y recibe una palabra falsa.</li>
-        </ul>
+        <GuideSection title="Objetivo" accent="gold">
+          <p>
+            Los ciudadanos conocen la palabra real y deben descubrir a quienes no la tienen.
+            Los impostores deben mezclarse en la conversación, sobrevivir a las votaciones
+            y, cuando aplique, adivinar la palabra antes de ser eliminados.
+          </p>
+        </GuideSection>
 
-        <div style={{ height: 18 }} />
-        <SectionHeader>Cómo ganar</SectionHeader>
-        <ul style={{ paddingLeft: 18, fontSize: 14, color: 'var(--text-2)' }}>
-          <li><strong style={{ color: 'var(--citizen)' }}>Ciudadanos:</strong> eliminan a todos los impostores.</li>
-          <li><strong style={{ color: 'var(--impostor)' }}>Impostor:</strong> quedan tantos impostores como ciudadanos,
-            o adivina la palabra antes de ser eliminado (modo clásico).</li>
-        </ul>
+        <GuideSection title="Modos" accent="red">
+          <div className="guide-card-grid">
+            {modes.map(mode => (
+              <article className={`guide-card guide-card--${mode.accent}`} key={mode.title}>
+                <strong>{mode.title}</strong>
+                <p>{mode.body}</p>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
 
-        <div style={{ height: 18 }} />
-        <SectionHeader>Consejos</SectionHeader>
-        <ul style={{ paddingLeft: 18, fontSize: 14, color: 'var(--text-2)' }}>
-          <li>Como ciudadano: sé específico pero no obvio.</li>
-          <li>Como impostor: escucha primero, mezcla después.</li>
-          <li>Observa quién es <em>demasiado</em> vago o <em>demasiado</em> exacto.</li>
-        </ul>
+        <GuideSection title="Reglas de victoria" accent="gold">
+          <ul className="guide-list">
+            {rules.map(rule => <li key={rule}>{rule}</li>)}
+          </ul>
+        </GuideSection>
+
+        <GuideSection title="Online y Detective" accent="gold">
+          <p>
+            En online puedes crear una sala privada, compartir código o enlace, usar chat
+            durante la discusión y mantener la partida aunque el anfitrión salga: el host se
+            transfiere a otro jugador conectado.
+          </p>
+          <p>
+            Si activan Detective, ese rol puede abrir un interrogatorio corto y dramático.
+            La mesa queda en silencio mientras solo el Detective y el interrogado hablan.
+          </p>
+        </GuideSection>
+
+        <GuideSection title="Consejos rápidos" accent="red">
+          <ul className="guide-list">
+            {tips.map(tip => <li key={tip}>{tip}</li>)}
+          </ul>
+        </GuideSection>
       </div>
     </PhoneScreen>
+  )
+}
+
+function GuideSection({ title, accent = 'gold', children }) {
+  return (
+    <section className="guide-section">
+      <SectionHeader accent={accent}>{title}</SectionHeader>
+      <div className="guide-section__body">{children}</div>
+    </section>
+  )
+}
+
+function GuideRail({ eyebrow, title, items }) {
+  return (
+    <div className="guide-rail">
+      <div className="guide-rail__eyebrow">{eyebrow}</div>
+      <h2>{title}</h2>
+      <div className="guide-rail__items">
+        {items.map(item => (
+          <article className="guide-rail__item" key={`${item.label}-${item.title}`}>
+            <span>{item.label}</span>
+            <div>
+              <strong>{item.title}</strong>
+              {item.body && <p>{item.body}</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
   )
 }
