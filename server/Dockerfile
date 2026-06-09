@@ -10,9 +10,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY server/package.json ./
-COPY server/index.js ./
-COPY server/wordBank.js ./
-COPY server/avatars.js ./
+COPY server/*.js ./
 
 # Usuario sin privilegios
 RUN addgroup -S app && adduser -S app -G app && chown -R app /app
