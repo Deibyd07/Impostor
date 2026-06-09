@@ -35,7 +35,7 @@ const caseSteps = [
 ]
 
 const releaseNotes = [
-  'Perfiles guardados en Supabase.',
+  'Perfiles de jugador para partidas locales y online.',
   'Ranking global y ranking de sala.',
   'Animacion de puntos al cerrar cada ronda.',
 ]
@@ -163,7 +163,6 @@ export default function Home() {
 
         <section className="case-menu-links" aria-label="Información del juego">
           <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
-          <button className="case-how-link" onClick={onRanking}>Ranking global</button>
           <button className="case-patch-link" onClick={onPatch}>
             <span>Novedades</span>
             <strong>Alpha 0.2.0</strong>

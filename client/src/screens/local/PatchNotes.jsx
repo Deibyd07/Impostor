@@ -8,7 +8,7 @@ const patches = [
     path: '/patch-0-2-0',
     eyebrow: 'Identidad y competencia',
     title: 'Perfiles, puntos y ranking global',
-    summary: 'Esta version convierte cada partida en una mesa con progreso: perfiles guardados, ranking global y puntos visibles al cerrar cada ronda.',
+    summary: 'Esta version convierte cada partida en una mesa con progreso: perfiles de jugador, ranking global y puntos visibles al cerrar cada ronda.',
     highlights: [
       {
         code: 'PERFIL',
@@ -33,7 +33,7 @@ const patches = [
           'El menu tiene una pantalla para crear, elegir, editar y borrar perfiles.',
           'Los perfiles se pueden usar al crear sala, unirse a una sala o preparar una partida local.',
           'Jugar como invitado sigue disponible, pero no aparece en el ranking global.',
-          'Los perfiles antiguos del dispositivo se sincronizan al abrir las pantallas de juego.',
+          'Los perfiles que ya habias creado se conservan al volver a jugar.',
         ],
       },
       {

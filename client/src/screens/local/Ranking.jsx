@@ -41,7 +41,7 @@ export default function Ranking() {
             textShadow: '0 0 24px var(--gold-glow)',
           }}>Ranking global</h1>
           <p className="t-meta" style={{ marginTop: 10, lineHeight: 1.5 }}>
-            Solo cuentan partidas terminadas con perfiles guardados en Supabase.
+            Solo cuentan partidas terminadas con perfiles de jugador.
           </p>
         </div>
 
@@ -54,7 +54,7 @@ export default function Ranking() {
               <EmptyRanking>Cargando ranking...</EmptyRanking>
             ) : available === false ? (
               <EmptyRanking>
-                Ranking no disponible. Revisa que el backend tenga Supabase activo.
+                Ranking no disponible. Intenta actualizar en un momento.
                 {error ? <span style={{ color: 'var(--impostor)', marginTop: 8 }}>{error}</span> : null}
               </EmptyRanking>
             ) : players.length === 0 ? (

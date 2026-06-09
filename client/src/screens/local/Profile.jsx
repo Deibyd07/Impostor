@@ -86,7 +86,7 @@ export default function Profile() {
       }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
           <button onClick={() => navigate('/')} style={backButtonStyle}>Volver</button>
-          <Badge color="var(--gold)" dot>Supabase</Badge>
+          <Badge color="var(--gold)" dot>Perfil</Badge>
         </header>
 
         <div>
@@ -101,7 +101,7 @@ export default function Profile() {
             textShadow: '0 0 24px var(--gold-glow)',
           }}>Mis perfiles</h1>
           <p className="t-meta" style={{ marginTop: 10, lineHeight: 1.5 }}>
-            Cada perfil se guarda en Supabase y se puede usar en partidas locales u online.
+            Cada perfil queda listo para usarse en partidas locales u online.
           </p>
         </div>
 
