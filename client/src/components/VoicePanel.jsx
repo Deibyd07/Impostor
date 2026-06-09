@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import SectionHeader from './SectionHeader.jsx'
 import { useOnlineStore } from '../store/onlineStore.js'
 import { LOCAL_SPEAKER_ID, useVoiceStore } from '../store/voiceStore.js'
@@ -22,9 +23,24 @@ export default function VoicePanel({ compact = false }) {
   const outputVolume = useVoiceStore(s => s.outputVolume)
   const peerVolumes = useVoiceStore(s => s.peerVolumes)
   const speakingPeerIds = useVoiceStore(s => s.speakingPeerIds)
+  const inputDevices = useVoiceStore(s => s.inputDevices)
+  const outputDevices = useVoiceStore(s => s.outputDevices)
+  const selectedInputDeviceId = useVoiceStore(s => s.selectedInputDeviceId)
+  const selectedOutputDeviceId = useVoiceStore(s => s.selectedOutputDeviceId)
+  const canSelectOutput = useVoiceStore(s => s.canSelectOutput)
+  const micTestActive = useVoiceStore(s => s.micTestActive)
+  const micTestLevel = useVoiceStore(s => s.micTestLevel)
+  const micTestStatus = useVoiceStore(s => s.micTestStatus)
+  const outputTestActive = useVoiceStore(s => s.outputTestActive)
+  const outputTestStatus = useVoiceStore(s => s.outputTestStatus)
   const start = useVoiceStore(s => s.start)
   const stop = useVoiceStore(s => s.stop)
   const toggleMic = useVoiceStore(s => s.toggleMic)
+  const watchDevices = useVoiceStore(s => s.watchDevices)
+  const setInputDevice = useVoiceStore(s => s.setInputDevice)
+  const setOutputDevice = useVoiceStore(s => s.setOutputDevice)
+  const testMicrophone = useVoiceStore(s => s.testMicrophone)
+  const testOutput = useVoiceStore(s => s.testOutput)
   const setOutputVolume = useVoiceStore(s => s.setOutputVolume)
   const setPeerVolume = useVoiceStore(s => s.setPeerVolume)
 
@@ -46,6 +62,8 @@ export default function VoicePanel({ compact = false }) {
       : canSpeak
         ? 'Microfono silenciado'
         : 'Silencio de mesa'
+
+  useEffect(() => watchDevices(), [watchDevices])
 
   return (
     <section className={`voice-panel ${compact ? 'voice-panel--compact' : ''}`}>
@@ -101,6 +119,62 @@ export default function VoicePanel({ compact = false }) {
         </label>
       )}
 
+      <div className="voice-panel__devices">
+        <label>
+          <span>Entrada</span>
+          <select
+            value={selectedInputDeviceId}
+            onChange={event => setInputDevice(event.target.value)}
+            disabled={!supported || permission === 'prompting'}
+          >
+            <option value="">Microfono predeterminado</option>
+            {inputDevices.map(device => (
+              <option key={device.deviceId || device.label} value={device.deviceId}>
+                {device.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Salida</span>
+          <select
+            value={selectedOutputDeviceId}
+            onChange={event => setOutputDevice(event.target.value)}
+            disabled={!canSelectOutput}
+          >
+            <option value="">Salida predeterminada</option>
+            {outputDevices.map(device => (
+              <option key={device.deviceId || device.label} value={device.deviceId}>
+                {device.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="voice-panel__tests">
+        <button type="button" onClick={testMicrophone} disabled={!supported || micTestActive}>
+          {micTestActive ? 'Probando microfono' : 'Probar microfono'}
+        </button>
+        <button type="button" onClick={testOutput} disabled={outputTestActive}>
+          {outputTestActive ? 'Reproduciendo' : 'Probar sonido'}
+        </button>
+      </div>
+
+      {(micTestActive || micTestStatus || outputTestStatus) && (
+        <div className="voice-panel__diagnostics" aria-live="polite">
+          {(micTestActive || micTestStatus) && (
+            <div className="voice-panel__meter" aria-label="Nivel de microfono">
+              <span style={{ width: `${Math.round(micTestLevel * 100)}%` }} />
+            </div>
+          )}
+          {micTestStatus && <p>{micTestStatus}</p>}
+          {outputTestStatus && <p>{outputTestStatus}</p>}
+          {!canSelectOutput && <small>La salida de audio depende del navegador. Chrome y Edge suelen permitir elegirla.</small>}
+        </div>
+      )}
+
       {enabled && (
         <div className="voice-panel__peers" aria-label="Jugadores en voz">
           <VoiceChip
@@ -141,12 +215,12 @@ function VoiceChip({ player, label, active = false, muted = false, speaking = fa
           <strong>{name}</strong>
           {speaking && (
             <i className="voice-chip__speaking" aria-label="Hablando" title="Hablando">
-              🔊
+              )))
             </i>
           )}
           {hasVolume && <em>{finalVolume}%</em>}
         </div>
-        <small>{hasVolume ? `${label} · volumen personal` : label}</small>
+        <small>{hasVolume ? `${label} - volumen personal` : label}</small>
       </div>
       {hasVolume && (
         <label className="voice-chip__volume">
@@ -166,7 +240,7 @@ function VoiceChip({ player, label, active = false, muted = false, speaking = fa
 }
 
 function statusText({ supported, enabled, permission, status, error, suppressReason, voiceChannel }) {
-  if (!supported) return 'Tu navegador no soporta WebRTC de audio.'
+  if (!supported) return 'Tu navegador no soporta audio en sala.'
   if (error) return error
   if (permission === 'denied') return 'Permiso de microfono denegado.'
   if (permission === 'prompting') return 'Acepta el permiso del microfono para entrar.'

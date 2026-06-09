@@ -6,7 +6,7 @@ export default function PrefsToggle({ style }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef(null)
   const sound = usePrefsStore(s => s.sound)
-  const volume = usePrefsStore(s => s.volume ?? 0.8)
+  const volume = usePrefsStore(s => s.volume ?? 1)
   const vibration = usePrefsStore(s => s.vibration)
   const setSound = usePrefsStore(s => s.setSound)
   const setVolume = usePrefsStore(s => s.setVolume)
@@ -30,7 +30,7 @@ export default function PrefsToggle({ style }) {
       return
     }
     setSound(true)
-    if (volume <= 0) setVolume(0.8)
+    if (volume <= 0) setVolume(1)
     sfx.unlock()
     sfx.tap()
   }

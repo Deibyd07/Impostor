@@ -2,7 +2,10 @@ import { create } from 'zustand'
 
 const VOICE_VOLUME_KEY = 'el-impostor-voice-volume'
 const VOICE_PEER_VOLUME_KEY = 'el-impostor-voice-peer-volumes'
+const VOICE_INPUT_DEVICE_KEY = 'el-impostor-voice-input-device'
+const VOICE_OUTPUT_DEVICE_KEY = 'el-impostor-voice-output-device'
 export const LOCAL_SPEAKER_ID = '__local__'
+export const VOICE_REMOTE_GAIN_BOOST = 1.9
 const VOICE_JOIN_RETRY_DELAY_MS = 450
 const PEER_RECONNECT_DELAY_MS = 900
 const SPEECH_THRESHOLD = 0.035
@@ -40,6 +43,8 @@ let micWantedRef = true
 let canSpeakRef = true
 let allowedPeerIdsRef = null
 let peerVolumePrefs = loadPeerVolumePrefs()
+let selectedInputDeviceIdRef = loadDeviceId(VOICE_INPUT_DEVICE_KEY)
+let selectedOutputDeviceIdRef = loadDeviceId(VOICE_OUTPUT_DEVICE_KEY)
 let audioContext = null
 let speechMeters = new Map()
 let speechLoopId = null
@@ -48,13 +53,21 @@ let lastSpeakingKey = ''
 let socketHandlers = null
 let voiceJoinRetryTimer = null
 let peerReconnectTimers = new Map()
+let micTestRunId = 0
+let outputTestRunId = 0
 
 function loadVolume() {
   try {
-    const value = Number(localStorage.getItem(VOICE_VOLUME_KEY))
-    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.9
+    const raw = localStorage.getItem(VOICE_VOLUME_KEY)
+    if (raw == null) return 1
+    const value = Number(raw)
+    if (value === 0.9) {
+      localStorage.setItem(VOICE_VOLUME_KEY, '1')
+      return 1
+    }
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1
   } catch {
-    return 0.9
+    return 1
   }
 }
 
@@ -80,8 +93,71 @@ function savePeerVolumePrefs() {
   } catch {}
 }
 
+function loadDeviceId(key) {
+  try {
+    return localStorage.getItem(key) || ''
+  } catch {
+    return ''
+  }
+}
+
+function saveDeviceId(key, value) {
+  try {
+    if (value) localStorage.setItem(key, value)
+    else localStorage.removeItem(key)
+  } catch {}
+}
+
 function supportsVoice() {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof RTCPeerConnection !== 'undefined'
+}
+
+function supportsDeviceSelection() {
+  return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.enumerateDevices
+}
+
+function supportsOutputSelection() {
+  return typeof HTMLMediaElement !== 'undefined' && typeof HTMLMediaElement.prototype.setSinkId === 'function'
+}
+
+function audioConstraints(deviceId = selectedInputDeviceIdRef) {
+  return {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+  }
+}
+
+async function requestMicrophoneStream(deviceId = selectedInputDeviceIdRef) {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: audioConstraints(deviceId),
+      video: false,
+    })
+  } catch (error) {
+    if (!deviceId) throw error
+    selectedInputDeviceIdRef = ''
+    saveDeviceId(VOICE_INPUT_DEVICE_KEY, '')
+    return navigator.mediaDevices.getUserMedia({
+      audio: audioConstraints(''),
+      video: false,
+    })
+  }
+}
+
+async function applyOutputDevice(audio, deviceId = selectedOutputDeviceIdRef) {
+  if (!audio || typeof audio.setSinkId !== 'function') return
+  try {
+    await audio.setSinkId(deviceId || '')
+  } catch {}
+}
+
+function deviceOption(device, fallbackLabel) {
+  return {
+    deviceId: device.deviceId,
+    label: device.label || fallbackLabel,
+  }
 }
 
 function peerProfile(peerId) {
@@ -269,6 +345,49 @@ export const useVoiceStore = create((set, get) => {
     } catch {}
   }
 
+  const refreshDevices = async () => {
+    if (!supportsDeviceSelection()) {
+      set({
+        inputDevices: [],
+        outputDevices: [],
+        canSelectOutput: false,
+        devicesStatus: 'unsupported',
+      })
+      return
+    }
+
+    set({ devicesStatus: 'loading' })
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const inputDevices = devices
+        .filter(device => device.kind === 'audioinput')
+        .map((device, index) => deviceOption(device, `Microfono ${index + 1}`))
+      const outputDevices = devices
+        .filter(device => device.kind === 'audiooutput')
+        .map((device, index) => deviceOption(device, `Salida ${index + 1}`))
+
+      if (selectedInputDeviceIdRef && inputDevices.length && !inputDevices.some(device => device.deviceId === selectedInputDeviceIdRef)) {
+        selectedInputDeviceIdRef = ''
+        saveDeviceId(VOICE_INPUT_DEVICE_KEY, '')
+      }
+      if (selectedOutputDeviceIdRef && outputDevices.length && !outputDevices.some(device => device.deviceId === selectedOutputDeviceIdRef)) {
+        selectedOutputDeviceIdRef = ''
+        saveDeviceId(VOICE_OUTPUT_DEVICE_KEY, '')
+      }
+
+      set({
+        inputDevices,
+        outputDevices,
+        selectedInputDeviceId: selectedInputDeviceIdRef,
+        selectedOutputDeviceId: selectedOutputDeviceIdRef,
+        canSelectOutput: supportsOutputSelection(),
+        devicesStatus: 'ready',
+      })
+    } catch {
+      set({ devicesStatus: 'error' })
+    }
+  }
+
   const stopRemoteSpeechMeters = () => {
     ;[...speechMeters.keys()].forEach(peerId => {
       if (peerId !== LOCAL_SPEAKER_ID) stopSpeechMeter(peerId)
@@ -353,6 +472,24 @@ export const useVoiceStore = create((set, get) => {
         pc.addTrack(track, localStream)
       }
     })
+  }
+
+  const replaceLocalStream = async (nextStream) => {
+    const [nextAudioTrack] = nextStream.getAudioTracks()
+    if (!nextAudioTrack) throw new Error('missing-audio-track')
+
+    const previousStream = localStream
+    localStream = nextStream
+    const replacements = []
+    peers.forEach(({ pc }) => {
+      const sender = pc.getSenders().find(item => item.track?.kind === 'audio')
+      if (sender) replacements.push(sender.replaceTrack(nextAudioTrack).catch(() => {}))
+      else addLocalTracks(pc)
+    })
+    await Promise.all(replacements)
+    previousStream?.getTracks().forEach(track => track.stop())
+    await startSpeechMeter(LOCAL_SPEAKER_ID, localStream)
+    applyMicState()
   }
 
   const flushPendingCandidates = async (peerId, pc) => {
@@ -567,8 +704,28 @@ export const useVoiceStore = create((set, get) => {
     outputVolume: loadVolume(),
     peerVolumes: {},
     speakingPeerIds: [],
+    inputDevices: [],
+    outputDevices: [],
+    selectedInputDeviceId: selectedInputDeviceIdRef,
+    selectedOutputDeviceId: selectedOutputDeviceIdRef,
+    canSelectOutput: supportsOutputSelection(),
+    devicesStatus: 'idle',
+    micTestActive: false,
+    micTestLevel: 0,
+    micTestStatus: null,
+    outputTestActive: false,
+    outputTestStatus: null,
 
     bindSocket,
+    refreshDevices,
+
+    watchDevices: () => {
+      refreshDevices()
+      const mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : null
+      if (!mediaDevices?.addEventListener) return () => {}
+      mediaDevices.addEventListener('devicechange', refreshDevices)
+      return () => mediaDevices.removeEventListener('devicechange', refreshDevices)
+    },
 
     setRoomContext: ({ roomCode, myId, players }) => {
       roomCodeRef = roomCode || null
@@ -617,17 +774,11 @@ export const useVoiceStore = create((set, get) => {
 
       set({ permission: 'prompting', error: null })
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: false,
-        })
+        localStream = await requestMicrophoneStream()
         micWantedRef = true
         set({ enabled: true, micWanted: true, permission: 'granted', status: 'ready' })
         startSpeechMeter(LOCAL_SPEAKER_ID, localStream)
+        refreshDevices()
         applyMicState()
         joinIfReady()
       } catch (error) {
@@ -660,6 +811,164 @@ export const useVoiceStore = create((set, get) => {
       micWantedRef = !get().micWanted
       set({ micWanted: micWantedRef })
       applyMicState()
+    },
+
+    setInputDevice: async (deviceId = '') => {
+      selectedInputDeviceIdRef = deviceId
+      saveDeviceId(VOICE_INPUT_DEVICE_KEY, deviceId)
+      set({ selectedInputDeviceId: deviceId, error: null })
+      if (!get().enabled) return
+
+      set({ status: 'connecting' })
+      try {
+        const nextStream = await requestMicrophoneStream(deviceId)
+        await replaceLocalStream(nextStream)
+        set({ selectedInputDeviceId: selectedInputDeviceIdRef, status: 'connected' })
+        refreshDevices()
+      } catch {
+        set({ error: 'No se pudo cambiar el microfono.', status: 'connected' })
+      }
+    },
+
+    setOutputDevice: (deviceId = '') => {
+      selectedOutputDeviceIdRef = deviceId
+      saveDeviceId(VOICE_OUTPUT_DEVICE_KEY, deviceId)
+      set({ selectedOutputDeviceId: deviceId })
+    },
+
+    testMicrophone: async () => {
+      if (!supportsVoice()) {
+        set({ error: 'Este navegador no soporta prueba de microfono.' })
+        return
+      }
+
+      const runId = micTestRunId + 1
+      micTestRunId = runId
+      set({
+        micTestActive: true,
+        micTestLevel: 0,
+        micTestStatus: 'Habla ahora para probar tu microfono.',
+        error: null,
+      })
+
+      let tempStream = null
+      let source = null
+      try {
+        const stream = localStream || await requestMicrophoneStream()
+        if (!localStream) tempStream = stream
+        refreshDevices()
+        const context = await ensureAudioContext()
+        if (!context) throw new Error('missing-audio-context')
+        const analyser = context.createAnalyser()
+        analyser.fftSize = 512
+        analyser.smoothingTimeConstant = 0.72
+        source = context.createMediaStreamSource(stream)
+        source.connect(analyser)
+        const data = new Uint8Array(analyser.fftSize)
+        const startedAt = performance.now()
+        let peak = 0
+
+        const finish = () => {
+          try { source?.disconnect() } catch {}
+          tempStream?.getTracks().forEach(track => track.stop())
+          if (micTestRunId !== runId) return
+          set({
+            micTestActive: false,
+            micTestLevel: peak,
+            micTestStatus: peak > 0.16 ? 'Microfono detectado correctamente.' : 'Se detecto poca voz. Revisa entrada o permisos.',
+          })
+        }
+
+        const tick = () => {
+          if (micTestRunId !== runId) {
+            finish()
+            return
+          }
+          analyser.getByteTimeDomainData(data)
+          let sum = 0
+          for (let i = 0; i < data.length; i += 1) {
+            const value = (data[i] - 128) / 128
+            sum += value * value
+          }
+          const level = Math.min(1, Math.sqrt(sum / data.length) * 7)
+          peak = Math.max(peak, level)
+          set({ micTestLevel: level })
+          if (performance.now() - startedAt < 2400) requestAnimationFrame(tick)
+          else finish()
+        }
+
+        requestAnimationFrame(tick)
+      } catch {
+        try { source?.disconnect() } catch {}
+        tempStream?.getTracks().forEach(track => track.stop())
+        if (micTestRunId === runId) {
+          set({
+            micTestActive: false,
+            micTestLevel: 0,
+            micTestStatus: 'No se pudo probar el microfono.',
+          })
+        }
+      }
+    },
+
+    testOutput: async () => {
+      const runId = outputTestRunId + 1
+      outputTestRunId = runId
+      set({ outputTestActive: true, outputTestStatus: 'Reproduciendo prueba de sonido.', error: null })
+
+      let audio = null
+      let destination = null
+      const nodes = []
+      try {
+        const context = await ensureAudioContext()
+        if (!context) throw new Error('missing-audio-context')
+        destination = context.createMediaStreamDestination()
+        audio = new Audio()
+        audio.srcObject = destination.stream
+        audio.volume = 1
+        await applyOutputDevice(audio)
+        await audio.play()
+
+        const startAt = context.currentTime + 0.04
+        ;[440, 660, 880].forEach((frequency, index) => {
+          const oscillator = context.createOscillator()
+          const gain = context.createGain()
+          oscillator.type = 'sine'
+          oscillator.frequency.setValueAtTime(frequency, startAt + index * 0.22)
+          gain.gain.setValueAtTime(0, startAt + index * 0.22)
+          gain.gain.linearRampToValueAtTime(0.72, startAt + index * 0.22 + 0.035)
+          gain.gain.linearRampToValueAtTime(0, startAt + index * 0.22 + 0.18)
+          oscillator.connect(gain)
+          gain.connect(destination)
+          oscillator.start(startAt + index * 0.22)
+          oscillator.stop(startAt + index * 0.22 + 0.2)
+          nodes.push(oscillator, gain)
+        })
+
+        setTimeout(() => {
+          nodes.forEach(node => {
+            try { node.disconnect() } catch {}
+          })
+          if (audio) {
+            audio.pause()
+            audio.srcObject = null
+          }
+          if (outputTestRunId === runId) {
+            set({ outputTestActive: false, outputTestStatus: 'Si escuchaste tres tonos, la salida funciona.' })
+          }
+        }, 950)
+      } catch {
+        nodes.forEach(node => {
+          try { node.disconnect() } catch {}
+        })
+        if (audio) {
+          audio.pause()
+          audio.srcObject = null
+        }
+        if (outputTestRunId === runId) {
+          set({ outputTestActive: false, outputTestStatus: 'No se pudo reproducir la prueba de sonido.' })
+        }
+      }
     },
 
     setOutputVolume: (value) => {
