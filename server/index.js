@@ -1,7 +1,9 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import net from 'node:net'
 import dotenv from 'dotenv'
 import express from 'express'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import cors from 'cors'
 import http from 'http'
 import { Server } from 'socket.io'
@@ -12,8 +14,33 @@ import { createRoomStore } from './roomStore.js'
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true })
 
+function envInt(name, fallback) {
+  const value = Number.parseInt(process.env[name], 10)
+  return Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+const PORT = process.env.PORT || 3001
+const HTTP_RATE_LIMIT_PER_MINUTE = envInt('HTTP_RATE_LIMIT_PER_MINUTE', 120)
+const MAX_CONNECTIONS_PER_IP = envInt('MAX_CONNECTIONS_PER_IP', 5)
+const MAX_ROOM_CREATIONS_PER_IP_PER_HOUR = envInt('MAX_ROOM_CREATIONS_PER_IP_PER_HOUR', 10)
+const ROOM_CREATION_WINDOW_MS = 60 * 60 * 1000
+
 const app = express()
+app.set('trust proxy', 1)
 app.use(cors())
+app.use(rateLimit({
+  windowMs: 60_000,
+  limit: HTTP_RATE_LIMIT_PER_MINUTE,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: (req) => req.path === '/health' || isIpExempt(getClientIpFromRequest(req)),
+  keyGenerator: (req) => rateLimitKeyForIp(getClientIpFromRequest(req)),
+  handler: (_req, res) => res.status(429).json({
+    ok: false,
+    error: 'rate_limit',
+    message: 'Demasiadas solicitudes desde esta IP. Intenta de nuevo en un momento.',
+  }),
+}))
 app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '0.1.0' }))
 app.get('/health', async (_, res) => res.json({
   ok: true,
@@ -27,7 +54,6 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 })
 
-const PORT = process.env.PORT || 3001
 const codeGen = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 4)
 const playerIdGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 16)
 const tokenGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 24)
@@ -68,6 +94,8 @@ const buckets = new Map() // socketId -> { tokens, last }
 const chatWindows = new Map() // socketId -> [timestamps]
 const voiceSignalBuckets = new Map()
 const voiceAudioBuckets = new Map()
+const ipConnectionCounts = new Map()
+const roomCreationWindows = new Map()
 const BUCKET_MAX = 40
 const BUCKET_REFILL_PER_SEC = 12
 const VOICE_SIGNAL_BUCKET_MAX = 240
@@ -75,6 +103,109 @@ const VOICE_SIGNAL_REFILL_PER_SEC = 90
 const VOICE_AUDIO_BUCKET_MAX = 45
 const VOICE_AUDIO_REFILL_PER_SEC = 18
 const VOICE_AUDIO_MAX_BYTES = 8192
+
+function normalizeIp(raw) {
+  let value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string') value = String(value ?? '')
+  value = value.trim()
+  if (!value) return ''
+
+  if (value.toLowerCase() === 'localhost') return '127.0.0.1'
+  if (value.startsWith('[')) {
+    const end = value.indexOf(']')
+    if (end > 0) value = value.slice(1, end)
+  }
+
+  const ipv4WithPort = value.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/)
+  if (ipv4WithPort) value = ipv4WithPort[1]
+
+  const scopeIndex = value.indexOf('%')
+  if (scopeIndex > -1) value = value.slice(0, scopeIndex)
+
+  if (value.toLowerCase().startsWith('::ffff:')) value = value.slice(7)
+  return value.trim()
+}
+
+function forwardedIp(headerValue, { preferLast = false } = {}) {
+  const value = Array.isArray(headerValue) ? headerValue[0] : headerValue
+  if (typeof value !== 'string') return ''
+  const chain = value.split(',').map(item => item.trim()).filter(Boolean)
+  return normalizeIp((preferLast ? chain.at(-1) : chain[0]) || '')
+}
+
+function getClientIpFromRequest(req) {
+  return (
+    normalizeIp(req.ip) ||
+    forwardedIp(req.headers?.['x-forwarded-for'], { preferLast: true }) ||
+    normalizeIp(req.socket?.remoteAddress)
+  )
+}
+
+function getClientIpFromSocket(socket) {
+  const headers = socket.handshake?.headers || {}
+  return (
+    forwardedIp(headers['x-forwarded-for'], { preferLast: true }) ||
+    normalizeIp(socket.handshake?.address) ||
+    normalizeIp(socket.conn?.remoteAddress) ||
+    normalizeIp(socket.request?.socket?.remoteAddress)
+  )
+}
+
+function isPrivateIpv4(ip) {
+  const parts = ip.split('.').map(part => Number.parseInt(part, 10))
+  if (parts.length !== 4 || parts.some(part => !Number.isFinite(part))) return false
+  const [a, b] = parts
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254) ||
+    (a === 0)
+  )
+}
+
+function isIpExempt(rawIp) {
+  const ip = normalizeIp(rawIp).toLowerCase()
+  if (!ip) return false
+  if (ip === 'localhost' || ip === '127.0.0.1' || ip === '::1' || ip === '::') return true
+  if (net.isIP(ip) === 4) return isPrivateIpv4(ip)
+  if (net.isIP(ip) === 6) {
+    return ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe80:')
+  }
+  return false
+}
+
+function rateLimitKeyForIp(rawIp) {
+  const ip = normalizeIp(rawIp)
+  if (!ip) return 'unknown'
+  return net.isIP(ip) ? ipKeyGenerator(ip) : ip
+}
+
+function releaseIpConnection(socket) {
+  if (!socket.data?.ipConnectionTracked) return
+  const key = socket.data.rateLimitIpKey
+  const current = ipConnectionCounts.get(key) || 0
+  if (current <= 1) ipConnectionCounts.delete(key)
+  else ipConnectionCounts.set(key, current - 1)
+  socket.data.ipConnectionTracked = false
+}
+
+function allowRoomCreationForIp(rawIp) {
+  if (isIpExempt(rawIp)) return true
+  const key = rateLimitKeyForIp(rawIp)
+  const now = Date.now()
+  const recent = (roomCreationWindows.get(key) || [])
+    .filter(timestamp => now - timestamp < ROOM_CREATION_WINDOW_MS)
+  if (recent.length >= MAX_ROOM_CREATIONS_PER_IP_PER_HOUR) {
+    roomCreationWindows.set(key, recent)
+    return false
+  }
+  recent.push(now)
+  roomCreationWindows.set(key, recent)
+  return true
+}
+
 function allow(socketId, cost = 1) {
   const now = Date.now()
   const b = buckets.get(socketId) || { tokens: BUCKET_MAX, last: now }
@@ -986,12 +1117,41 @@ function findPlayerForResume(room, name, sessionToken) {
   return player
 }
 
+io.use((socket, next) => {
+  const clientIp = getClientIpFromSocket(socket)
+  socket.data.clientIp = clientIp
+
+  if (isIpExempt(clientIp)) return next()
+
+  const key = rateLimitKeyForIp(clientIp)
+  const activeConnections = ipConnectionCounts.get(key) || 0
+  if (activeConnections >= MAX_CONNECTIONS_PER_IP) {
+    const error = new Error(`Limite de ${MAX_CONNECTIONS_PER_IP} conexiones simultaneas por IP excedido.`)
+    error.data = {
+      code: 'IP_CONNECTION_LIMIT',
+      maxConnections: MAX_CONNECTIONS_PER_IP,
+    }
+    return next(error)
+  }
+
+  ipConnectionCounts.set(key, activeConnections + 1)
+  socket.data.rateLimitIpKey = key
+  socket.data.ipConnectionTracked = true
+  return next()
+})
+
 io.on('connection', (socket) => {
 
   socket.on('room:create', async ({ hostName, avatar, config } = {}) => {
     if (!allow(socket.id, 2)) return
     const name = sanitizeName(hostName)
     if (!name) { socket.emit('room:error', { message: 'Nombre inválido' }); return }
+    if (!allowRoomCreationForIp(socket.data.clientIp)) {
+      socket.emit('room:error', {
+        message: `Limite de ${MAX_ROOM_CREATIONS_PER_IP_PER_HOUR} salas creadas por IP en 1 hora excedido. Intenta de nuevo mas tarde.`,
+      })
+      return
+    }
     const room = await makeRoom(socket.id, name, avatar, config || {})
     socket.join(room.code)
     await persistRoom(room)
@@ -1375,7 +1535,10 @@ io.on('connection', (socket) => {
     saveRoom(room)
   })
 
-  socket.on('disconnect', () => leaveSocket(socket, false))
+  socket.on('disconnect', () => {
+    releaseIpConnection(socket)
+    leaveSocket(socket, false)
+  })
 })
 
 function leaveSocket(socket, hard) {

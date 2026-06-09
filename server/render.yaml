@@ -14,3 +14,9 @@ services:
         sync: false
       - key: ROOM_TTL_SECONDS
         value: 7200
+      - key: HTTP_RATE_LIMIT_PER_MINUTE
+        value: 120
+      - key: MAX_CONNECTIONS_PER_IP
+        value: 5
+      - key: MAX_ROOM_CREATIONS_PER_IP_PER_HOUR
+        value: 10

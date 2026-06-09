@@ -56,6 +56,9 @@ Variables de entorno:
 - `server/.env`: `REDIS_URL=redis://...` para persistir salas entre reinicios. Si no existe, el servidor usa memoria local. Desde tu PC usa `REDIS_PUBLIC_URL` de Railway; dentro del backend en Railway usa la variable privada `REDIS_URL`.
 - `server/.env`: `REDIS_PREFIX=el-impostor:room:` para separar las salas de este juego dentro de Redis.
 - `server/.env`: `ROOM_TTL_SECONDS=7200` para que una sala inactiva expire a las 2 horas.
+- `server/.env`: `HTTP_RATE_LIMIT_PER_MINUTE=120` para limitar solicitudes HTTP por IP.
+- `server/.env`: `MAX_CONNECTIONS_PER_IP=5` para limitar conexiones online simultaneas por IP.
+- `server/.env`: `MAX_ROOM_CREATIONS_PER_IP_PER_HOUR=10` para limitar salas creadas por IP cada hora.
 
 ## Modos de juego
 
