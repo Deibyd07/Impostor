@@ -11,3 +11,6 @@ npm-debug.log*
 .idea/
 coverage/
 .cache/
+.claude/
+.codex/
+.superpowers/
