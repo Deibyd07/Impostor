@@ -1,14 +1,17 @@
 # --- build/install ---
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY server/package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+COPY server/package.json ./server/package.json
+RUN npm ci --omit=dev --workspace server
 
 # --- runtime ---
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/server/node_modules ./server/node_modules
+WORKDIR /app/server
 COPY server/package.json ./
 COPY server/*.js ./
 
