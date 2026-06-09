@@ -38,6 +38,7 @@ const SPLASH_SESSION_KEY = 'el-impostor-splash-seen'
 const routes = [
   { path: '/', element: <Home /> },
   { path: '/how', element: <HowToPlay /> },
+  { path: '/patch-1-2-1', element: <PatchNotes /> },
   { path: '/patch-1-2', element: <PatchNotes /> },
   { path: '/patch-1-1', element: <PatchNotes /> },
   { path: '/profile', element: <Profile /> },
@@ -128,7 +129,7 @@ function SoundDirector() {
 }
 
 function resolveMusicLoop(pathname, { detectiveInterrogation }) {
-  if (['/', '/how', '/patch-1-2', '/patch-1-1', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
+  if (['/', '/how', '/patch-1-2-1', '/patch-1-2', '/patch-1-1', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
     return 'lobby'
   }
   if (pathname === '/game' || pathname === '/online/spectator') return 'discussion'

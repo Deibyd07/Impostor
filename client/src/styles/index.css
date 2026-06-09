@@ -1072,6 +1072,84 @@ textarea:focus-visible {
   line-height: 1.65;
 }
 
+.patch-version-tabs,
+.patch-rail__history {
+  display: grid;
+  gap: 10px;
+}
+
+.patch-version-tabs {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.patch-rail__history {
+  margin: 20px 0;
+}
+
+.patch-version-tabs button,
+.patch-rail__history button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  min-width: 0;
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    rgba(11, 13, 24, 0.78);
+  color: var(--text-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.patch-version-tabs button:hover,
+.patch-rail__history button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(245, 158, 11, 0.42);
+  color: var(--text-1);
+}
+
+.patch-version-tabs button.is-active,
+.patch-rail__history button.is-active {
+  border-color: rgba(245, 158, 11, 0.7);
+  background:
+    linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(220, 38, 38, 0.08) 56%, rgba(11, 13, 24, 0.88)),
+    rgba(11, 13, 24, 0.86);
+  box-shadow:
+    0 16px 34px -28px rgba(245, 158, 11, 0.82),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.patch-version-tabs span,
+.patch-rail__history span {
+  color: var(--gold);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.patch-version-tabs strong,
+.patch-rail__history strong {
+  min-width: 0;
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.patch-rail__history strong {
+  font-size: 13px;
+}
+
 .patch-rail__stamp {
   margin-top: auto;
   padding: 14px;
@@ -1131,6 +1209,10 @@ textarea:focus-visible {
   }
 
   .patch-highlights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .patch-version-tabs {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

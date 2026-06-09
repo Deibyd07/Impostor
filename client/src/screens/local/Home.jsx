@@ -35,9 +35,9 @@ const caseSteps = [
 ]
 
 const releaseNotes = [
-  'Detective-impostor con carta propia.',
-  'Voz online con volumen por jugador.',
-  'Canales privados durante interrogatorio.',
+  'Voz online mas estable.',
+  'Icono cuando alguien habla.',
+  'Complices visibles para impostores.',
 ]
 
 export default function Home() {
@@ -48,7 +48,7 @@ export default function Home() {
   const onNew = () => { sfx.unlock(); endSession(); navigate('/setup') }
   const onResume = () => { sfx.unlock(); navigate('/game') }
   const onHow = () => navigate('/how')
-  const onPatch = () => navigate('/patch-1-2')
+  const onPatch = () => navigate('/patch-1-2-1')
   const onProfile = () => navigate('/profile')
   const onHost = () => { sfx.unlock(); navigate('/online/host') }
   const onJoin = () => { sfx.unlock(); navigate('/online/join') }
@@ -91,9 +91,9 @@ export default function Home() {
         <p>{hasSavedGame ? 'Puedes reanudar o abrir un caso nuevo.' : 'Prepara la mesa y reparte identidades.'}</p>
       </div>
       <button type="button" className="case-evidence-card case-release-link" onClick={onPatch}>
-        <div className="case-evidence-card__label">Parche 1.2</div>
-        <strong>Voz y doble identidad</strong>
-        <p>Consulta las mejoras de esta versión antes de abrir la sala.</p>
+        <div className="case-evidence-card__label">Parche 1.2.1</div>
+        <strong>Voz y complices</strong>
+        <p>Consulta las mejoras de esta version y el historial de parches.</p>
         <ul className="case-release-list">
           {releaseNotes.map(note => <li key={note}>{note}</li>)}
         </ul>
@@ -159,11 +159,11 @@ export default function Home() {
           <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
           <button className="case-patch-link" onClick={onPatch}>
             <span>Novedades</span>
-            <strong>Versión 1.2</strong>
+            <strong>Version 1.2.1</strong>
           </button>
         </section>
 
-        <div className="case-version">v1.2 · voz e identidades dobles</div>
+        <div className="case-version">v1.2.1 - voz estable y complices</div>
       </main>
     </PhoneScreen>
   )
