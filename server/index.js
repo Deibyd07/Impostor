@@ -52,8 +52,15 @@ const INTERROGATION_PROMPTS = [
 // --- rate limiting (token bucket por socket) ---
 const buckets = new Map() // socketId -> { tokens, last }
 const chatWindows = new Map() // socketId -> [timestamps]
+const voiceSignalBuckets = new Map()
+const voiceAudioBuckets = new Map()
 const BUCKET_MAX = 40
 const BUCKET_REFILL_PER_SEC = 12
+const VOICE_SIGNAL_BUCKET_MAX = 240
+const VOICE_SIGNAL_REFILL_PER_SEC = 90
+const VOICE_AUDIO_BUCKET_MAX = 45
+const VOICE_AUDIO_REFILL_PER_SEC = 18
+const VOICE_AUDIO_MAX_BYTES = 8192
 function allow(socketId, cost = 1) {
   const now = Date.now()
   const b = buckets.get(socketId) || { tokens: BUCKET_MAX, last: now }
@@ -67,6 +74,29 @@ function allow(socketId, cost = 1) {
   b.tokens -= cost
   buckets.set(socketId, b)
   return true
+}
+
+function allowBucket(map, socketId, max, refillPerSec, cost = 1) {
+  const now = Date.now()
+  const bucket = map.get(socketId) || { tokens: max, last: now }
+  const dt = (now - bucket.last) / 1000
+  bucket.tokens = Math.min(max, bucket.tokens + dt * refillPerSec)
+  bucket.last = now
+  if (bucket.tokens < cost) {
+    map.set(socketId, bucket)
+    return false
+  }
+  bucket.tokens -= cost
+  map.set(socketId, bucket)
+  return true
+}
+
+function allowVoiceSignal(socketId) {
+  return allowBucket(voiceSignalBuckets, socketId, VOICE_SIGNAL_BUCKET_MAX, VOICE_SIGNAL_REFILL_PER_SEC)
+}
+
+function allowVoiceAudio(socketId) {
+  return allowBucket(voiceAudioBuckets, socketId, VOICE_AUDIO_BUCKET_MAX, VOICE_AUDIO_REFILL_PER_SEC)
 }
 
 function allowChatMessage(socketId) {
@@ -378,6 +408,26 @@ function sanitizeVoiceSignal(signal) {
     return { type: 'ice-candidate', candidate: signal.candidate }
   }
   return null
+}
+
+function sanitizeVoiceAudioPayload(payload) {
+  if (!payload || typeof payload !== 'object') return null
+  const rawAudio = payload.audio
+  let audio = null
+  if (Buffer.isBuffer(rawAudio)) audio = rawAudio
+  else if (rawAudio instanceof ArrayBuffer) audio = Buffer.from(rawAudio)
+  else if (ArrayBuffer.isView(rawAudio)) {
+    audio = Buffer.from(rawAudio.buffer, rawAudio.byteOffset, rawAudio.byteLength)
+  }
+  if (!audio || audio.length < 2 || audio.length > VOICE_AUDIO_MAX_BYTES || audio.length % 2 !== 0) return null
+
+  const sampleRate = Math.round(Number(payload.sampleRate) || 16000)
+  if (sampleRate < 8000 || sampleRate > 48000) return null
+
+  const sequence = Number.isFinite(Number(payload.sequence))
+    ? Math.max(0, Math.floor(Number(payload.sequence)))
+    : 0
+  return { audio, sampleRate, sequence }
 }
 
 function removeVoicePeer(playerId, room = null) {
@@ -795,7 +845,7 @@ io.on('connection', (socket) => {
   })
 
   socket.on('voice:signal', ({ targetId, signal } = {}) => {
-    if (!allow(socket.id, 1)) return
+    if (!allowVoiceSignal(socket.id)) return
     const room = getRoomBySocket(socket.id)
     const sender = getPlayerBySocket(room, socket.id)
     if (!room || typeof targetId !== 'string') return
@@ -806,6 +856,28 @@ io.on('connection', (socket) => {
     const cleanSignal = sanitizeVoiceSignal(signal)
     if (!cleanSignal) return
     io.to(target.socketId).emit('voice:signal', { fromId: sender.id, signal: cleanSignal })
+  })
+
+  socket.on('voice:audio', (payload = {}) => {
+    if (!allowVoiceAudio(socket.id)) return
+    const room = getRoomBySocket(socket.id)
+    const sender = getPlayerBySocket(room, socket.id)
+    if (!room || !sender || sender.disconnected || !room.voicePeers?.has(sender.id)) return
+
+    const cleanAudio = sanitizeVoiceAudioPayload(payload)
+    if (!cleanAudio) return
+
+    room.voicePeers.forEach(peerId => {
+      if (peerId === sender.id) return
+      const peer = room.players.find(p => p.id === peerId && !p.disconnected)
+      if (!peer?.socketId) return
+      io.to(peer.socketId).emit('voice:audio', {
+        fromId: sender.id,
+        audio: cleanAudio.audio,
+        sampleRate: cleanAudio.sampleRate,
+        sequence: cleanAudio.sequence,
+      })
+    })
   })
 
   socket.on('room:startGame', () => {
@@ -1018,6 +1090,8 @@ function leaveSocket(socket, hard) {
   const room = getRoomBySocket(socket.id)
   buckets.delete(socket.id)
   chatWindows.delete(socket.id)
+  voiceSignalBuckets.delete(socket.id)
+  voiceAudioBuckets.delete(socket.id)
   if (!room) return
   const player = room.players.find(p => p.socketId === socket.id)
   if (!player) return

@@ -11,6 +11,12 @@ const PEER_RECONNECT_DELAY_MS = 900
 const SPEECH_THRESHOLD = 0.035
 const SPEECH_HOLD_MS = 360
 const SPEECH_POLL_MS = 90
+const RELAY_SAMPLE_RATE = 16000
+const RELAY_BUFFER_SIZE = 2048
+const RELAY_CHUNK_SAMPLES = 2048
+const RELAY_SEND_INTERVAL_MS = 120
+const RELAY_START_DELAY_SECONDS = 0.08
+const RELAY_MAX_BUFFER_SECONDS = 0.65
 const TURN_URLS = (import.meta.env.VITE_TURN_URLS || import.meta.env.VITE_TURN_URL || '')
   .split(',')
   .map(url => url.trim())
@@ -55,6 +61,11 @@ let voiceJoinRetryTimer = null
 let peerReconnectTimers = new Map()
 let micTestRunId = 0
 let outputTestRunId = 0
+let relayCapture = null
+let relayOutput = null
+let relayPlayers = new Map()
+let relaySpeakingUntil = new Map()
+let relaySpeakingCleanupTimer = null
 
 function loadVolume() {
   try {
@@ -153,6 +164,59 @@ async function applyOutputDevice(audio, deviceId = selectedOutputDeviceIdRef) {
   } catch {}
 }
 
+function downsampleAudio(input, inputSampleRate, outputSampleRate) {
+  if (!input?.length || inputSampleRate === outputSampleRate) return new Float32Array(input || [])
+  const ratio = inputSampleRate / outputSampleRate
+  const outputLength = Math.max(1, Math.floor(input.length / ratio))
+  const output = new Float32Array(outputLength)
+
+  for (let i = 0; i < outputLength; i += 1) {
+    const start = Math.floor(i * ratio)
+    const end = Math.min(input.length, Math.floor((i + 1) * ratio))
+    let sum = 0
+    let count = 0
+    for (let j = start; j < end; j += 1) {
+      sum += input[j]
+      count += 1
+    }
+    output[i] = count ? sum / count : input[start] || 0
+  }
+
+  return output
+}
+
+function encodePcm16(chunks, totalSamples) {
+  const pcm = new Int16Array(totalSamples)
+  let offset = 0
+  chunks.forEach(chunk => {
+    for (let i = 0; i < chunk.length; i += 1) {
+      const sample = Math.max(-1, Math.min(1, chunk[i]))
+      pcm[offset] = sample < 0 ? sample * 0x8000 : sample * 0x7fff
+      offset += 1
+    }
+  })
+  return pcm
+}
+
+function normalizeRelayBuffer(audio) {
+  if (!audio) return null
+  if (audio instanceof ArrayBuffer) return audio
+  if (ArrayBuffer.isView(audio)) {
+    return audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength)
+  }
+  return null
+}
+
+function relayPcmLevel(samples) {
+  if (!samples?.length) return 0
+  let sum = 0
+  for (let i = 0; i < samples.length; i += 1) {
+    const value = samples[i] / (samples[i] < 0 ? 0x8000 : 0x7fff)
+    sum += value * value
+  }
+  return Math.sqrt(sum / samples.length)
+}
+
 function deviceOption(device, fallbackLabel) {
   return {
     deviceId: device.deviceId,
@@ -249,17 +313,39 @@ export const useVoiceStore = create((set, get) => {
   }
 
   const publishSpeaking = (force = false) => {
-    const speakingPeerIds = [...speechMeters.entries()]
+    const now = Date.now()
+    relaySpeakingUntil.forEach((until, peerId) => {
+      if (until <= now) relaySpeakingUntil.delete(peerId)
+    })
+
+    const meteredPeerIds = [...speechMeters.entries()]
       .filter(([peerId, meter]) => {
         if (peerId === LOCAL_SPEAKER_ID && !get().micOpen) return false
-        return Date.now() - meter.lastSpokeAt < SPEECH_HOLD_MS
+        return now - meter.lastSpokeAt < SPEECH_HOLD_MS
       })
       .map(([peerId]) => peerId)
+    const relayedPeerIds = [...relaySpeakingUntil.keys()]
+    const speakingPeerIds = [...new Set([...meteredPeerIds, ...relayedPeerIds])]
       .sort()
     const key = speakingPeerIds.join('|')
     if (!force && key === lastSpeakingKey) return
     lastSpeakingKey = key
     set({ speakingPeerIds })
+  }
+
+  const scheduleRelaySpeakingCleanup = () => {
+    if (relaySpeakingCleanupTimer) clearTimeout(relaySpeakingCleanupTimer)
+    relaySpeakingCleanupTimer = setTimeout(() => {
+      relaySpeakingCleanupTimer = null
+      publishSpeaking(true)
+    }, SPEECH_HOLD_MS + 40)
+  }
+
+  const markRelaySpeaking = (peerId, level) => {
+    if (!peerId || level < SPEECH_THRESHOLD * 0.65) return
+    relaySpeakingUntil.set(peerId, Date.now() + SPEECH_HOLD_MS)
+    publishSpeaking(true)
+    scheduleRelaySpeakingCleanup()
   }
 
   const stopSpeechLoopIfIdle = () => {
@@ -314,6 +400,170 @@ export const useVoiceStore = create((set, get) => {
       try { await audioContext.resume() } catch {}
     }
     return audioContext
+  }
+
+  const ensureRelayOutput = async () => {
+    const context = await ensureAudioContext()
+    if (!context?.createMediaStreamDestination) return null
+
+    if (relayOutput?.context === context && relayOutput.audio) {
+      await applyOutputDevice(relayOutput.audio)
+      relayOutput.audio.play?.().catch(() => {})
+      return relayOutput
+    }
+
+    const destination = context.createMediaStreamDestination()
+    const audio = new Audio()
+    audio.autoplay = true
+    audio.srcObject = destination.stream
+    audio.volume = 1
+    await applyOutputDevice(audio)
+    audio.play?.().catch(() => {})
+    relayOutput = { context, destination, audio }
+    return relayOutput
+  }
+
+  const stopRelayOutput = () => {
+    if (relayOutput?.audio) {
+      try { relayOutput.audio.pause() } catch {}
+      relayOutput.audio.srcObject = null
+    }
+    relayOutput = null
+    relayPlayers = new Map()
+    relaySpeakingUntil = new Map()
+    if (relaySpeakingCleanupTimer) {
+      clearTimeout(relaySpeakingCleanupTimer)
+      relaySpeakingCleanupTimer = null
+    }
+    publishSpeaking(true)
+  }
+
+  const sendRelayChunk = (capture) => {
+    if (!capture?.pendingSamples || !socketRef?.connected || !joinedRoomCode) return
+    const pcm = encodePcm16(capture.pending, capture.pendingSamples)
+    capture.pending = []
+    capture.pendingSamples = 0
+    capture.lastSentAt = performance.now()
+    socketRef.emit('voice:audio', {
+      audio: pcm.buffer,
+      sampleRate: RELAY_SAMPLE_RATE,
+      sequence: capture.sequence,
+    })
+    capture.sequence += 1
+  }
+
+  const stopRelayCapture = () => {
+    if (!relayCapture) return
+    try { relayCapture.processor.onaudioprocess = null } catch {}
+    try { relayCapture.source.disconnect() } catch {}
+    try { relayCapture.processor.disconnect() } catch {}
+    try { relayCapture.silentGain.disconnect() } catch {}
+    relayCapture = null
+    set({ relayActive: false })
+  }
+
+  const startRelayCapture = async () => {
+    if (!localStream || relayCapture) return
+    const context = await ensureAudioContext()
+    if (!context?.createScriptProcessor) return
+    await ensureRelayOutput()
+
+    const source = context.createMediaStreamSource(localStream)
+    const processor = context.createScriptProcessor(RELAY_BUFFER_SIZE, 1, 1)
+    const silentGain = context.createGain()
+    silentGain.gain.value = 0
+    const capture = {
+      context,
+      source,
+      processor,
+      silentGain,
+      pending: [],
+      pendingSamples: 0,
+      lastSentAt: 0,
+      sequence: 0,
+    }
+
+    processor.onaudioprocess = (event) => {
+      const track = localStream?.getAudioTracks?.()[0]
+      if (
+        !get().enabled ||
+        !socketRef?.connected ||
+        !joinedRoomCode ||
+        !micWantedRef ||
+        !canSpeakRef ||
+        !track?.enabled ||
+        track.readyState !== 'live'
+      ) {
+        capture.pending = []
+        capture.pendingSamples = 0
+        return
+      }
+
+      const input = event.inputBuffer.getChannelData(0)
+      const downsampled = downsampleAudio(input, capture.context.sampleRate, RELAY_SAMPLE_RATE)
+      capture.pending.push(downsampled)
+      capture.pendingSamples += downsampled.length
+
+      const now = performance.now()
+      if (
+        capture.pendingSamples >= RELAY_CHUNK_SAMPLES ||
+        now - capture.lastSentAt >= RELAY_SEND_INTERVAL_MS
+      ) {
+        sendRelayChunk(capture)
+      }
+    }
+
+    source.connect(processor)
+    processor.connect(silentGain)
+    silentGain.connect(context.destination)
+    relayCapture = capture
+    set({ relayActive: true })
+  }
+
+  const playRelayAudio = async ({ fromId, audio, sampleRate = RELAY_SAMPLE_RATE } = {}) => {
+    if (!fromId || fromId === myIdRef || !get().enabled || !isPeerAllowed(fromId)) return
+    const buffer = normalizeRelayBuffer(audio)
+    if (!buffer || buffer.byteLength < 2) return
+
+    const output = await ensureRelayOutput()
+    const context = output?.context
+    if (!context) return
+
+    const pcm = new Int16Array(buffer)
+    if (!pcm.length) return
+    const safeSampleRate = Math.max(8000, Math.min(48000, Number(sampleRate) || RELAY_SAMPLE_RATE))
+    const audioBuffer = context.createBuffer(1, pcm.length, safeSampleRate)
+    const channel = audioBuffer.getChannelData(0)
+    for (let i = 0; i < pcm.length; i += 1) {
+      channel[i] = pcm[i] / (pcm[i] < 0 ? 0x8000 : 0x7fff)
+    }
+
+    markRelaySpeaking(fromId, relayPcmLevel(pcm))
+
+    const state = get()
+    const volume = Math.max(0, Number(state.outputVolume) || 0)
+      * Math.max(0, Number(state.peerVolumes[fromId] ?? preferredPeerVolume(fromId)) || 0)
+      * VOICE_REMOTE_GAIN_BOOST
+    const source = context.createBufferSource()
+    const gain = context.createGain()
+    source.buffer = audioBuffer
+    gain.gain.value = Math.min(3, volume)
+    source.connect(gain)
+    gain.connect(output.destination)
+
+    const player = relayPlayers.get(fromId) || { nextTime: 0 }
+    const now = context.currentTime
+    if (!player.nextTime || player.nextTime < now + 0.02 || player.nextTime - now > RELAY_MAX_BUFFER_SECONDS) {
+      player.nextTime = now + RELAY_START_DELAY_SECONDS
+    }
+    source.start(player.nextTime)
+    player.nextTime += audioBuffer.duration
+    relayPlayers.set(fromId, player)
+    source.onended = () => {
+      try { source.disconnect() } catch {}
+      try { gain.disconnect() } catch {}
+    }
+    setPeer(fromId, { status: 'connected' })
   }
 
   const stopSpeechMeter = (peerId) => {
@@ -429,8 +679,11 @@ export const useVoiceStore = create((set, get) => {
     }
     pendingCandidates.delete(peerId)
     remoteStreams.delete(peerId)
+    relayPlayers.delete(peerId)
+    relaySpeakingUntil.delete(peerId)
     stopSpeechMeter(peerId)
     publishRemoteStreams()
+    publishSpeaking(true)
     set((state) => {
       const next = { ...state.peers }
       const nextVolumes = { ...state.peerVolumes }
@@ -448,8 +701,11 @@ export const useVoiceStore = create((set, get) => {
     peers = new Map()
     pendingCandidates = new Map()
     remoteStreams = new Map()
+    relayPlayers = new Map()
+    relaySpeakingUntil = new Map()
     stopRemoteSpeechMeters()
     publishRemoteStreams()
+    publishSpeaking(true)
     set({ peers: {}, peerVolumes: {} })
   }
 
@@ -478,6 +734,7 @@ export const useVoiceStore = create((set, get) => {
     const [nextAudioTrack] = nextStream.getAudioTracks()
     if (!nextAudioTrack) throw new Error('missing-audio-track')
 
+    stopRelayCapture()
     const previousStream = localStream
     localStream = nextStream
     const replacements = []
@@ -489,6 +746,7 @@ export const useVoiceStore = create((set, get) => {
     await Promise.all(replacements)
     previousStream?.getTracks().forEach(track => track.stop())
     await startSpeechMeter(LOCAL_SPEAKER_ID, localStream)
+    await startRelayCapture()
     applyMicState()
   }
 
@@ -634,6 +892,7 @@ export const useVoiceStore = create((set, get) => {
         socketRef.off('voice:peerJoined', socketHandlers.voicePeerJoined)
         socketRef.off('voice:peerLeft', socketHandlers.voicePeerLeft)
         socketRef.off('voice:signal', socketHandlers.voiceSignal)
+        socketRef.off('voice:audio', socketHandlers.voiceAudio)
       }
       closeAllPeers()
       joinedRoomCode = null
@@ -674,6 +933,7 @@ export const useVoiceStore = create((set, get) => {
         if (peerId) removePeer(peerId)
       },
       voiceSignal: handleSignal,
+      voiceAudio: playRelayAudio,
     }
 
     socketRef.on('connect', socketHandlers.connect)
@@ -682,6 +942,7 @@ export const useVoiceStore = create((set, get) => {
     socketRef.on('voice:peerJoined', socketHandlers.voicePeerJoined)
     socketRef.on('voice:peerLeft', socketHandlers.voicePeerLeft)
     socketRef.on('voice:signal', socketHandlers.voiceSignal)
+    socketRef.on('voice:audio', socketHandlers.voiceAudio)
     if (socketRef.connected) {
       joinIfReady({ force: true })
     } else if (get().enabled) {
@@ -715,6 +976,7 @@ export const useVoiceStore = create((set, get) => {
     micTestStatus: null,
     outputTestActive: false,
     outputTestStatus: null,
+    relayActive: false,
 
     bindSocket,
     refreshDevices,
@@ -777,7 +1039,8 @@ export const useVoiceStore = create((set, get) => {
         localStream = await requestMicrophoneStream()
         micWantedRef = true
         set({ enabled: true, micWanted: true, permission: 'granted', status: 'ready' })
-        startSpeechMeter(LOCAL_SPEAKER_ID, localStream)
+        await startSpeechMeter(LOCAL_SPEAKER_ID, localStream)
+        await startRelayCapture()
         refreshDevices()
         applyMicState()
         joinIfReady()
@@ -794,6 +1057,8 @@ export const useVoiceStore = create((set, get) => {
 
     stop: () => {
       leaveJoinedRoom()
+      stopRelayCapture()
+      stopRelayOutput()
       stopSpeechMeter(LOCAL_SPEAKER_ID)
       localStream?.getTracks().forEach(track => track.stop())
       localStream = null
@@ -834,6 +1099,7 @@ export const useVoiceStore = create((set, get) => {
       selectedOutputDeviceIdRef = deviceId
       saveDeviceId(VOICE_OUTPUT_DEVICE_KEY, deviceId)
       set({ selectedOutputDeviceId: deviceId })
+      if (relayOutput?.audio) applyOutputDevice(relayOutput.audio)
     },
 
     testMicrophone: async () => {

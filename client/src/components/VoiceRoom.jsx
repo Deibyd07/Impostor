@@ -19,6 +19,7 @@ export default function VoiceRoom() {
   const outputVolume = useVoiceStore(s => s.outputVolume)
   const peerVolumes = useVoiceStore(s => s.peerVolumes)
   const selectedOutputDeviceId = useVoiceStore(s => s.selectedOutputDeviceId)
+  const relayActive = useVoiceStore(s => s.relayActive)
 
   const voiceChannel = useMemo(() => {
     return resolveVoiceChannel({
@@ -62,7 +63,7 @@ export default function VoiceRoom() {
           stream={entry.stream}
           volume={outputVolume * (peerVolumes[entry.peerId] ?? 1)}
           outputDeviceId={selectedOutputDeviceId}
-          muted={audiblePeerIds ? !audiblePeerIds.has(entry.peerId) : false}
+          muted={relayActive || (audiblePeerIds ? !audiblePeerIds.has(entry.peerId) : false)}
         />
       ))}
     </>
