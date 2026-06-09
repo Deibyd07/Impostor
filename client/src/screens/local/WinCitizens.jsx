@@ -12,10 +12,13 @@ export default function WinCitizens({
   rematchDisabled = false,
   scoreSummary = null,
   scoreSyncKey = null,
+  className = '',
+  rightPanel = null,
+  afterScoreboard = null,
 }) {
   useEffect(() => { sfx.winCitizens() }, [])
   return (
-    <PhoneScreen padTop={false} padBottom={false}>
+    <PhoneScreen padTop={false} padBottom={false} className={className} rightPanel={rightPanel}>
       <Confetti />
       <div style={{
         position: 'relative', zIndex: 3, minHeight: '100vh',
@@ -89,6 +92,7 @@ export default function WinCitizens({
         </div>
 
         <RoundScoreboard scoreSummary={scoreSummary} syncKey={scoreSyncKey} />
+        {afterScoreboard}
 
         <div style={{ flex: 1 }} />
 

@@ -4,6 +4,66 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const patches = [
   {
+    version: '0.2.1',
+    path: '/patch-0-2-1',
+    eyebrow: 'Voz y escritorio',
+    title: 'Voz persistente y mesa online mas comoda',
+    summary: 'Esta version mantiene la voz disponible durante toda la partida online y mejora la comodidad de las pantallas grandes para lobby y discusion.',
+    highlights: [
+      {
+        code: 'VOZ',
+        title: 'Voz durante toda la partida',
+        body: 'La voz sigue disponible al revelar cartas, votar, esperar votos y revisar resultados.',
+      },
+      {
+        code: 'ESCUCHA',
+        title: 'Eliminados en modo escucha',
+        body: 'Quien queda fuera de la mesa ya no puede hablar, pero puede seguir escuchando la partida.',
+      },
+      {
+        code: 'PC',
+        title: 'Escritorio mas claro',
+        body: 'Lobby y discusion online usan mejor el espacio de pantalla y tienen paneles mas comodos para grupos grandes.',
+      },
+    ],
+    sections: [
+      {
+        title: 'Voz de sala',
+        items: [
+          'El panel de voz aparece tambien al ver la carta de rol.',
+          'La voz sigue activa durante votacion y espera de votos.',
+          'La pantalla de resultados conserva la voz para comentar el cierre de la ronda.',
+          'Los controles de volumen, entrada y salida siguen disponibles en esas fases.',
+        ],
+      },
+      {
+        title: 'Jugadores eliminados',
+        items: [
+          'Un jugador eliminado entra en modo escucha automaticamente.',
+          'El microfono queda bloqueado para que no pueda influir en la mesa.',
+          'Puede seguir oyendo a los jugadores activos hasta que termine la ronda.',
+          'Durante interrogatorio, la mesa conserva sus canales separados.',
+        ],
+      },
+      {
+        title: 'Pantallas online',
+        items: [
+          'El lobby online aprovecha mejor el ancho de escritorio.',
+          'La discusion online queda mas organizada con paneles laterales.',
+          'Las listas largas tienen mejor desplazamiento para evitar contenido cortado.',
+          'El panel de voz se mantiene accesible sin tapar las acciones principales.',
+        ],
+      },
+    ],
+    testFlow: [
+      'Crea una sala online con tres o mas jugadores y activa la voz.',
+      'Inicia partida y confirma que el panel de voz sigue visible al revelar cartas.',
+      'Pasa a votacion y revisa que los jugadores sigan conectados a voz.',
+      'Elimina a un jugador y confirma que escucha la mesa, pero no puede hablar.',
+      'Termina la ronda y revisa que la voz siga disponible en resultados.',
+    ],
+  },
+  {
     version: '0.2.0',
     path: '/patch-0-2-0',
     eyebrow: 'Identidad y competencia',

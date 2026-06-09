@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import VoteCard from '../../components/VoteCard.jsx'
+import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 
 export default function VotePrivate() {
@@ -24,7 +25,10 @@ export default function VotePrivate() {
   const totalActive = players.filter(p => !p.eliminated).length
 
   return (
-    <PhoneScreen>
+    <PhoneScreen
+      className="online-voice-screen online-vote-screen"
+      rightPanel={<OnlineVoicePanel />}
+    >
       <div style={{ padding: '0 20px 8px', textAlign: 'center', marginTop: 24 }}>
         <div className="t-eyebrow" style={{ marginBottom: 8 }}>Voto privado</div>
         <div style={{
@@ -57,6 +61,7 @@ export default function VotePrivate() {
           color: 'var(--gold)', letterSpacing: '0.05em',
         }}>{votersReady}<span style={{ color: 'var(--text-faint)', fontSize: 14 }}>/{totalActive} votaron</span></div>
       </div>
+      <OnlineVoiceMobilePanel />
     </PhoneScreen>
   )
 }

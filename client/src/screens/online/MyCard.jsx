@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import RoleCard from '../../components/RoleCard.jsx'
 import Badge from '../../components/Badge.jsx'
+import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { useTimer } from '../../hooks/useTimer.js'
 import { sfx } from '../../utils/sfx.js'
@@ -35,10 +36,14 @@ export default function MyCard() {
 
   if (!myRole) {
     return (
-      <PhoneScreen>
+      <PhoneScreen
+        className="online-voice-screen online-card-screen"
+        rightPanel={<OnlineVoicePanel />}
+      >
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>
           Esperando carta del servidor…
         </div>
+        <OnlineVoiceMobilePanel />
       </PhoneScreen>
     )
   }
@@ -49,6 +54,8 @@ export default function MyCard() {
 
   return (
     <PhoneScreen
+      className="online-voice-screen online-card-screen"
+      rightPanel={<OnlineVoicePanel />}
       footer={
         <button
           className="btn btn-secondary"
@@ -89,6 +96,7 @@ export default function MyCard() {
           color: 'var(--gold)', letterSpacing: '0.05em',
         }}>{readyCount}<span style={{ color: 'var(--text-faint)', fontSize: 16 }}>/{total}</span></div>
       </div>
+      <OnlineVoiceMobilePanel />
     </PhoneScreen>
   )
 }

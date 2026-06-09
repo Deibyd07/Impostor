@@ -155,6 +155,19 @@ textarea:focus-visible {
 /* Paneles ocultos en móvil */
 .ds-panel { display: none; }
 
+.online-persistent-voice-panel {
+  width: 100%;
+  min-height: 0;
+}
+
+.online-voice-mobile {
+  padding: 0 20px 24px;
+}
+
+.online-voice-mobile .voice-panel {
+  margin-top: 12px;
+}
+
 /* Home: Mesa de Evidencias */
 .evidence-home-screen {
   overflow: hidden;

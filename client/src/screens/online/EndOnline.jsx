@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import WinCitizens from '../local/WinCitizens.jsx'
 import WinImpostor from '../local/WinImpostor.jsx'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
+import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { isImpostorRole } from '../../utils/roles.js'
 
@@ -25,10 +26,14 @@ export default function EndOnline() {
 
   if (!result) {
     return (
-      <PhoneScreen>
+      <PhoneScreen
+        className="online-voice-screen online-end-screen"
+        rightPanel={<OnlineVoicePanel />}
+      >
         <div style={{ padding: 40, color: 'var(--text-2)', textAlign: 'center' }}>
           Esperando resultados…
         </div>
+        <OnlineVoiceMobilePanel />
       </PhoneScreen>
     )
   }
@@ -56,6 +61,9 @@ export default function EndOnline() {
         newLabel="Salir de la sala"
         scoreSummary={result.scoreSummary}
         scoreSyncKey={result.gameId}
+        className="online-voice-screen online-end-screen"
+        rightPanel={<OnlineVoicePanel />}
+        afterScoreboard={<OnlineVoiceMobilePanel />}
       />
     )
   }
@@ -71,6 +79,9 @@ export default function EndOnline() {
       newLabel="Salir de la sala"
       scoreSummary={result.scoreSummary}
       scoreSyncKey={result.gameId}
+      className="online-voice-screen online-end-screen"
+      rightPanel={<OnlineVoicePanel />}
+      afterScoreboard={<OnlineVoiceMobilePanel />}
     />
   )
 }

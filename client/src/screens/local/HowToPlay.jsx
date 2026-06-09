@@ -47,11 +47,11 @@ const rules = [
 ]
 
 const newTools = [
-  'Las salas online recuperan mejor a jugadores que recargan o vuelven a entrar.',
+  'La voz online sigue disponible al ver cartas, votar, esperar resultados y cerrar la ronda.',
+  'Los jugadores eliminados pueden escuchar la mesa, pero no pueden abrir el microfono.',
+  'El lobby y la discusion online aprovechan mejor pantallas grandes.',
   'El Detective puede ser ciudadano o impostor; no aumenta el total de impostores.',
   'Durante el interrogatorio, Detective e interrogado tienen un canal de voz privado.',
-  'El resto de la mesa puede hablar aparte sin escuchar el interrogatorio.',
-  'Cada jugador en voz tiene volumen individual y volumen general.',
 ]
 
 const tips = [
@@ -78,7 +78,7 @@ export default function HowToPlay() {
 
   const rightPanel = (
     <GuideRail
-      eyebrow="Alpha 0.2.0"
+      eyebrow="Alpha 0.2.1"
       title="Herramientas nuevas"
       items={newTools.map((item, index) => ({
         label: `0.${index + 1}`,
@@ -98,7 +98,7 @@ export default function HowToPlay() {
         <header className="guide-topbar">
           <button onClick={() => navigate(-1)}>Volver</button>
           <span>Manual de campo</span>
-          <button onClick={() => navigate('/patch-0-2-0')}>Alpha 0.2.0</button>
+          <button onClick={() => navigate('/patch-0-2-1')}>Alpha 0.2.1</button>
         </header>
 
         <section className="guide-hero" aria-labelledby="how-title">

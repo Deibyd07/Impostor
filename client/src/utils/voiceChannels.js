@@ -31,51 +31,36 @@ export function resolveVoiceChannel({
     }
   }
   if (!isActiveVoicePlayer(me)) {
+    const activeIds = players
+      .filter(isActiveVoicePlayer)
+      .map(player => player.id)
+      .filter(id => id !== myId)
+
+    if (interrogation) {
+      const privateIds = new Set([interrogation.detectiveId, interrogation.targetId].filter(Boolean))
+      return {
+        ...base,
+        canSpeak: false,
+        reason: me?.eliminated || phase === 'spectator' ? 'Solo escucha como espectador' : 'Sin jugador activo',
+        allowedPeerIds: activeIds.filter(id => !privateIds.has(id)),
+        channel: 'table',
+        channelLabel: 'Modo escucha',
+        channelDescription: 'Puedes escuchar la mesa, pero no hablar.',
+      }
+    }
+
     return {
       ...base,
       canSpeak: false,
       reason: me?.eliminated || phase === 'spectator' ? 'Solo escucha como espectador' : 'Sin jugador activo',
-      allowedPeerIds: [],
-      channel: 'closed',
+      allowedPeerIds: activeIds,
+      channel: 'listen',
       channelLabel: 'Solo escucha',
-      channelDescription: 'No puedes abrir microfono en este estado.',
-    }
-  }
-  if (phase === 'reveal') {
-    return {
-      ...base,
-      canSpeak: false,
-      reason: 'Silencio durante la revelacion de rol',
-      allowedPeerIds: [],
-      channel: 'closed',
-      channelLabel: 'Revelacion privada',
-      channelDescription: 'La voz se pausa mientras cada jugador ve su carta.',
-    }
-  }
-  if (phase === 'voting' || phase === 'voted') {
-    return {
-      ...base,
-      canSpeak: false,
-      reason: 'Silencio durante la votacion',
-      allowedPeerIds: [],
-      channel: 'closed',
-      channelLabel: 'Votacion',
-      channelDescription: 'La voz se pausa durante la votacion.',
-    }
-  }
-  if (phase === 'ended') {
-    return {
-      ...base,
-      canSpeak: false,
-      reason: 'La partida termino',
-      allowedPeerIds: [],
-      channel: 'closed',
-      channelLabel: 'Partida terminada',
-      channelDescription: 'La voz queda cerrada al finalizar la partida.',
+      channelDescription: 'Puedes escuchar a la mesa, pero no hablar.',
     }
   }
 
-  if (phase !== 'lobby' && phase !== 'discussion') {
+  if (!['lobby', 'reveal', 'discussion', 'voting', 'voted', 'ended'].includes(phase)) {
     return {
       ...base,
       allowedPeerIds: [],

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
+import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 
 export default function VoteSent() {
@@ -22,7 +23,10 @@ export default function VoteSent() {
   const totalActive = active.length
 
   return (
-    <PhoneScreen>
+    <PhoneScreen
+      className="online-voice-screen online-vote-screen"
+      rightPanel={<OnlineVoicePanel />}
+    >
       <div style={{ padding: '60px 24px 24px', textAlign: 'center' }}>
         <div className="vote-sent-seal" style={{
           width: 100, height: 100, borderRadius: 999, margin: '0 auto 22px',
@@ -82,6 +86,7 @@ export default function VoteSent() {
           })}
         </div>
       </div>
+      <OnlineVoiceMobilePanel />
     </PhoneScreen>
   )
 }

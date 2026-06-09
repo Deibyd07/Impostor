@@ -4,6 +4,7 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import PlayerChip from '../../components/PlayerChip.jsx'
+import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { isCitizenTeamRole } from '../../utils/roles.js'
 
@@ -19,7 +20,10 @@ export default function Spectator() {
   }, [phase, navigate])
 
   return (
-    <PhoneScreen>
+    <PhoneScreen
+      className="online-voice-screen online-spectator-screen"
+      rightPanel={<OnlineVoicePanel />}
+    >
       <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="t-eyebrow">Espectador</span>
         <Badge color="var(--impostor)" warn>HAS SIDO ELIMINADO</Badge>
@@ -58,6 +62,7 @@ export default function Spectator() {
           ))}
         </div>
       </div>
+      <OnlineVoiceMobilePanel />
     </PhoneScreen>
   )
 }

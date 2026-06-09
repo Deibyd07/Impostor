@@ -11,11 +11,14 @@ export default function WinImpostor({
   rematchDisabled = false,
   scoreSummary = null,
   scoreSyncKey = null,
+  className = '',
+  rightPanel = null,
+  afterScoreboard = null,
 }) {
   useEffect(() => { sfx.winImpostor() }, [])
   const single = impostorNames.length === 1
   return (
-    <PhoneScreen padTop={false} padBottom={false}>
+    <PhoneScreen padTop={false} padBottom={false} className={className} rightPanel={rightPanel}>
       <div style={{ position: 'absolute', inset: 0,
         background:
           'radial-gradient(80% 60% at 50% 30%, rgba(220, 38, 38, 0.4) 0%, transparent 65%),' +
@@ -70,6 +73,7 @@ export default function WinImpostor({
         </div>
 
         <RoundScoreboard scoreSummary={scoreSummary} syncKey={scoreSyncKey} />
+        {afterScoreboard}
 
         <div style={{ flex: 1 }} />
 
