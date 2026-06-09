@@ -6,6 +6,7 @@ import TimerBar from '../../components/TimerBar.jsx'
 import PlayerChip from '../../components/PlayerChip.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { useTimer } from '../../hooks/useTimer.js'
+import { isImpostorRole } from '../../utils/roles.js'
 
 const MODE_LABEL = { classic: 'Clásico', clue: 'Con Pista', blind: 'Impostor Ciego' }
 const MODE_COLOR = { classic: 'var(--impostor)', clue: 'var(--gold)', blind: 'var(--citizen)' }
@@ -165,7 +166,7 @@ function ActionTile({ icon, label, accent, primary, onClick }) {
 }
 
 function RevealModal({ session, onClose }) {
-  const impostors = session.players.filter(p => p.role === 'impostor')
+  const impostors = session.players.filter(p => isImpostorRole(p.role))
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 50,

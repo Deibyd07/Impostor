@@ -5,6 +5,7 @@ import RoleCard from '../../components/RoleCard.jsx'
 import { useTimer } from '../../hooks/useTimer.js'
 import { useGameStore } from '../../store/gameStore.js'
 import { sfx } from '../../utils/sfx.js'
+import { isImpostorRole } from '../../utils/roles.js'
 
 const TOTAL_SECONDS = 8
 
@@ -22,9 +23,11 @@ export default function CardReveal() {
   useEffect(() => {
     sfx.revealRole(variant, { concealBlind: true })
   }, [variant])
-  const word = player.role === 'citizen' ? session.word
-    : session.config.mode === 'blind' ? session.fakeWord
-    : ''
+  const word = player.seenWord ?? (
+    isImpostorRole(player.role)
+      ? (session.config.mode === 'blind' ? session.fakeWord : '')
+      : session.word
+  )
   const clue = session.clue
 
   const { seconds } = useTimer(TOTAL_SECONDS, { autoStart: true })
@@ -66,6 +69,8 @@ export default function CardReveal() {
 }
 
 function computeVariant(session, player) {
+  if (player.role === 'detective-impostor') return 'detective-impostor'
+  if (player.role === 'detective') return 'detective'
   if (player.role === 'citizen') return 'citizen'
   // impostor
   if (session.config.mode === 'blind') return 'impostor-blind'

@@ -28,6 +28,7 @@ import RouteTransition from './components/RouteTransition.jsx'
 import PrefsToggle from './components/PrefsToggle.jsx'
 import SplashScreen from './components/SplashScreen.jsx'
 import EliminationEffect from './components/EliminationEffect.jsx'
+import VoiceRoom from './components/VoiceRoom.jsx'
 import { useGameStore } from './store/gameStore.js'
 import { useOnlineStore } from './store/onlineStore.js'
 import { sfx } from './utils/sfx.js'
@@ -37,6 +38,7 @@ const SPLASH_SESSION_KEY = 'el-impostor-splash-seen'
 const routes = [
   { path: '/', element: <Home /> },
   { path: '/how', element: <HowToPlay /> },
+  { path: '/patch-1-2', element: <PatchNotes /> },
   { path: '/patch-1-1', element: <PatchNotes /> },
   { path: '/profile', element: <Profile /> },
   { path: '/setup', element: <Setup /> },
@@ -89,6 +91,7 @@ export default function App() {
               <RouteTransition routes={routes} />
             </BrowserRouter>
             <OnlineEliminationEffectHost />
+            <VoiceRoom />
             <ToastHost />
           </>
         )}
@@ -125,7 +128,7 @@ function SoundDirector() {
 }
 
 function resolveMusicLoop(pathname, { detectiveInterrogation }) {
-  if (['/', '/how', '/patch-1-1', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
+  if (['/', '/how', '/patch-1-2', '/patch-1-1', '/profile', '/setup', '/online/host', '/online/join', '/online/waiting'].includes(pathname)) {
     return 'lobby'
   }
   if (pathname === '/game' || pathname === '/online/spectator') return 'discussion'

@@ -344,6 +344,7 @@ export const sfx = {
   },
 
   revealRole(role, { concealBlind = true } = {}) {
+    if (role === 'detective-impostor') return this.revealDetective()
     if (role === 'detective') return this.revealDetective()
     if (role === 'impostor-clue') return this.revealImpostorClue()
     if (role === 'impostor-blind') return this.revealImpostorBlind({ conceal: concealBlind })

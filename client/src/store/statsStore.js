@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { isImpostorRole } from '../utils/roles.js'
 
 export const MAX_RECORDED_GAMES = 500
 
@@ -38,7 +39,7 @@ export function impostorRate(stats) {
 }
 
 export function updatePlayerStats(stats, { role, won, playedAt }) {
-  const isImpostor = role === 'impostor'
+  const isImpostor = isImpostorRole(role)
   const nextWins = stats.wins + (won ? 1 : 0)
   const nextLosses = stats.losses + (won ? 0 : 1)
   const nextCurrentStreak = won ? stats.currentStreak + 1 : 0
@@ -74,12 +75,13 @@ export function applyGameResult(state, result) {
 
   players.forEach(player => {
     const name = normalizePlayerName(player?.name)
-    const role = player?.role === 'impostor' ? 'impostor' : 'citizen'
+    const role = player?.role || 'citizen'
+    const isImpostor = isImpostorRole(role)
     const key = playerStatsKey(name)
     if (!key) return
 
     const previous = nextPlayers[key] || emptyPlayerStats(name)
-    const won = winner === 'impostor' ? role === 'impostor' : role === 'citizen'
+    const won = winner === 'impostor' ? isImpostor : !isImpostor
     nextPlayers[key] = updatePlayerStats({ ...previous, name }, { role, won, playedAt })
   })
 

@@ -1,6 +1,7 @@
 import { shuffle, pickOne, pickWithout } from './random.js'
 import { wordBank, categories, relatedWords } from '../data/wordBank.js'
 import { avatarForPlayer } from '../data/avatars.js'
+import { isImpostorRole } from './roles.js'
 
 export const RECENT_WORD_LIMIT = 10
 
@@ -74,6 +75,17 @@ export function buildSession(config, options = {}) {
       eliminated: false,
     }
   })
+
+  if (config.detectiveEnabled) {
+    const detective = pickOne(sessionPlayers)
+    if (detective) {
+      const wasImpostor = isImpostorRole(detective.role)
+      detective.role = wasImpostor ? 'detective-impostor' : 'detective'
+      detective.seenWord = wasImpostor
+        ? (config.mode === 'blind' ? fakeWord : null)
+        : word
+    }
+  }
 
   return {
     id: `s_${Date.now()}`,

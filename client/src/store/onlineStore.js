@@ -59,7 +59,7 @@ export const useOnlineStore = create((set, get) => ({
   players: [],          // [{ id, name, isHost, ready, eliminated }]
   config: null,
   phase: 'lobby',       // lobby | reveal | discussion | voting | voted | ended | spectator
-  myRole: null,         // 'citizen' | 'detective' | 'impostor' | 'impostor-blind' | 'impostor-clue'
+  myRole: null,         // 'citizen' | 'detective' | 'detective-impostor' | 'impostor' | 'impostor-blind' | 'impostor-clue'
   myWord: null,
   myClue: null,
   votes: {},            // { targetId: count }

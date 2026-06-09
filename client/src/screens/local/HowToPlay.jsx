@@ -47,11 +47,11 @@ const rules = [
 ]
 
 const newTools = [
-  'El Detective puede activar un interrogatorio opcional una sola vez por partida.',
-  'Durante el interrogatorio solo hablan el Detective y el jugador interrogado.',
-  'El resto de ciudadanos ve un aviso de silencio, sin leer la pregunta privada.',
+  'El Detective puede ser ciudadano o impostor; no aumenta el total de impostores.',
+  'Durante el interrogatorio, Detective e interrogado tienen un canal de voz privado.',
+  'El resto de la mesa puede hablar aparte sin escuchar el interrogatorio.',
+  'Cada jugador en voz tiene volumen individual y volumen general.',
   'El chat online guarda los últimos 50 mensajes y muestra nombre más avatar.',
-  'El perfil local acumula partidas, victorias, rachas y rendimiento por rol.',
 ]
 
 const tips = [
@@ -78,7 +78,7 @@ export default function HowToPlay() {
 
   const rightPanel = (
     <GuideRail
-      eyebrow="Parche 1.1"
+      eyebrow="Parche 1.2"
       title="Herramientas nuevas"
       items={newTools.map((item, index) => ({
         label: `1.${index + 1}`,
@@ -98,7 +98,7 @@ export default function HowToPlay() {
         <header className="guide-topbar">
           <button onClick={() => navigate(-1)}>Volver</button>
           <span>Manual de campo</span>
-          <button onClick={() => navigate('/patch-1-1')}>Versión 1.1</button>
+          <button onClick={() => navigate('/patch-1-2')}>Versión 1.2</button>
         </header>
 
         <section className="guide-hero" aria-labelledby="how-title">
@@ -143,7 +143,12 @@ export default function HowToPlay() {
           </p>
           <p>
             Si activan Detective, ese rol puede abrir un interrogatorio corto y dramático.
-            La mesa queda en silencio mientras solo el Detective y el interrogado hablan.
+            En esta versión el Detective puede ser impostor: gana con los impostores, pero
+            conserva la habilidad para presionar a otro jugador.
+          </p>
+          <p>
+            Si usan voz online, el interrogatorio separa temporalmente la llamada: Detective
+            e interrogado hablan en privado mientras el resto de la mesa conserva su propio canal.
           </p>
         </GuideSection>
 

@@ -1,4 +1,5 @@
 // Lógica pura del juego — sin estado, sin efectos.
+import { isCitizenTeamRole, isImpostorRole } from './roles.js'
 
 export function activePlayers(session) {
   return session.players.filter(p => !p.eliminated)
@@ -25,8 +26,8 @@ export function leaderInVotes(votes, players) {
 
 export function checkVictory(session) {
   const active = activePlayers(session)
-  const activeImpostors = active.filter(p => p.role === 'impostor')
-  const activeCitizens = active.filter(p => p.role === 'citizen')
+  const activeImpostors = active.filter(p => isImpostorRole(p.role))
+  const activeCitizens = active.filter(p => isCitizenTeamRole(p.role))
 
   if (session.impostorGuessedWord) {
     return { winner: 'impostor', reason: 'wordGuessed' }
@@ -41,5 +42,5 @@ export function checkVictory(session) {
 }
 
 export function isPlayerImpostor(session, playerId) {
-  return session.players.find(p => p.id === playerId)?.role === 'impostor'
+  return isImpostorRole(session.players.find(p => p.id === playerId)?.role)
 }

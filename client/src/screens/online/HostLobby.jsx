@@ -9,6 +9,7 @@ import CornerOrnament from '../../components/CornerOrnament.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
+import VoicePanel from '../../components/VoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { categories, wordBank } from '../../data/wordBank.js'
 import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
@@ -174,6 +175,8 @@ export default function HostLobby() {
             onCopy={copyJoinUrl}
           />
         </div>
+
+        <VoicePanel />
 
         <LobbyPlayersBoard players={players} />
 

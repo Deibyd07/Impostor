@@ -5,6 +5,7 @@ import WinImpostor from '../local/WinImpostor.jsx'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { useStatsStore } from '../../store/statsStore.js'
+import { isImpostorRole } from '../../utils/roles.js'
 
 export default function EndOnline() {
   const navigate = useNavigate()
@@ -44,7 +45,7 @@ export default function EndOnline() {
   }
 
   const impostorNames = result.players
-    .filter(p => p.role === 'impostor')
+    .filter(p => isImpostorRole(p.role))
     .map(p => p.name)
 
   const onRematch = () => {

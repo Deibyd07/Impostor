@@ -4,6 +4,7 @@ import WinCitizens from './WinCitizens.jsx'
 import WinImpostor from './WinImpostor.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { useStatsStore } from '../../store/statsStore.js'
+import { isImpostorRole } from '../../utils/roles.js'
 
 export default function EndGame() {
   const navigate = useNavigate()
@@ -23,7 +24,7 @@ export default function EndGame() {
 
   if (!session || !session.winner) { navigate('/'); return null }
   const { winner, reason } = session.winner
-  const impostors = session.players.filter(p => p.role === 'impostor')
+  const impostors = session.players.filter(p => isImpostorRole(p.role))
 
   const onRematch = () => { rematch(); navigate('/game/pass') }
   const onNew = () => { endSession(); navigate('/setup') }

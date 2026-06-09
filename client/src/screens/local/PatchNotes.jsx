@@ -4,19 +4,19 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const highlights = [
   {
-    code: 'IM-26',
-    title: 'Detective con interrogatorio',
-    body: 'Rol opcional que puede abrir una escena privada con un jugador mientras el resto de la mesa queda en silencio.',
+    code: 'IM-32',
+    title: 'Detective-impostor',
+    body: 'El Detective ahora puede caer en el equipo impostor, con carta propia y habilidad para desviar la mesa desde el interrogatorio.',
   },
   {
-    code: 'IM-24',
-    title: 'Chat online de discusión',
-    body: 'Mensajes en tiempo real con nombre y avatar, historial limitado y control de longitud para mantener la mesa limpia.',
+    code: 'IM-33',
+    title: 'Voz online por sala',
+    body: 'Chat de voz integrado con microfono, volumen general y volumen individual por jugador desde lobby y discusion.',
   },
   {
-    code: 'IM-31',
-    title: 'Eliminación dramática',
-    body: 'Nueva animación con partículas, sonido sincronizado y revelación clara del rol eliminado.',
+    code: 'IM-34',
+    title: 'Canales de interrogatorio',
+    body: 'Cuando el Detective interroga, detective e interrogado pasan a un canal privado y el resto de la mesa habla aparte.',
   },
 ]
 
@@ -24,37 +24,37 @@ const sections = [
   {
     title: 'Juego y roles',
     items: [
-      'Detective configurable desde Setup.',
-      'Interrogatorio con aviso distinto para observadores.',
-      'Modo Ciego reforzado con palabras relacionadas.',
-      'Historial para evitar repetir palabras recientes en la sesión.',
+      'El Detective puede ser ciudadano o impostor sin sumar impostores extra.',
+      'La probabilidad del Detective impostor es impostores divididos entre jugadores.',
+      'Carta unica para Detective-impostor con pista privada o palabra coartada segun el modo.',
+      'Victorias, eliminaciones y estadisticas reconocen al Detective-impostor como equipo impostor.',
     ],
   },
   {
     title: 'Online',
     items: [
-      'Chat visible durante la fase de discusión.',
-      'Transferencia automática de host si el anfitrión sale.',
-      'Entrada de código más directa en sala privada.',
-      'Feedback visual verde al copiar el enlace de invitación.',
+      'Chat de voz WebRTC en lobby y discusion.',
+      'Controles de microfono, salida de voz y volumen por cada jugador.',
+      'Durante interrogatorio hay canal privado para Detective e interrogado.',
+      'El resto de la mesa mantiene una voz secundaria sin escuchar el interrogatorio.',
     ],
   },
   {
     title: 'Experiencia',
     items: [
-      'Splash screen inicial con animación de marca.',
-      'Rediseño desktop del menú, lobby y partida.',
-      'Controles globales de sonido y volumen.',
-      'Avatares con emojis nativos y perfil local de jugadores.',
+      'Panel de voz integrado al estilo de expediente del juego.',
+      'Indicadores de canal privado y mesa secundaria durante interrogatorio.',
+      'Sonido de revelacion compatible con el nuevo rol hibrido.',
+      'Notas del parche actualizadas desde el menu principal.',
     ],
   },
 ]
 
 const testFlow = [
-  'Abre una partida local y confirma que el perfil suma estadísticas al terminar.',
-  'Crea una sala online, copia el enlace y valida que el botón confirme el copiado.',
-  'Activa Detective, inicia discusión y prueba un interrogatorio con otro jugador.',
-  'Vota a un jugador y revisa la nueva escena de eliminación.',
+  'Crea una sala online con al menos tres jugadores y activa Detective.',
+  'Entra al panel de voz desde lobby y ajusta el volumen de cada jugador.',
+  'Inicia partida hasta discusion y prueba un interrogatorio.',
+  'Verifica que Detective e interrogado se escuchan aparte y la mesa conserva su propio canal.',
 ]
 
 export default function PatchNotes() {
@@ -63,8 +63,8 @@ export default function PatchNotes() {
   const leftPanel = (
     <PatchRail
       eyebrow="Expediente"
-      title="Versión 1.1"
-      body="Parche centrado en hacer la mesa más expresiva: mejor audio, roles con presencia, chat, perfiles y una experiencia desktop más amplia."
+      title="Versión 1.2"
+      body="Parche centrado en voz online, canales privados de interrogatorio y la nueva identidad Detective-impostor."
     />
   )
 
@@ -98,11 +98,11 @@ export default function PatchNotes() {
         </header>
 
         <section className="patch-hero" aria-labelledby="patch-title">
-          <div className="patch-hero__tag">Parche 1.1</div>
-          <h1 id="patch-title">Nuevo caso abierto</h1>
+          <div className="patch-hero__tag">Parche 1.2</div>
+          <h1 id="patch-title">Doble identidad en la mesa</h1>
           <p>
-            Esta versión hace que cada partida tenga más identidad: roles más teatrales,
-            mejor comunicación online, sonidos ubicados por momento y una eliminación con peso.
+            Esta versión integra voz online real para la sala y abre una variante mas peligrosa:
+            el Detective puede ser impostor y usar el interrogatorio para dirigir la sospecha.
           </p>
         </section>
 

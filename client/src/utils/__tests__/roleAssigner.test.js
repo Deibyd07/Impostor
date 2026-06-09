@@ -6,6 +6,7 @@ import {
   pickWordAvoidingRecent,
 } from '../roleAssigner.js'
 import { wordBank, categories, relatedWords } from '../../data/wordBank.js'
+import { isDetectiveRole, isImpostorRole } from '../roles.js'
 
 const newCategoryKeys = [
   'videojuegos',
@@ -59,6 +60,17 @@ describe('buildSession - clásico', () => {
       players: players(4), impostorCount: 1, mode: 'classic', category: 'animales',
     })
     expect(wordBank.animales).toContain(s.word)
+  })
+
+  it('si detective esta activo mantiene un solo detective y respeta el equipo impostor', () => {
+    for (let i = 0; i < 30; i++) {
+      const s = buildSession({
+        players: players(6), impostorCount: 2, mode: 'classic', category: 'animales',
+        detectiveEnabled: true,
+      })
+      expect(s.players.filter(p => isDetectiveRole(p.role))).toHaveLength(1)
+      expect(s.players.filter(p => isImpostorRole(p.role))).toHaveLength(2)
+    }
   })
 })
 

@@ -5,6 +5,7 @@ import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import PlayerChip from '../../components/PlayerChip.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
+import { isCitizenTeamRole } from '../../utils/roles.js'
 
 export default function Spectator() {
   const navigate = useNavigate()
@@ -34,7 +35,7 @@ export default function Spectator() {
           fontFamily: 'var(--font-ui)', fontStyle: 'italic', fontSize: 13,
           color: 'var(--text-2)', lineHeight: 1.5,
         }}>Observa cómo termina la partida. Ya no puedes votar.</div>
-        {myWord && (myRole === 'citizen' || myRole === 'detective') && (
+        {myWord && isCitizenTeamRole(myRole) && (
           <div className="evidence-panel spectator-word-card" style={{
             marginTop: 24, padding: '16px',
             border: '1px solid var(--hairline-cold)',

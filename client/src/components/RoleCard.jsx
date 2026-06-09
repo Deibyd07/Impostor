@@ -5,11 +5,13 @@ import ParticleField from './ParticleField.jsx'
 import MaskIcon from './MaskIcon.jsx'
 
 /**
- * RoleCard — 4 variantes:
+ * RoleCard — variantes:
  *  - 'citizen'         palabra real, glow azul
+ *  - 'detective'       ciudadano con interrogatorio
  *  - 'impostor'        clásico, glow rojo, máscara, sin palabra
  *  - 'impostor-clue'   impostor + sección dorada con pista
  *  - 'impostor-blind'  IDÉNTICA visualmente a citizen (palabra falsa)
+ *  - 'detective-impostor' impostor con habilidad de interrogatorio
  */
 export default function RoleCard({
   variant = 'citizen',
@@ -36,6 +38,9 @@ export default function RoleCard({
   }
   if (variant === 'impostor-clue') {
     return <ImpostorCard withClue clue={clue} seconds={seconds} totalSeconds={totalSeconds} />
+  }
+  if (variant === 'detective-impostor') {
+    return <DetectiveImpostorCard word={word} clue={clue} seconds={seconds} totalSeconds={totalSeconds} />
   }
   return <ImpostorCard seconds={seconds} totalSeconds={totalSeconds} />
 }
@@ -209,6 +214,150 @@ function ImpostorCard({ withClue = false, clue, seconds, totalSeconds }) {
           }}>{clue || '—'}</div>
         </div>
       )}
+    </div>
+  )
+}
+
+function DetectiveImpostorCard({ word, clue, seconds, totalSeconds }) {
+  const hasWord = !!word
+  const hasClue = !!clue
+  return (
+    <div className="role-card role-card--detective-impostor grain grain-heavy" style={{
+      position: 'relative',
+      width: '100%',
+      borderRadius: 24,
+      padding: '24px 22px 24px',
+      background:
+        'radial-gradient(120% 90% at 50% 0%, rgba(245,158,11,0.26) 0%, rgba(220,38,38,0.18) 36%, transparent 72%),' +
+        'linear-gradient(180deg, #241006 0%, #120407 100%)',
+      boxShadow:
+        '0 0 0 1px rgba(245, 158, 11, 0.58), 0 0 48px -8px rgba(220, 38, 38, 0.6), 0 24px 70px -18px rgba(0,0,0,0.96)',
+      overflow: 'hidden',
+    }}>
+      <ParticleField />
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        background:
+          'linear-gradient(115deg, transparent 0%, rgba(245,158,11,0.18) 42%, transparent 58%),' +
+          'repeating-linear-gradient(90deg, rgba(245,158,11,0.035) 0 1px, transparent 1px 34px)',
+        opacity: 0.78,
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 24, pointerEvents: 'none',
+        padding: 1,
+        background: 'linear-gradient(180deg, rgba(245,158,11,0.95), rgba(220,38,38,0.64) 46%, rgba(127,29,29,0.8) 100%)',
+        WebkitMask: 'linear-gradient(#000,#000) content-box, linear-gradient(#000,#000)',
+        WebkitMaskComposite: 'xor', maskComposite: 'exclude',
+      }} />
+      <CornerOrnament color="rgba(245, 158, 11, 0.55)" />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
+        <Badge color="var(--gold)" dot warn>DETECTIVE IMPOSTOR</Badge>
+        <CircularTimer seconds={seconds} total={totalSeconds} accent="impostor" />
+      </div>
+
+      <div style={{
+        position: 'relative',
+        zIndex: 2,
+        display: 'grid',
+        placeItems: 'center',
+        marginTop: 18,
+      }}>
+        <div style={{
+          width: 92,
+          height: 92,
+          borderRadius: 999,
+          display: 'grid',
+          placeItems: 'center',
+          border: '1px solid rgba(245, 158, 11, 0.62)',
+          background:
+            'radial-gradient(circle at 50% 0%, rgba(245,158,11,0.25), transparent 66%),' +
+            'rgba(8, 4, 8, 0.78)',
+          boxShadow: '0 0 38px -8px var(--impostor-glow), inset 0 0 24px rgba(245,158,11,0.08)',
+        }}>
+          <MaskIcon size={58} color="#f59e0b" />
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: 16,
+        textAlign: 'center',
+        position: 'relative',
+        zIndex: 2,
+        fontFamily: 'var(--font-display)',
+        fontWeight: 800,
+        fontSize: 25,
+        letterSpacing: '0.05em',
+        lineHeight: 1.05,
+        color: '#fde68a',
+        textShadow: '0 0 24px rgba(245, 158, 11, 0.55), 0 0 34px rgba(220,38,38,0.35)',
+      }}>
+        INVESTIGAS<br />PARA MENTIR
+      </div>
+
+      <div className="hr-red" style={{ margin: '18px auto', width: '62%' }} />
+
+      <div style={{
+        position: 'relative',
+        zIndex: 2,
+        display: 'grid',
+        gap: 10,
+      }}>
+        <div style={{
+          padding: '12px 13px',
+          borderRadius: 12,
+          border: '1px solid rgba(248, 113, 113, 0.34)',
+          background: 'rgba(220, 38, 38, 0.11)',
+          color: '#fecaca',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 12,
+          lineHeight: 1.45,
+          textAlign: 'center',
+        }}>
+          Eres impostor. Puedes iniciar un interrogatorio una vez y usarlo para sembrar duda.
+        </div>
+
+        {(hasClue || hasWord) && (
+          <div style={{
+            padding: '13px 14px',
+            borderRadius: 12,
+            border: '1px solid rgba(245, 158, 11, 0.36)',
+            background: 'rgba(245, 158, 11, 0.08)',
+            color: 'var(--gold-soft)',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: 9,
+              fontWeight: 900,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--gold)',
+              marginBottom: 7,
+            }}>{hasClue ? 'Pista privada' : 'Palabra coartada'}</div>
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: hasWord && word.length > 12 ? 20 : 23,
+              lineHeight: 1.1,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}>{hasClue ? clue : word}</div>
+          </div>
+        )}
+
+        <div style={{
+          color: 'rgba(252, 165, 165, 0.86)',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 12,
+          fontStyle: 'italic',
+          lineHeight: 1.5,
+          textAlign: 'center',
+        }}>
+          Pareces una herramienta de la mesa. Usa esa confianza con cuidado.
+        </div>
+      </div>
     </div>
   )
 }

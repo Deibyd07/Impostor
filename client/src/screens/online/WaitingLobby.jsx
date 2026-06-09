@@ -4,6 +4,7 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import CornerOrnament from '../../components/CornerOrnament.jsx'
 import { LobbyPlayersBoard, LobbyStatusPanel } from '../../components/OnlineLobbyPanels.jsx'
+import VoicePanel from '../../components/VoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 
 export default function WaitingLobby() {
@@ -65,6 +66,8 @@ export default function WaitingLobby() {
             note="El anfitrion esta preparando el expediente. Cuando inicie, cada jugador recibe su carta privada."
           />
         </div>
+
+        <VoicePanel />
 
         <LobbyPlayersBoard players={players} myId={myId} />
       </div>

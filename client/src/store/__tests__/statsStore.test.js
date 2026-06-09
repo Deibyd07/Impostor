@@ -63,6 +63,22 @@ describe('statsStore helpers', () => {
     expect(impostorRate(ana)).toBe(67)
   })
 
+  it('cuenta detective-impostor como impostor sin perder el rol especial', () => {
+    const state = applyGameResult(initialState(), {
+      gameId: 'hybrid-1',
+      winner: 'impostor',
+      players: [{ name: 'Camilo', role: 'detective-impostor' }],
+    })
+
+    const camilo = state.players[playerStatsKey('Camilo')]
+    expect(camilo.gamesPlayed).toBe(1)
+    expect(camilo.wins).toBe(1)
+    expect(camilo.impostorGames).toBe(1)
+    expect(camilo.impostorWins).toBe(1)
+    expect(camilo.citizenGames).toBe(0)
+    expect(camilo.lastRole).toBe('detective-impostor')
+  })
+
   it('ordena jugadores por partidas y luego por nombre', () => {
     let state = initialState()
     state = applyGameResult(state, {

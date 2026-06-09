@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import Badge from './Badge.jsx'
+import { isDetectiveRole, isImpostorRole } from '../utils/roles.js'
 
 export default function CompactRoleReminder({ role, word, clue }) {
   const [open, setOpen] = useState(false)
-  const isImpostor = role === 'impostor' || role === 'impostor-clue'
-  const isDetective = role === 'detective'
-  const looksLikeCitizen = role === 'citizen' || role === 'impostor-blind' || isDetective
+  const isImpostor = isImpostorRole(role) && role !== 'impostor-blind'
+  const isDetective = isDetectiveRole(role)
+  const looksLikeCitizen = role === 'citizen' || role === 'impostor-blind' || role === 'detective'
   const color = isImpostor ? 'var(--impostor)' : isDetective ? 'var(--gold)' : 'var(--citizen)'
-  const label = isImpostor ? 'IMPOSTOR' : isDetective ? 'DETECTIVE' : 'CIUDADANO'
+  const label = role === 'detective-impostor' ? 'DETECTIVE IMPOSTOR' : isImpostor ? 'IMPOSTOR' : isDetective ? 'DETECTIVE' : 'CIUDADANO'
 
   return (
     <div
@@ -35,7 +36,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
           <span style={{
             fontFamily: 'var(--font-ui)', fontSize: 12, fontStyle: 'italic',
             color: 'var(--text-2)', flex: 1,
-          }}>No conoces la palabra.</span>
+          }}>{role === 'detective-impostor' ? 'Investiga para desviar.' : 'No conoces la palabra.'}</span>
         )}
         <span style={{ color: 'var(--text-3)', fontSize: 12 }}>{open ? '△' : '▽'}</span>
       </div>
@@ -46,6 +47,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
         }}>
           {role === 'citizen' && <>Describe la palabra sin decirla. Observa a los demas.</>}
           {role === 'detective' && <>Puedes iniciar un interrogatorio publico una vez por partida.</>}
+          {role === 'detective-impostor' && <>Puedes interrogar una vez, pero ganas con los impostores.</>}
           {role === 'impostor' && <>Escucha, se vago, mezcla. Si te descubren, adivina la palabra.</>}
           {role === 'impostor-clue' && (
             <>Tu pista: <strong style={{ color: 'var(--gold-soft)' }}>{clue}</strong></>

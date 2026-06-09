@@ -6,7 +6,9 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 import ChatBox from '../../components/ChatBox.jsx'
 import DetectiveInterrogationPanel from '../../components/DetectiveInterrogationPanel.jsx'
 import GuessWordModal from '../../components/GuessWordModal.jsx'
+import VoicePanel from '../../components/VoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
+import { canGuessWordRole } from '../../utils/roles.js'
 
 export default function Discussion() {
   const navigate = useNavigate()
@@ -40,7 +42,7 @@ export default function Discussion() {
   }, [players, speakOrder])
 
   const activeSpeaker = orderedPlayers.find(player => !player.eliminated && !player.disconnected) || orderedPlayers[0]
-  const isImpostor = myRole === 'impostor' || myRole === 'impostor-clue'
+  const isImpostor = canGuessWordRole(myRole)
   const canGuess = isImpostor && (round - lastGuessRound >= 2)
   const guessAvailableAt = lastGuessRound + 2
   const isInterrogationSpeaker = detectiveInterrogation
@@ -72,15 +74,18 @@ export default function Discussion() {
     <PhoneScreen
       className="online-discussion-screen"
       leftPanel={
-        <DiscussionDossier
-          role={myRole}
-          word={myWord}
-          clue={myClue}
-          round={round}
-          strategy={strategy}
-          canGuess={canGuess}
-          guessAvailableAt={guessAvailableAt}
-        />
+        <div className="discussion-side-stack">
+          <DiscussionDossier
+            role={myRole}
+            word={myWord}
+            clue={myClue}
+            round={round}
+            strategy={strategy}
+            canGuess={canGuess}
+            guessAvailableAt={guessAvailableAt}
+          />
+          <VoicePanel compact />
+        </div>
       }
       rightPanel={chatPanel}
       footer={actions}
@@ -135,6 +140,10 @@ export default function Discussion() {
           />
         </div>
 
+        <div className="ds-mobile-only">
+          <VoicePanel compact />
+        </div>
+
         <DiscussionTable players={orderedPlayers} myId={myId} />
 
         <div className="ds-mobile-only">
@@ -149,8 +158,8 @@ export default function Discussion() {
 
 function DiscussionDossier({ role, word, clue, round, strategy, canGuess, guessAvailableAt }) {
   const meta = roleMeta(role)
-  const revealWord = meta.showsWord && word
-  const revealClue = role === 'impostor-clue' && clue
+  const revealWord = (meta.showsWord && word) || (role === 'detective-impostor' && word)
+  const revealClue = (role === 'impostor-clue' || role === 'detective-impostor') && clue
 
   return (
     <aside className={`discussion-dossier discussion-dossier--${meta.tone}`}>
@@ -252,6 +261,16 @@ function Avatar({ value, name }) {
 }
 
 function roleMeta(role) {
+  if (role === 'detective-impostor') {
+    return {
+      label: 'Detective Impostor',
+      color: 'var(--gold)',
+      tone: 'red',
+      secretLabel: 'Coartada',
+      secretValue: 'Investiga para desviar',
+      showsWord: false,
+    }
+  }
   if (role === 'impostor' || role === 'impostor-clue') {
     return {
       label: 'Impostor',
@@ -283,6 +302,9 @@ function roleMeta(role) {
 }
 
 function strategyForRole(role) {
+  if (role === 'detective-impostor') {
+    return 'Usa el interrogatorio para dirigir sospechas. Sigues jugando para los impostores.'
+  }
   if (role === 'impostor' || role === 'impostor-clue') {
     return 'Escucha primero. Se vago, mezcla detalles y no contradigas demasiado pronto.'
   }

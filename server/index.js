@@ -251,6 +251,7 @@ function makeRoom(hostSocketId, hostName, avatar, config) {
     impostorGuessedWord: false,
     lastGuessRounds: {},   // socketId -> última ronda en que intentó adivinar
     disconnectTimers: {},   // playerId -> timeout
+    voicePeers: new Set(),  // socketIds con chat de voz activo
   }
   rooms.set(code, room)
   return room
@@ -310,6 +311,14 @@ function chatPayloadFor(player, text) {
   }
 }
 
+function isDetectiveRole(role) {
+  return role === 'detective' || role === 'detective-impostor'
+}
+
+function isImpostorRole(role) {
+  return role === 'impostor' || role === 'detective-impostor'
+}
+
 function isCitizenTeamRole(role) {
   return role === 'citizen' || role === 'detective'
 }
@@ -349,6 +358,27 @@ function getRoomBySocket(socketId) {
   return null
 }
 
+function sanitizeVoiceSignal(signal) {
+  if (!signal || typeof signal !== 'object') return null
+  if (signal.type === 'offer' || signal.type === 'answer') {
+    if (typeof signal.sdp !== 'string') return null
+    return { type: signal.type, sdp: signal.sdp }
+  }
+  if (signal.type === 'ice-candidate') {
+    if (!signal.candidate || typeof signal.candidate !== 'object') return null
+    return { type: 'ice-candidate', candidate: signal.candidate }
+  }
+  return null
+}
+
+function removeVoicePeer(socketId, room = getRoomBySocket(socketId)) {
+  if (!room?.voicePeers?.has(socketId)) return
+  room.voicePeers.delete(socketId)
+  room.voicePeers.forEach(peerId => {
+    io.to(peerId).emit('voice:peerLeft', { peerId: socketId })
+  })
+}
+
 function assignRoles(room) {
   const cfg = room.config
   const catKey = cfg.category === 'random' || !cfg.category
@@ -382,9 +412,12 @@ function assignRoles(room) {
     room.roles[p.id] = isImpostor ? 'impostor' : 'citizen'
   })
   if (cfg.detectiveEnabled) {
-    const citizenPlayers = room.players.filter(p => room.roles[p.id] === 'citizen')
-    const detective = pickOne(citizenPlayers)
-    if (detective) room.roles[detective.id] = 'detective'
+    const detective = pickOne(room.players)
+    if (detective) {
+      room.roles[detective.id] = isImpostorRole(room.roles[detective.id])
+        ? 'detective-impostor'
+        : 'detective'
+    }
   }
 }
 
@@ -397,6 +430,14 @@ function rolePayloadFor(room, playerId) {
       role: 'detective',
       word: room.word,
       clue: null,
+      detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
+    }
+  }
+  if (role === 'detective-impostor') {
+    return {
+      role: 'detective-impostor',
+      word: room.config.mode === 'blind' ? room.fakeWord : null,
+      clue: room.config.mode === 'clue' ? room.clue : null,
       detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
     }
   }
@@ -417,7 +458,7 @@ function activePlayers(room) { return room.players.filter(p => !p.eliminated) }
 function checkVictory(room) {
   if (room.impostorGuessedWord) return { winner: 'impostor', reason: 'wordGuessed' }
   const active = activePlayers(room)
-  const activeImpostors = active.filter(p => room.roles[p.id] === 'impostor')
+  const activeImpostors = active.filter(p => isImpostorRole(room.roles[p.id]))
   const activeCitizens = active.filter(p => isCitizenTeamRole(room.roles[p.id]))
   if (activeImpostors.length === 0) return { winner: 'citizens', reason: 'allImpostorsCaught' }
   if (activeImpostors.length >= activeCitizens.length) return { winner: 'impostor', reason: 'majority' }
@@ -425,7 +466,7 @@ function checkVictory(room) {
 }
 
 function gameOverPayload(room, victory) {
-  const impostorIds = Object.entries(room.roles).filter(([, r]) => r === 'impostor').map(([id]) => id)
+  const impostorIds = Object.entries(room.roles).filter(([, r]) => isImpostorRole(r)).map(([id]) => id)
   return {
     gameId: room.gameId,
     winner: victory.winner, reason: victory.reason,
@@ -552,7 +593,7 @@ function tryResolveVotes(room) {
   room.eliminatedIds.push(eliminatedId)
   io.to(room.code).emit('game:eliminated', {
     playerId: eliminatedId,
-    wasImpostor: room.roles[eliminatedId] === 'impostor',
+    wasImpostor: isImpostorRole(room.roles[eliminatedId]),
     name: player?.name,
   })
   broadcastPlayers(room)
@@ -678,6 +719,39 @@ io.on('connection', (socket) => {
 
   socket.on('room:leave', () => leaveSocket(socket, true))
 
+  socket.on('voice:join', () => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    if (!room) return
+    const player = room.players.find(p => p.socketId === socket.id)
+    if (!player || player.disconnected) return
+
+    if (!room.voicePeers) room.voicePeers = new Set()
+    const peers = [...room.voicePeers].filter(peerId => peerId !== socket.id)
+    room.voicePeers.add(socket.id)
+    socket.emit('voice:peers', { peers })
+    peers.forEach(peerId => {
+      io.to(peerId).emit('voice:peerJoined', { peerId: socket.id })
+    })
+  })
+
+  socket.on('voice:leave', () => {
+    if (!allow(socket.id, 1)) return
+    removeVoicePeer(socket.id)
+  })
+
+  socket.on('voice:signal', ({ targetId, signal } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    if (!room || typeof targetId !== 'string') return
+    if (!room.voicePeers?.has(socket.id) || !room.voicePeers?.has(targetId)) return
+    if (!room.players.some(p => p.socketId === targetId && !p.disconnected)) return
+
+    const cleanSignal = sanitizeVoiceSignal(signal)
+    if (!cleanSignal) return
+    io.to(targetId).emit('voice:signal', { fromId: socket.id, signal: cleanSignal })
+  })
+
   socket.on('room:startGame', () => {
     if (!allow(socket.id, 2)) return
     const room = getRoomBySocket(socket.id)
@@ -755,7 +829,7 @@ io.on('connection', (socket) => {
     if (!room || room.phase !== 'discussion') return
     const detective = room.players.find(p => p.id === socket.id)
     if (!detective || detective.eliminated || detective.disconnected) return
-    if (room.roles[socket.id] !== 'detective') {
+    if (!isDetectiveRole(room.roles[socket.id])) {
       socket.emit('game:detectiveError', { message: 'Solo el detective puede interrogar' })
       return
     }
@@ -854,7 +928,7 @@ io.on('connection', (socket) => {
     if (!allow(socket.id, 2)) return
     const room = getRoomBySocket(socket.id)
     if (!room) return
-    if (room.roles[socket.id] !== 'impostor') return
+    if (!isImpostorRole(room.roles[socket.id])) return
     if (room.phase === 'ended') return
     const lastRound = room.lastGuessRounds[socket.id] ?? -1
     if (room.round - lastRound < 2) {
@@ -887,6 +961,7 @@ function leaveSocket(socket, hard) {
   const player = room.players.find(p => p.socketId === socket.id)
   if (!player) return
   const wasActiveGame = room.phase !== 'lobby' && room.phase !== 'ended'
+  removeVoicePeer(socket.id, room)
 
   // Lobby o ended o disconnect "hard": eliminar completamente
   if (hard || room.phase === 'lobby' || room.phase === 'ended') {

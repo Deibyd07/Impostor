@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import SectionHeader from './SectionHeader.jsx'
+import { isDetectiveRole } from '../utils/roles.js'
 
 function secondsLeft(expiresAt, now) {
   if (!expiresAt) return 0
@@ -16,7 +17,7 @@ export default function DetectiveInterrogationPanel({
 }) {
   const [selectedId, setSelectedId] = useState('')
   const [now, setNow] = useState(Date.now())
-  const isDetective = role === 'detective'
+  const isDetective = isDetectiveRole(role)
   const remaining = secondsLeft(interrogation?.expiresAt, now)
   const canSeePrompt = !!interrogation?.prompt && (
     myId === interrogation.detectiveId || myId === interrogation.targetId
