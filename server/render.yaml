@@ -10,3 +10,7 @@ services:
         value: 3001
       - key: NODE_ENV
         value: production
+      - key: REDIS_URL
+        sync: false
+      - key: ROOM_TTL_SECONDS
+        value: 7200

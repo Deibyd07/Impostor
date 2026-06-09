@@ -53,6 +53,9 @@ Variables de entorno:
 
 - `client/.env`: `VITE_SERVER_URL=http://localhost:3001`
 - `server/.env`: `PORT=3001`
+- `server/.env`: `REDIS_URL=redis://...` para persistir salas entre reinicios. Si no existe, el servidor usa memoria local. Desde tu PC usa `REDIS_PUBLIC_URL` de Railway; dentro del backend en Railway usa la variable privada `REDIS_URL`.
+- `server/.env`: `REDIS_PREFIX=el-impostor:room:` para separar las salas de este juego dentro de Redis.
+- `server/.env`: `ROOM_TTL_SECONDS=7200` para que una sala inactiva expire a las 2 horas.
 
 ## Modos de juego
 
@@ -75,5 +78,5 @@ Servidor → cliente: `room:created`, `room:joined`, `room:players`, `room:confi
 
 ## Deploy
 
-- Servidor: Railway / Render / Fly.io. Setear `PORT`.
+- Servidor: Railway / Render / Fly.io. Setear `PORT` y `REDIS_URL` si se quiere persistencia real de salas.
 - Cliente: Vercel / Netlify. Setear `VITE_SERVER_URL` apuntando al servidor.

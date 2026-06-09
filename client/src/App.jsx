@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import Home from './screens/local/Home.jsx'
 import HowToPlay from './screens/local/HowToPlay.jsx'
@@ -90,6 +90,7 @@ export default function App() {
             <PrefsToggle />
             <BrowserRouter>
               <SoundDirector />
+              <OnlineRouteDirector />
               <RouteTransition routes={routes} />
             </BrowserRouter>
             <OnlineEliminationEffectHost />
@@ -126,6 +127,51 @@ function SoundDirector() {
     else sfx.stopMusic()
   }, [loop])
 
+  return null
+}
+
+function OnlineRouteDirector() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const connect = useOnlineStore(s => s.connect)
+  const socket = useOnlineStore(s => s.socket)
+  const connected = useOnlineStore(s => s.connected)
+  const resumePending = useOnlineStore(s => s.resumePending)
+  const roomCode = useOnlineStore(s => s.roomCode)
+  const phase = useOnlineStore(s => s.phase)
+  const isHost = useOnlineStore(s => s.isHost)
+
+  const isOnlinePath = pathname.startsWith('/online')
+
+  useEffect(() => {
+    if (isOnlinePath) connect()
+  }, [connect, isOnlinePath])
+
+  useEffect(() => {
+    if (!isOnlinePath) return
+    if (!socket || (!connected && !roomCode) || resumePending) return
+
+    if (!roomCode) {
+      if (pathname === '/online/host' || pathname === '/online/join') return
+      navigate('/', { replace: true })
+      return
+    }
+
+    const target = onlineTargetForPhase({ phase, isHost })
+    if (target && pathname !== target) navigate(target, { replace: true })
+  }, [connected, isHost, isOnlinePath, navigate, pathname, phase, resumePending, roomCode, socket])
+
+  return null
+}
+
+function onlineTargetForPhase({ phase, isHost }) {
+  if (phase === 'lobby') return isHost ? '/online/host' : '/online/waiting'
+  if (phase === 'reveal') return '/online/card'
+  if (phase === 'discussion') return '/online/discussion'
+  if (phase === 'voting') return '/online/vote'
+  if (phase === 'voted') return '/online/vote-sent'
+  if (phase === 'spectator') return '/online/spectator'
+  if (phase === 'ended') return '/online/end'
   return null
 }
 

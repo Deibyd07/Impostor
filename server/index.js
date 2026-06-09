@@ -1,3 +1,6 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
 import http from 'http'
@@ -5,11 +8,19 @@ import { Server } from 'socket.io'
 import { customAlphabet } from 'nanoid'
 import { wordBank, categories, relatedWords } from './wordBank.js'
 import { normalizeAvatar } from './avatars.js'
+import { createRoomStore } from './roomStore.js'
+
+dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true })
 
 const app = express()
 app.use(cors())
 app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '1.2.2' }))
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size }))
+app.get('/health', async (_, res) => res.json({
+  ok: true,
+  rooms: rooms.size,
+  storedRooms: await roomStore.count(),
+  roomStore: roomStore.type,
+}))
 
 const server = http.createServer(app)
 const io = new Server(server, {
@@ -18,6 +29,7 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3001
 const codeGen = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 4)
+const playerIdGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 16)
 const tokenGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 24)
 
 function shuffleOrder(arr) {
@@ -29,11 +41,13 @@ function shuffleOrder(arr) {
   return a
 }
 function makeSpeakOrder(room) {
-  return shuffleOrder(room.players.filter(p => !p.eliminated).map(p => p.id))
+  return shuffleOrder(room.players.filter(p => !p.eliminated && !p.disconnected).map(p => p.id))
 }
 
-const rooms = new Map() // code -> Room
+const rooms = new Map() // code -> active Room cache
+const roomStore = createRoomStore()
 const RECONNECT_GRACE_MS = 60_000
+const ROOM_SCHEMA_VERSION = 1
 const RECENT_WORD_LIMIT = 10
 const CHAT_MESSAGE_LIMIT = 50
 const CHAT_TEXT_MAX_LENGTH = 20
@@ -242,26 +256,251 @@ function pickFakeWord(realWord, catKey, intensity) {
   return pickWithout(wordBank[catKey], realWord)
 }
 
-function newCode() {
+function serializeRoom(room) {
+  return {
+    schemaVersion: ROOM_SCHEMA_VERSION,
+    code: room.code,
+    hostId: room.hostId,
+    config: room.config,
+    players: room.players.map(player => ({
+      id: player.id,
+      sessionToken: player.sessionToken,
+      name: player.name,
+      avatar: normalizeAvatar(player.avatar, player.name),
+      isHost: player.isHost,
+      ready: !!player.ready,
+      eliminated: !!player.eliminated,
+      disconnected: !!player.disconnected,
+      disconnectedAt: player.disconnectedAt || null,
+      disconnectExpiresAt: player.disconnectExpiresAt || null,
+    })),
+    phase: room.phase,
+    round: room.round,
+    votes: room.votes || {},
+    voters: room.voters || {},
+    eliminatedIds: room.eliminatedIds || [],
+    word: room.word,
+    fakeWord: room.fakeWord,
+    clue: room.clue,
+    category: room.category,
+    recentWords: room.recentWords || [],
+    gameCounter: room.gameCounter || 0,
+    gameId: room.gameId,
+    chatMessages: room.chatMessages || [],
+    roles: room.roles || {},
+    detectiveInterrogationUsedBy: room.detectiveInterrogationUsedBy || null,
+    interrogation: room.interrogation || null,
+    impostorGuessedWord: !!room.impostorGuessedWord,
+    lastGuessRounds: room.lastGuessRounds || {},
+    speakOrder: room.speakOrder || [],
+    lastTie: room.lastTie || null,
+    result: room.result || null,
+    updatedAt: Date.now(),
+  }
+}
+
+function restoreRoom(snapshot) {
+  const now = Date.now()
+  const phase = snapshot?.phase || 'lobby'
+  const players = (Array.isArray(snapshot?.players) ? snapshot.players : [])
+    .filter(player => player?.id && player?.sessionToken && player?.name)
+    .filter(player => !(
+      player.disconnected &&
+      player.disconnectExpiresAt &&
+      player.disconnectExpiresAt <= now
+    ))
+    .map(player => {
+      const staleAfterRestart = phase !== 'ended' && !player.disconnected
+      const disconnected = !!player.disconnected || staleAfterRestart
+      return {
+        id: player.id,
+        socketId: null,
+        sessionToken: player.sessionToken,
+        name: sanitizeName(player.name),
+        avatar: normalizeAvatar(player.avatar, player.name),
+        isHost: !!player.isHost,
+        ready: !!player.ready,
+        eliminated: !!player.eliminated,
+        disconnected,
+        disconnectedAt: disconnected ? (player.disconnectedAt || now) : null,
+        disconnectExpiresAt: disconnected
+          ? (player.disconnectExpiresAt || now + RECONNECT_GRACE_MS)
+          : null,
+      }
+    })
+
+  const room = {
+    code: snapshot.code,
+    hostId: snapshot.hostId,
+    config: { ...sanitizeConfig(snapshot.config || {}) },
+    players,
+    phase,
+    round: Number.isFinite(snapshot.round) ? snapshot.round : 1,
+    votes: snapshot.votes || {},
+    voters: snapshot.voters || {},
+    eliminatedIds: Array.isArray(snapshot.eliminatedIds) ? snapshot.eliminatedIds : [],
+    word: snapshot.word || null,
+    fakeWord: snapshot.fakeWord || null,
+    clue: snapshot.clue || null,
+    category: snapshot.category || null,
+    recentWords: Array.isArray(snapshot.recentWords) ? snapshot.recentWords : [],
+    gameCounter: Number.isFinite(snapshot.gameCounter) ? snapshot.gameCounter : 0,
+    gameId: snapshot.gameId || null,
+    chatMessages: Array.isArray(snapshot.chatMessages) ? snapshot.chatMessages.slice(-CHAT_MESSAGE_LIMIT) : [],
+    roles: snapshot.roles || {},
+    detectiveInterrogationUsedBy: snapshot.detectiveInterrogationUsedBy || null,
+    interrogation: snapshot.interrogation?.expiresAt > now ? snapshot.interrogation : null,
+    interrogationTimer: null,
+    impostorGuessedWord: !!snapshot.impostorGuessedWord,
+    lastGuessRounds: snapshot.lastGuessRounds || {},
+    disconnectTimers: {},
+    voicePeers: new Set(),
+    speakOrder: Array.isArray(snapshot.speakOrder) ? snapshot.speakOrder : [],
+    lastTie: snapshot.lastTie || null,
+    result: snapshot.result || null,
+  }
+  if (room.players.some(player => player.id === room.hostId)) {
+    syncHostFlags(room)
+  } else {
+    assignHost(room)
+  }
+  recalculateVotes(room)
+  return room
+}
+
+async function persistRoom(room) {
+  if (!room?.code) return
+  await roomStore.set(room.code, serializeRoom(room))
+}
+
+function saveRoom(room) {
+  persistRoom(room).catch(error => {
+    console.warn(`[room-store] Could not persist room ${room?.code || ''}: ${error.message}`)
+  })
+}
+
+async function deleteRoom(code) {
+  const normalizedCode = typeof code === 'string' ? code : code?.code
+  if (!normalizedCode) return
+  const room = rooms.get(normalizedCode)
+  if (room?.interrogationTimer) clearTimeout(room.interrogationTimer)
+  Object.values(room?.disconnectTimers || {}).forEach(clearTimeout)
+  rooms.delete(normalizedCode)
+  await roomStore.delete(normalizedCode)
+}
+
+function removeRoom(code) {
+  deleteRoom(code).catch(error => {
+    console.warn(`[room-store] Could not delete room ${typeof code === 'string' ? code : code?.code || ''}: ${error.message}`)
+  })
+}
+
+function scheduleInterrogationTimer(room) {
+  if (room.interrogationTimer) {
+    clearTimeout(room.interrogationTimer)
+    room.interrogationTimer = null
+  }
+  if (!room.interrogation?.expiresAt) return
+
+  const delay = room.interrogation.expiresAt - Date.now()
+  if (delay <= 0) {
+    clearInterrogation(room)
+    saveRoom(room)
+    return
+  }
+
+  room.interrogationTimer = setTimeout(() => {
+    clearInterrogation(room)
+    saveRoom(room)
+  }, delay)
+}
+
+function scheduleDisconnectTimer(room, player) {
+  if (!room?.code || !player?.id || !player.disconnected) return
+  if (room.disconnectTimers[player.id]) clearTimeout(room.disconnectTimers[player.id])
+  const expiresAt = player.disconnectExpiresAt || Date.now() + RECONNECT_GRACE_MS
+  player.disconnectExpiresAt = expiresAt
+  const delay = Math.max(0, expiresAt - Date.now())
+  room.disconnectTimers[player.id] = setTimeout(() => {
+    pruneDisconnectedPlayer(room, player.id)
+  }, delay)
+}
+
+function scheduleRoomTimers(room) {
+  scheduleInterrogationTimer(room)
+  room.players
+    .filter(player => player.disconnected)
+    .forEach(player => scheduleDisconnectTimer(room, player))
+}
+
+function pruneDisconnectedPlayer(room, playerId) {
+  delete room.disconnectTimers[playerId]
+  const stillThere = room.players.find(p => p.id === playerId)
+  if (!stillThere || !stillThere.disconnected) return
+
+  const wasActiveGame = room.phase !== 'lobby' && room.phase !== 'ended'
+  room.players = room.players.filter(p => p.id !== playerId)
+  delete room.roles[playerId]
+  delete room.voters[playerId]
+  delete room.votes[playerId]
+  delete room.lastGuessRounds[playerId]
+  room.speakOrder = (room.speakOrder || []).filter(id => id !== playerId)
+  if (room.interrogation && (room.interrogation.detectiveId === playerId || room.interrogation.targetId === playerId)) {
+    clearInterrogation(room)
+  }
+  if (!room.players.length) {
+    clearInterrogation(room, { emit: false })
+    removeRoom(room.code)
+    return
+  }
+  const hostChanged = room.hostId === playerId
+  const newHost = assignHost(room)
+  broadcastPlayers(room)
+  if (hostChanged) notifyHostAssigned(room, newHost)
+  if (wasActiveGame) afterPlayerListChanged(room)
+  saveRoom(room)
+}
+
+async function getRoomByCode(code) {
+  if (!isValidCode(code)) return null
+  const normalizedCode = code.toUpperCase()
+  const cached = rooms.get(normalizedCode)
+  if (cached) return cached
+
+  const snapshot = await roomStore.get(normalizedCode)
+  if (!snapshot?.code) return null
+  const room = restoreRoom(snapshot)
+  if (!room.players.length) {
+    await deleteRoom(normalizedCode)
+    return null
+  }
+  rooms.set(normalizedCode, room)
+  scheduleRoomTimers(room)
+  saveRoom(room)
+  return room
+}
+
+async function newCode() {
   let code
   let tries = 0
   do {
     code = codeGen()
     tries++
-  } while (rooms.has(code) && tries < 20)
+  } while ((rooms.has(code) || await roomStore.has(code)) && tries < 20)
   return code
 }
 
-function makeRoom(hostSocketId, hostName, avatar, config) {
-  const code = newCode()
+async function makeRoom(hostSocketId, hostName, avatar, config) {
+  const code = await newCode()
   const player = {
-    id: hostSocketId, socketId: hostSocketId,
+    id: playerIdGen(), socketId: hostSocketId,
     sessionToken: tokenGen(),
     name: hostName, avatar: normalizeAvatar(avatar, hostName),
     isHost: true, ready: false, eliminated: false, disconnected: false,
+    disconnectedAt: null, disconnectExpiresAt: null,
   }
   const room = {
-    code, hostId: hostSocketId,
+    code, hostId: player.id,
     config: { ...sanitizeConfig(config) },
     players: [player],
     phase: 'lobby',
@@ -282,6 +521,9 @@ function makeRoom(hostSocketId, hostName, avatar, config) {
     lastGuessRounds: {},   // socketId -> última ronda en que intentó adivinar
     disconnectTimers: {},   // playerId -> timeout
     voicePeers: new Set(),  // playerIds con chat de voz activo
+    speakOrder: [],
+    lastTie: null,
+    result: null,
   }
   rooms.set(code, room)
   return room
@@ -315,6 +557,12 @@ function sanitizeRoom(room, viewerId = null) {
       eliminated: p.eliminated, disconnected: !!p.disconnected,
     })),
     phase: room.phase, round: room.round,
+    votes: room.votes || {},
+    votersReady: Object.keys(room.voters || {}).length,
+    votedPlayerIds: Object.keys(room.voters || {}),
+    speakOrder: room.speakOrder || [],
+    lastTie: room.lastTie || null,
+    result: room.result || null,
     chatMessages: room.chatMessages,
     interrogation: interrogationPayloadFor(room.interrogation, viewerId),
   }
@@ -368,6 +616,7 @@ function clearInterrogation(room, { emit = true } = {}) {
   if (emit && current) {
     io.to(room.code).emit('game:interrogationEnded', { id: current.id })
   }
+  if (current) saveRoom(room)
 }
 
 function buildInterrogationPayload(room, detective, target) {
@@ -551,7 +800,7 @@ function impostorTeammatesFor(room, playerId) {
 function emitYourRole(room) {
   room.players.forEach(p => {
     const payload = rolePayloadFor(room, p.id)
-    if (payload) io.to(p.socketId).emit('game:yourRole', payload)
+    if (payload && p.socketId && !p.disconnected) io.to(p.socketId).emit('game:yourRole', payload)
   })
 }
 
@@ -586,6 +835,14 @@ function broadcastPlayers(room) {
   io.to(room.code).emit('room:players', { players: sanitizeRoom(room).players })
 }
 
+function syncHostFlags(room) {
+  const host = room.players.find(p => p.id === room.hostId) || null
+  room.players.forEach(p => {
+    p.isHost = p.id === room.hostId
+  })
+  return host
+}
+
 function assignHost(room) {
   if (!room.players.length) return null
   let host = room.players.find(p => p.id === room.hostId && !p.disconnected)
@@ -593,9 +850,7 @@ function assignHost(room) {
     host = room.players.find(p => !p.disconnected) || room.players[0]
     room.hostId = host.id
   }
-  room.players.forEach(p => {
-    p.isHost = p.id === room.hostId
-  })
+  syncHostFlags(room)
   return host
 }
 
@@ -631,11 +886,14 @@ function advanceToDiscussion(room) {
   room.round += 1
   room.phase = 'discussion'
   const speakOrder = makeSpeakOrder(room)
+  room.speakOrder = speakOrder
   io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder })
   io.to(room.code).emit('game:newRound', { round: room.round, speakOrder })
+  saveRoom(room)
 }
 
 function resolveNoElimination(room, counts, reason) {
+  room.lastTie = { counts, reason, at: Date.now() }
   io.to(room.code).emit('game:tie', { counts, reason })
   advanceToDiscussion(room)
 }
@@ -645,7 +903,9 @@ function tryAdvanceReveal(room) {
   if (room.players.every(p => p.ready)) {
     room.phase = 'discussion'
     const speakOrder = makeSpeakOrder(room)
+    room.speakOrder = speakOrder
     io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder })
+    saveRoom(room)
   }
 }
 
@@ -654,8 +914,10 @@ function afterPlayerListChanged(room) {
     const v = checkVictory(room)
     if (v) {
       room.phase = 'ended'
+      room.result = gameOverPayload(room, v)
       clearInterrogation(room)
-      io.to(room.code).emit('game:over', gameOverPayload(room, v))
+      io.to(room.code).emit('game:over', room.result)
+      saveRoom(room)
       return
     }
   }
@@ -702,8 +964,10 @@ function tryResolveVotes(room) {
   const v = checkVictory(room)
   if (v) {
     room.phase = 'ended'
+    room.result = gameOverPayload(room, v)
     clearInterrogation(room)
-    io.to(room.code).emit('game:over', gameOverPayload(room, v))
+    io.to(room.code).emit('game:over', room.result)
+    saveRoom(room)
   } else {
     advanceToDiscussion(room)
   }
@@ -724,12 +988,13 @@ function findPlayerForResume(room, name, sessionToken) {
 
 io.on('connection', (socket) => {
 
-  socket.on('room:create', ({ hostName, avatar, config } = {}) => {
+  socket.on('room:create', async ({ hostName, avatar, config } = {}) => {
     if (!allow(socket.id, 2)) return
     const name = sanitizeName(hostName)
     if (!name) { socket.emit('room:error', { message: 'Nombre inválido' }); return }
-    const room = makeRoom(socket.id, name, avatar, config || {})
+    const room = await makeRoom(socket.id, name, avatar, config || {})
     socket.join(room.code)
+    await persistRoom(room)
     socket.emit('room:created', {
       code: room.code,
       room: sanitizeRoom(room),
@@ -737,35 +1002,37 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on('room:join', ({ code, playerName, avatar } = {}) => {
+  socket.on('room:join', async ({ code, playerName, avatar } = {}) => {
     if (!allow(socket.id, 2)) return
     if (!isValidCode(code)) { socket.emit('room:error', { message: 'Código inválido' }); return }
     const name = sanitizeName(playerName)
     if (!name) { socket.emit('room:error', { message: 'Nombre inválido' }); return }
-    const room = rooms.get(code.toUpperCase())
+    const room = await getRoomByCode(code)
     if (!room) { socket.emit('room:error', { message: 'Sala no encontrada' }); return }
     if (room.players.length >= 12) { socket.emit('room:error', { message: 'Sala llena' }); return }
     if (room.phase !== 'lobby') { socket.emit('room:error', { message: 'La partida ya empezó' }); return }
     if (findPlayerByName(room, name)) { socket.emit('room:error', { message: 'Ese nombre ya está en la sala' }); return }
     const player = {
-      id: socket.id, socketId: socket.id,
+      id: playerIdGen(), socketId: socket.id,
       sessionToken: tokenGen(),
       name, avatar: normalizeAvatar(avatar, name),
       isHost: false, ready: false, eliminated: false, disconnected: false,
+      disconnectedAt: null, disconnectExpiresAt: null,
     }
     room.players.push(player)
     socket.join(room.code)
     socket.emit('room:joined', { code: room.code, room: sanitizeRoom(room), you: privatePlayerPayload(player) })
     broadcastPlayers(room)
+    saveRoom(room)
   })
 
-  socket.on('room:resume', ({ code, name, sessionToken } = {}) => {
+  socket.on('room:resume', async ({ code, name, sessionToken } = {}) => {
     if (!allow(socket.id, 1)) return
     if (!isValidCode(code)) {
       socket.emit('room:resumeFailed', { message: 'Codigo invalido' })
       return
     }
-    const room = rooms.get(code.toUpperCase())
+    const room = await getRoomByCode(code)
     if (!room) {
       socket.emit('room:resumeFailed', { message: 'La sala ya no existe' })
       return
@@ -785,7 +1052,13 @@ io.on('connection', (socket) => {
     }
     player.socketId = socket.id
     player.disconnected = false
-    assignHost(room)
+    player.disconnectedAt = null
+    player.disconnectExpiresAt = null
+    if (room.players.some(item => item.id === room.hostId)) {
+      syncHostFlags(room)
+    } else {
+      assignHost(room)
+    }
     if (room.phase === 'voting') {
       recalculateVotes(room)
       emitVoteUpdate(room)
@@ -800,10 +1073,12 @@ io.on('connection', (socket) => {
       ...privatePlayerPayload(player),
       clientPhase,
       votedFor: room.voters[player.id] || null,
+      lastGuessRound: room.lastGuessRounds[player.id] ?? -1,
       ...(rolePayloadFor(room, player.id) || {}),
     }
     socket.emit('room:resumed', { code: room.code, room: sanitizeRoom(room, player.id), you })
     broadcastPlayers(room)
+    saveRoom(room)
   })
 
   socket.on('room:updateConfig', ({ config } = {}) => {
@@ -813,6 +1088,7 @@ io.on('connection', (socket) => {
     if (!room || !player || room.hostId !== player.id) return
     room.config = { ...room.config, ...sanitizeConfig(config) }
     io.to(room.code).emit('room:config', { config: room.config })
+    saveRoom(room)
   })
 
   socket.on('room:leave', () => leaveSocket(socket, true))
@@ -901,9 +1177,13 @@ io.on('connection', (socket) => {
     room.detectiveInterrogationUsedBy = null
     room.impostorGuessedWord = false
     room.lastGuessRounds = {}
+    room.speakOrder = []
+    room.lastTie = null
+    room.result = null
     room.players.forEach(p => { p.eliminated = false; p.ready = false })
     io.to(room.code).emit('game:started')
     emitYourRole(room)
+    saveRoom(room)
   })
 
   socket.on('game:cardReady', () => {
@@ -914,6 +1194,7 @@ io.on('connection', (socket) => {
     if (player) player.ready = true
     broadcastPlayers(room)
     tryAdvanceReveal(room)
+    saveRoom(room)
   })
 
   socket.on('game:goToVote', () => {
@@ -925,6 +1206,7 @@ io.on('connection', (socket) => {
     room.phase = 'voting'
     room.votes = {}; room.voters = {}
     io.to(room.code).emit('game:phase', { phase: 'voting' })
+    saveRoom(room)
   })
 
   socket.on('chat:message', ({ text } = {}) => {
@@ -951,6 +1233,7 @@ io.on('connection', (socket) => {
     const message = chatPayloadFor(player, cleanText)
     room.chatMessages = [...room.chatMessages, message].slice(-CHAT_MESSAGE_LIMIT)
     io.to(room.code).emit('chat:message', { message })
+    saveRoom(room)
   })
 
   socket.on('game:detectiveInterrogate', ({ targetId } = {}) => {
@@ -983,15 +1266,14 @@ io.on('connection', (socket) => {
 
     room.detectiveInterrogationUsedBy = detective.id
     room.interrogation = buildInterrogationPayload(room, detective, target)
+    scheduleInterrogationTimer(room)
     room.players.forEach(player => {
       if (player.disconnected || !player.socketId) return
       io.to(player.socketId).emit('game:interrogationStarted', {
         interrogation: interrogationPayloadFor(room.interrogation, player.id),
       })
     })
-    room.interrogationTimer = setTimeout(() => {
-      clearInterrogation(room)
-    }, INTERROGATION_DURATION_MS)
+    saveRoom(room)
   })
 
   socket.on('vote:cast', ({ targetId } = {}) => {
@@ -1008,6 +1290,7 @@ io.on('connection', (socket) => {
     recalculateVotes(room)
     emitVoteUpdate(room)
     tryResolveVotes(room)
+    saveRoom(room)
   })
 
   socket.on('game:newRound', () => {
@@ -1019,8 +1302,11 @@ io.on('connection', (socket) => {
     room.votes = {}; room.voters = {}
     room.phase = 'discussion'
     const speakOrder = makeSpeakOrder(room)
+    room.speakOrder = speakOrder
+    room.lastTie = null
     io.to(room.code).emit('game:newRound', { round: room.round, speakOrder })
     io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder })
+    saveRoom(room)
   })
 
   socket.on('room:rematch', () => {
@@ -1049,11 +1335,15 @@ io.on('connection', (socket) => {
     clearInterrogation(room, { emit: false })
     room.impostorGuessedWord = false
     room.lastGuessRounds = {}
+    room.speakOrder = []
+    room.lastTie = null
+    room.result = null
     room.players.forEach(p => {
       p.eliminated = false
       p.ready = false
     })
     io.to(room.code).emit('room:rematch', { room: sanitizeRoom(room) })
+    saveRoom(room)
   })
 
   socket.on('game:guessWord', ({ word } = {}) => {
@@ -1076,11 +1366,13 @@ io.on('connection', (socket) => {
       room.impostorGuessedWord = true
       const v = { winner: 'impostor', reason: 'wordGuessed' }
       room.phase = 'ended'
+      room.result = gameOverPayload(room, v)
       clearInterrogation(room)
-      io.to(room.code).emit('game:over', gameOverPayload(room, v))
+      io.to(room.code).emit('game:over', room.result)
     } else {
       io.to(room.code).emit('game:guessFailed', { playerId: player.id })
     }
+    saveRoom(room)
   })
 
   socket.on('disconnect', () => leaveSocket(socket, false))
@@ -1102,12 +1394,16 @@ function leaveSocket(socket, hard) {
   if (hard || room.phase === 'ended') {
     room.players = room.players.filter(p => p.socketId !== socket.id)
     delete room.roles[player.id]
+    delete room.voters[player.id]
+    delete room.votes[player.id]
+    delete room.lastGuessRounds[player.id]
+    room.speakOrder = (room.speakOrder || []).filter(id => id !== player.id)
     if (room.interrogation && (room.interrogation.detectiveId === player.id || room.interrogation.targetId === player.id)) {
       clearInterrogation(room)
     }
     if (!room.players.length) {
       clearInterrogation(room, { emit: false })
-      rooms.delete(room.code)
+      removeRoom(room.code)
       return
     }
     const hostChanged = room.hostId === player.id
@@ -1115,35 +1411,18 @@ function leaveSocket(socket, hard) {
     broadcastPlayers(room)
     if (hostChanged) notifyHostAssigned(room, newHost)
     if (wasActiveGame) afterPlayerListChanged(room)
+    saveRoom(room)
     return
   }
 
   // Partida en curso → marcar desconectado y dar gracia para reconexión
   player.disconnected = true
-  const hostChanged = room.hostId === player.id
-  const newHost = assignHost(room)
+  player.disconnectedAt = Date.now()
+  player.disconnectExpiresAt = player.disconnectedAt + RECONNECT_GRACE_MS
+  player.socketId = null
   broadcastPlayers(room)
-  if (hostChanged) notifyHostAssigned(room, newHost)
-  room.disconnectTimers[player.id] = setTimeout(() => {
-    delete room.disconnectTimers[player.id]
-    const stillThere = room.players.find(p => p.id === player.id)
-    if (!stillThere || !stillThere.disconnected) return
-    room.players = room.players.filter(p => p.id !== player.id)
-    delete room.roles[player.id]
-    if (room.interrogation && (room.interrogation.detectiveId === player.id || room.interrogation.targetId === player.id)) {
-      clearInterrogation(room)
-    }
-    if (!room.players.length) {
-      clearInterrogation(room, { emit: false })
-      rooms.delete(room.code)
-      return
-    }
-    const hostChanged = room.hostId === player.id
-    const newHost = assignHost(room)
-    broadcastPlayers(room)
-    if (hostChanged) notifyHostAssigned(room, newHost)
-    afterPlayerListChanged(room)
-  }, RECONNECT_GRACE_MS)
+  scheduleDisconnectTimer(room, player)
+  saveRoom(room)
 }
 
 server.listen(PORT, () => {

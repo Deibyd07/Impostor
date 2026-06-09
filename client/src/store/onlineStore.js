@@ -51,6 +51,7 @@ function isCurrentHost(players, myId, fallback = false) {
 export const useOnlineStore = create((set, get) => ({
   socket: null,
   connected: false,
+  resumePending: false,
   roomCode: null,
   isHost: false,
   myId: null,
@@ -89,10 +90,12 @@ export const useOnlineStore = create((set, get) => ({
     })
 
     socket.on('connect', () => {
-      set({ connected: true })
       const s = loadSession()
       if (s?.code && s?.name && s?.sessionToken) {
+        set({ connected: true, resumePending: true })
         socket.emit('room:resume', { code: s.code, name: s.name, sessionToken: s.sessionToken })
+      } else {
+        set({ connected: true, resumePending: false })
       }
     })
     socket.on('disconnect', () => set({ connected: false }))
@@ -108,11 +111,18 @@ export const useOnlineStore = create((set, get) => ({
       set({
         roomCode: code, isHost: true, myId, myName, myAvatar,
         players: room.players, config: room.config, phase: 'lobby',
+        votes: room.votes || {},
+        votersReady: room.votersReady || 0,
+        round: room.round || 1,
+        speakOrder: room.speakOrder || [],
+        lastTie: room.lastTie || null,
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
         myImpostorTeammates: [],
+        result: room.result || null,
         eliminationReveal: null,
+        resumePending: false,
       })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
@@ -123,11 +133,18 @@ export const useOnlineStore = create((set, get) => ({
       set({
         roomCode: code, isHost: false, myId, myName, myAvatar,
         players: room.players, config: room.config, phase: 'lobby',
+        votes: room.votes || {},
+        votersReady: room.votersReady || 0,
+        round: room.round || 1,
+        speakOrder: room.speakOrder || [],
+        lastTie: room.lastTie || null,
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
         myImpostorTeammates: [],
+        result: room.result || null,
         eliminationReveal: null,
+        resumePending: false,
       })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
@@ -138,13 +155,21 @@ export const useOnlineStore = create((set, get) => ({
         players: room.players,
         config: room.config,
         phase: you?.clientPhase || room.phase || 'lobby',
+        votes: room.votes || {},
+        votersReady: room.votersReady || 0,
+        round: room.round || 1,
+        speakOrder: room.speakOrder || [],
+        lastTie: room.lastTie || null,
+        result: room.result || null,
         myId: you?.id || get().myId,
         myName: you?.name || get().myName,
         myAvatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         votedFor: you?.votedFor || null,
+        lastGuessRound: Number.isFinite(you?.lastGuessRound) ? you.lastGuessRound : -1,
         eliminationReveal: null,
+        resumePending: false,
       })
       scheduleInterrogationClear(room.interrogation, set)
       saveSession({
@@ -192,6 +217,7 @@ export const useOnlineStore = create((set, get) => ({
         detectiveInterrogation: null,
         detectiveInterrogationUsed: false,
         eliminationReveal: null,
+        resumePending: false,
       })
       if (message) toast.warn(message, { duration: 3500 })
     })
@@ -206,6 +232,12 @@ export const useOnlineStore = create((set, get) => ({
         players: room?.players || get().players,
         config: room?.config || get().config,
         phase: room?.phase || get().phase,
+        votes: room?.votes || get().votes,
+        votersReady: room?.votersReady ?? get().votersReady,
+        round: room?.round || get().round,
+        speakOrder: room?.speakOrder || get().speakOrder,
+        lastTie: room?.lastTie || get().lastTie,
+        result: room?.result || get().result,
         detectiveInterrogation: room?.interrogation || get().detectiveInterrogation,
       })
       toast.success('Ahora eres el anfitrion', { duration: 3000 })
@@ -371,6 +403,7 @@ export const useOnlineStore = create((set, get) => ({
     set({
       socket: null,
       connected: false,
+      resumePending: false,
       roomCode: null,
       isHost: false,
       players: [],
@@ -407,6 +440,7 @@ export const useOnlineStore = create((set, get) => ({
     clearInterrogationClearTimer()
     set({
       roomCode: null,
+      resumePending: false,
       isHost: false,
       players: [],
       phase: 'lobby',
