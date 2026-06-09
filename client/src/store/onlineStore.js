@@ -75,6 +75,8 @@ export const useOnlineStore = create((set, get) => ({
   chatMessages: [],
   detectiveInterrogation: null,
   detectiveInterrogationUsed: false,
+  eliminationReveal: null,
+  clearEliminationReveal: () => set({ eliminationReveal: null }),
 
   connect: () => {
     if (get().socket) return
@@ -108,6 +110,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
+        eliminationReveal: null,
       })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
@@ -121,6 +124,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
+        eliminationReveal: null,
       })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
     })
@@ -136,6 +140,7 @@ export const useOnlineStore = create((set, get) => ({
         myAvatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
+        eliminationReveal: null,
       })
       scheduleInterrogationClear(room.interrogation, set)
       saveSession({
@@ -190,6 +195,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: [],
         detectiveInterrogation: null,
         detectiveInterrogationUsed: false,
+        eliminationReveal: null,
       })
     })
     socket.on('game:yourRole', ({ role, word, clue, detectiveInterrogationUsed }) => {
@@ -238,11 +244,22 @@ export const useOnlineStore = create((set, get) => ({
     })
     socket.on('game:eliminated', ({ playerId, wasImpostor, name }) => {
       set((s) => {
+        const eliminated = s.players.find(p => p.id === playerId)
         const players = s.players.map(p => p.id === playerId ? { ...p, eliminated: true } : p)
         const youOut = playerId === s.myId
-        return { players, ...(youOut ? { phase: 'spectator' } : {}) }
+        return {
+          players,
+          eliminationReveal: {
+            id: `${playerId}-${Date.now()}`,
+            playerId,
+            name: name || eliminated?.name || 'Jugador eliminado',
+            avatar: eliminated?.avatar,
+            wasImpostor: !!wasImpostor,
+          },
+          ...(youOut ? { phase: 'spectator' } : {}),
+        }
       })
-      sfx.eliminate()
+      sfx.eliminate({ wasImpostor })
       toast.info(
         wasImpostor ? `${name || 'El sospechoso'} era impostor` : `${name || 'El sospechoso'} era inocente`,
         { kind: wasImpostor ? 'success' : 'warn', duration: 3600 }
@@ -288,6 +305,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
+        eliminationReveal: null,
       })
       scheduleInterrogationClear(room.interrogation, set)
       saveSession({ ...loadSession(), code: get().roomCode, name: get().myName })
@@ -317,6 +335,7 @@ export const useOnlineStore = create((set, get) => ({
       chatMessages: [],
       detectiveInterrogation: null,
       detectiveInterrogationUsed: false,
+      eliminationReveal: null,
     })
   },
 
@@ -350,6 +369,7 @@ export const useOnlineStore = create((set, get) => ({
       chatMessages: [],
       detectiveInterrogation: null,
       detectiveInterrogationUsed: false,
+      eliminationReveal: null,
     })
   },
 

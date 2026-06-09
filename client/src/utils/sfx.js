@@ -262,6 +262,22 @@ const fallback = {
   },
 }
 
+function eliminationAccent({ wasImpostor = false } = {}) {
+  tone({ freq: 96, freqEnd: 42, slideTime: 0.78, dur: 0.78, type: 'sawtooth', gain: 0.22, release: 0.28 })
+  tone({ freq: 52, freqEnd: 34, slideTime: 0.9, dur: 0.9, type: 'sine', gain: 0.2, release: 0.34 })
+  noise({ dur: 0.28, gain: 0.14, filterHz: 520 })
+  setTimeout(() => noise({ dur: 0.18, gain: 0.1, filterHz: 1200 }), 560)
+  setTimeout(() => {
+    if (wasImpostor) {
+      tone({ freq: 392, dur: 0.18, type: 'triangle', gain: 0.14, release: 0.14 })
+      setTimeout(() => tone({ freq: 587.33, dur: 0.22, type: 'triangle', gain: 0.13, release: 0.18 }), 120)
+      return
+    }
+    tone({ freq: 196, freqEnd: 98, slideTime: 0.34, dur: 0.34, type: 'square', gain: 0.13, release: 0.18 })
+    setTimeout(() => tone({ freq: 82.41, dur: 0.28, type: 'sawtooth', gain: 0.1, release: 0.22 }), 120)
+  }, 1450)
+}
+
 usePrefsStore.subscribe((state, previous) => {
   const soundChanged = state.sound !== previous.sound
   const volumeChanged = state.volume !== previous.volume
@@ -365,9 +381,10 @@ export const sfx = {
     playEvent('chatMessage')
   },
 
-  eliminate() {
+  eliminate({ wasImpostor = false } = {}) {
     playEvent('eliminate', fallback.eliminate)
-    vibrate([80, 60, 120])
+    eliminationAccent({ wasImpostor })
+    vibrate(wasImpostor ? [90, 40, 130, 60, 90] : [90, 50, 160, 80, 180])
   },
 
   tie() {

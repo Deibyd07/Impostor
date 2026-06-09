@@ -26,6 +26,7 @@ import ToastHost from './components/ToastHost.jsx'
 import RouteTransition from './components/RouteTransition.jsx'
 import PrefsToggle from './components/PrefsToggle.jsx'
 import SplashScreen from './components/SplashScreen.jsx'
+import EliminationEffect from './components/EliminationEffect.jsx'
 import { useGameStore } from './store/gameStore.js'
 import { useOnlineStore } from './store/onlineStore.js'
 import { sfx } from './utils/sfx.js'
@@ -85,12 +86,20 @@ export default function App() {
               <SoundDirector />
               <RouteTransition routes={routes} />
             </BrowserRouter>
+            <OnlineEliminationEffectHost />
             <ToastHost />
           </>
         )}
       </div>
     </div>
   )
+}
+
+function OnlineEliminationEffectHost() {
+  const reveal = useOnlineStore(s => s.eliminationReveal)
+  const clearReveal = useOnlineStore(s => s.clearEliminationReveal)
+
+  return <EliminationEffect reveal={reveal} onComplete={clearReveal} />
 }
 
 function SoundDirector() {
