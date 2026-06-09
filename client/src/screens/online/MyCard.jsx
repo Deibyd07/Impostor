@@ -14,6 +14,7 @@ export default function MyCard() {
   const myRole = useOnlineStore(s => s.myRole)
   const myWord = useOnlineStore(s => s.myWord)
   const myClue = useOnlineStore(s => s.myClue)
+  const myImpostorTeammates = useOnlineStore(s => s.myImpostorTeammates)
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
   const cardReady = useOnlineStore(s => s.cardReady)
@@ -72,6 +73,7 @@ export default function MyCard() {
           variant={myRole}
           word={myWord}
           clue={myClue}
+          impostorTeammates={myImpostorTeammates}
           seconds={seconds}
           totalSeconds={TOTAL}
         />

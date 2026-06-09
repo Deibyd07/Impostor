@@ -2153,6 +2153,14 @@ textarea:focus-visible {
   background: rgba(34, 197, 94, 0.07);
 }
 
+.voice-chip.is-speaking {
+  border-color: rgba(34, 197, 94, 0.58);
+  background:
+    radial-gradient(100% 120% at 0% 0%, rgba(34, 197, 94, 0.14), transparent 68%),
+    rgba(34, 197, 94, 0.08);
+  box-shadow: 0 0 24px -10px rgba(34, 197, 94, 0.86);
+}
+
 .voice-chip.is-muted {
   opacity: 0.72;
 }
@@ -2168,19 +2176,26 @@ textarea:focus-visible {
   font-size: 17px;
 }
 
+.voice-chip.is-speaking > span {
+  border-color: rgba(34, 197, 94, 0.58);
+  box-shadow: 0 0 18px -8px rgba(34, 197, 94, 0.88);
+}
+
 .voice-chip__body {
   min-width: 0;
 }
 
 .voice-chip__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
 }
 
 .voice-chip strong {
+  flex: 1 1 auto;
+  min-width: 0;
   display: block;
   overflow: hidden;
   color: var(--text-1);
@@ -2189,6 +2204,23 @@ textarea:focus-visible {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.voice-chip__speaking {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.36);
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--victory);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.58));
+  animation: voiceSpeakingPulse 900ms ease-in-out infinite;
 }
 
 .voice-chip em {
@@ -2219,6 +2251,18 @@ textarea:focus-visible {
   width: 100%;
   min-height: 28px;
   accent-color: var(--gold);
+}
+
+@keyframes voiceSpeakingPulse {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.76;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .discussion-room {
@@ -2335,7 +2379,8 @@ textarea:focus-visible {
 
 .discussion-speaker-card span,
 .discussion-dossier__secret span,
-.discussion-dossier__strategy span {
+.discussion-dossier__strategy span,
+.discussion-dossier__team > span {
   color: var(--text-3);
   font-family: var(--font-ui);
   font-size: 10px;
@@ -2436,7 +2481,8 @@ textarea:focus-visible {
 }
 
 .discussion-dossier__secret,
-.discussion-dossier__strategy {
+.discussion-dossier__strategy,
+.discussion-dossier__team {
   padding: 14px;
   border: 1px solid rgba(245, 158, 11, 0.14);
   border-radius: 12px;
@@ -2471,6 +2517,51 @@ textarea:focus-visible {
   font-size: 13px;
   font-style: italic;
   line-height: 1.5;
+}
+
+.discussion-dossier__team {
+  border-color: rgba(248, 113, 113, 0.24);
+  background:
+    radial-gradient(110% 120% at 0% 0%, rgba(220, 38, 38, 0.12), transparent 68%),
+    rgba(255,255,255,0.018);
+}
+
+.discussion-dossier__team > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.discussion-dossier__team strong {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  background: rgba(7, 7, 15, 0.36);
+  color: #fecaca;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discussion-dossier__team b {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.26);
+  background: rgba(220, 38, 38, 0.14);
+  color: var(--gold-soft);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .discussion-dossier__status {

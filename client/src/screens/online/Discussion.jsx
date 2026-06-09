@@ -16,6 +16,7 @@ export default function Discussion() {
   const myRole = useOnlineStore(s => s.myRole)
   const myWord = useOnlineStore(s => s.myWord)
   const myClue = useOnlineStore(s => s.myClue)
+  const myImpostorTeammates = useOnlineStore(s => s.myImpostorTeammates)
   const myId = useOnlineStore(s => s.myId)
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
@@ -79,6 +80,7 @@ export default function Discussion() {
             role={myRole}
             word={myWord}
             clue={myClue}
+            impostorTeammates={myImpostorTeammates}
             round={round}
             strategy={strategy}
             canGuess={canGuess}
@@ -104,6 +106,7 @@ export default function Discussion() {
             role={myRole}
             word={myWord}
             clue={myClue}
+            impostorTeammates={myImpostorTeammates}
             round={round}
             strategy={strategy}
             canGuess={canGuess}
@@ -156,10 +159,11 @@ export default function Discussion() {
   )
 }
 
-function DiscussionDossier({ role, word, clue, round, strategy, canGuess, guessAvailableAt }) {
+function DiscussionDossier({ role, word, clue, impostorTeammates = [], round, strategy, canGuess, guessAvailableAt }) {
   const meta = roleMeta(role)
   const revealWord = (meta.showsWord && word) || (role === 'detective-impostor' && word)
   const revealClue = (role === 'impostor-clue' || role === 'detective-impostor') && clue
+  const hasImpostorTeammates = impostorTeammates.length > 0
 
   return (
     <aside className={`discussion-dossier discussion-dossier--${meta.tone}`}>
@@ -177,6 +181,19 @@ function DiscussionDossier({ role, word, clue, round, strategy, canGuess, guessA
         <span>Estrategia</span>
         <p>{strategy}</p>
       </div>
+      {hasImpostorTeammates && (
+        <div className="discussion-dossier__team">
+          <span>Equipo impostor</span>
+          <div>
+            {impostorTeammates.map(teammate => (
+              <strong key={teammate.id}>
+                <b>{teammate.avatar || teammate.name?.trim()?.charAt(0)?.toUpperCase() || '?'}</b>
+                {teammate.name}
+              </strong>
+            ))}
+          </div>
+        </div>
+      )}
       {meta.tone === 'red' && (
         <div className="discussion-dossier__status">
           {canGuess ? 'Adivinanza disponible' : `Adivinar en ronda ${guessAvailableAt}`}

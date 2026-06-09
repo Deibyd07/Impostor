@@ -62,6 +62,7 @@ export const useOnlineStore = create((set, get) => ({
   myRole: null,         // 'citizen' | 'detective' | 'detective-impostor' | 'impostor' | 'impostor-blind' | 'impostor-clue'
   myWord: null,
   myClue: null,
+  myImpostorTeammates: [],
   votes: {},            // { targetId: count }
   votedFor: null,
   votersReady: 0,       // cuántos votaron
@@ -88,7 +89,7 @@ export const useOnlineStore = create((set, get) => ({
     })
 
     socket.on('connect', () => {
-      set({ connected: true, myId: socket.id })
+      set({ connected: true })
       const s = loadSession()
       if (s?.code && s?.name && s?.sessionToken) {
         socket.emit('room:resume', { code: s.code, name: s.name, sessionToken: s.sessionToken })
@@ -110,6 +111,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
+        myImpostorTeammates: [],
         eliminationReveal: null,
       })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
@@ -124,6 +126,7 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
+        myImpostorTeammates: [],
         eliminationReveal: null,
       })
       saveSession({ code, name: myName, avatar: myAvatar, sessionToken: you?.sessionToken })
@@ -134,12 +137,13 @@ export const useOnlineStore = create((set, get) => ({
         isHost: !!you?.isHost,
         players: room.players,
         config: room.config,
-        phase: room.phase || 'lobby',
-        myId: socket.id,
+        phase: you?.clientPhase || room.phase || 'lobby',
+        myId: you?.id || get().myId,
         myName: you?.name || get().myName,
         myAvatar: normalizeAvatar(you?.avatar || get().myAvatar, you?.name || get().myName),
         chatMessages: room.chatMessages || [],
         detectiveInterrogation: room.interrogation || null,
+        votedFor: you?.votedFor || null,
         eliminationReveal: null,
       })
       scheduleInterrogationClear(room.interrogation, set)
@@ -154,10 +158,42 @@ export const useOnlineStore = create((set, get) => ({
           myRole: you.role,
           myWord: you.word ?? null,
           myClue: you.clue ?? null,
+          myImpostorTeammates: Array.isArray(you.impostorTeammates) ? you.impostorTeammates : [],
           detectiveInterrogationUsed: !!you.detectiveInterrogationUsed,
+        })
+      } else {
+        set({
+          myRole: null,
+          myWord: null,
+          myClue: null,
+          myImpostorTeammates: [],
+          detectiveInterrogationUsed: false,
         })
       }
       toast.success('Te reconectaste a la sala', { duration: 2500 })
+    })
+    socket.on('room:resumeFailed', ({ message } = {}) => {
+      clearSession()
+      clearInterrogationClearTimer()
+      set({
+        roomCode: null,
+        isHost: false,
+        myId: null,
+        players: [],
+        config: null,
+        phase: 'lobby',
+        myRole: null,
+        myWord: null,
+        myClue: null,
+        myImpostorTeammates: [],
+        votes: {},
+        votedFor: null,
+        chatMessages: [],
+        detectiveInterrogation: null,
+        detectiveInterrogationUsed: false,
+        eliminationReveal: null,
+      })
+      if (message) toast.warn(message, { duration: 3500 })
     })
     socket.on('room:players', ({ players }) => {
       const { myId, isHost } = get()
@@ -185,6 +221,10 @@ export const useOnlineStore = create((set, get) => ({
       clearInterrogationClearTimer()
       set({
         phase: 'reveal',
+        myRole: null,
+        myWord: null,
+        myClue: null,
+        myImpostorTeammates: [],
         votes: {},
         votedFor: null,
         guessAttempts: 0,
@@ -198,8 +238,14 @@ export const useOnlineStore = create((set, get) => ({
         eliminationReveal: null,
       })
     })
-    socket.on('game:yourRole', ({ role, word, clue, detectiveInterrogationUsed }) => {
-      set({ myRole: role, myWord: word, myClue: clue, detectiveInterrogationUsed: !!detectiveInterrogationUsed })
+    socket.on('game:yourRole', ({ role, word, clue, impostorTeammates, detectiveInterrogationUsed }) => {
+      set({
+        myRole: role,
+        myWord: word,
+        myClue: clue,
+        myImpostorTeammates: Array.isArray(impostorTeammates) ? impostorTeammates : [],
+        detectiveInterrogationUsed: !!detectiveInterrogationUsed,
+      })
     })
     socket.on('game:phase', ({ phase, speakOrder }) => {
       const update = {
@@ -274,10 +320,10 @@ export const useOnlineStore = create((set, get) => ({
       }
       toast.warn('Empate. Nueva ronda de discusión.', { duration: 3500 })
     })
-    socket.on('game:guessFailed', ({ socketId }) => {
+    socket.on('game:guessFailed', ({ playerId, socketId }) => {
       const { myId } = get()
       sfx.guessWrong()
-      if (socketId === myId) {
+      if ((playerId || socketId) === myId) {
         set((s) => ({ guessAttempts: s.guessAttempts + 1, lastGuessRound: s.round }))
         toast.error('Palabra incorrecta', { duration: 3000 })
       } else {
@@ -299,7 +345,7 @@ export const useOnlineStore = create((set, get) => ({
         players: room.players,
         config: room.config,
         isHost: isCurrentHost(room.players, get().myId, get().isHost),
-        myRole: null, myWord: null, myClue: null,
+        myRole: null, myWord: null, myClue: null, myImpostorTeammates: [],
         votes: {}, votedFor: null, votersReady: 0,
         result: null, guessAttempts: 0, round: 1, lastGuessRound: -1, speakOrder: [], lastTie: null,
         chatMessages: room.chatMessages || [],
@@ -331,6 +377,8 @@ export const useOnlineStore = create((set, get) => ({
       phase: 'lobby',
       myRole: null,
       myWord: null,
+      myClue: null,
+      myImpostorTeammates: [],
       myAvatar: null,
       chatMessages: [],
       detectiveInterrogation: null,
@@ -364,6 +412,8 @@ export const useOnlineStore = create((set, get) => ({
       phase: 'lobby',
       myRole: null,
       myWord: null,
+      myClue: null,
+      myImpostorTeammates: [],
       votes: {},
       votedFor: null,
       chatMessages: [],

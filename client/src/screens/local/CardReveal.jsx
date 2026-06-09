@@ -29,6 +29,15 @@ export default function CardReveal() {
       : session.word
   )
   const clue = session.clue
+  const impostorTeammates = variant !== 'impostor-blind' && isImpostorRole(player.role)
+    ? session.players
+      .filter(candidate => candidate.id !== player.id && isImpostorRole(candidate.role))
+      .map(candidate => ({
+        id: candidate.id,
+        name: candidate.name,
+        avatar: candidate.avatar,
+      }))
+    : []
 
   const { seconds } = useTimer(TOTAL_SECONDS, { autoStart: true })
 
@@ -53,6 +62,7 @@ export default function CardReveal() {
             variant={variant}
             word={word}
             clue={clue}
+            impostorTeammates={impostorTeammates}
             seconds={seconds}
             totalSeconds={TOTAL_SECONDS}
           />

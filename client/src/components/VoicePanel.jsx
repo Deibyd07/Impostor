@@ -1,6 +1,6 @@
 import SectionHeader from './SectionHeader.jsx'
 import { useOnlineStore } from '../store/onlineStore.js'
-import { useVoiceStore } from '../store/voiceStore.js'
+import { LOCAL_SPEAKER_ID, useVoiceStore } from '../store/voiceStore.js'
 import { resolveVoiceChannel } from '../utils/voiceChannels.js'
 
 export default function VoicePanel({ compact = false }) {
@@ -21,6 +21,7 @@ export default function VoicePanel({ compact = false }) {
   const peers = useVoiceStore(s => s.peers)
   const outputVolume = useVoiceStore(s => s.outputVolume)
   const peerVolumes = useVoiceStore(s => s.peerVolumes)
+  const speakingPeerIds = useVoiceStore(s => s.speakingPeerIds)
   const start = useVoiceStore(s => s.start)
   const stop = useVoiceStore(s => s.stop)
   const toggleMic = useVoiceStore(s => s.toggleMic)
@@ -28,6 +29,7 @@ export default function VoicePanel({ compact = false }) {
   const setPeerVolume = useVoiceStore(s => s.setPeerVolume)
 
   const peerList = Object.values(peers)
+  const speakingPeers = new Set(speakingPeerIds)
   const connectedCount = (enabled ? 1 : 0) + peerList.length
   const me = players.find(player => player.id === myId)
   const voiceChannel = resolveVoiceChannel({
@@ -101,12 +103,20 @@ export default function VoicePanel({ compact = false }) {
 
       {enabled && (
         <div className="voice-panel__peers" aria-label="Jugadores en voz">
-          <VoiceChip player={me} label="Tu" active={micOpen} muted={!micOpen} />
+          <VoiceChip
+            player={me}
+            label="Tu"
+            active={micOpen}
+            muted={!micOpen}
+            speaking={speakingPeers.has(LOCAL_SPEAKER_ID)}
+          />
           {peerList.map(peer => (
             <VoiceChip
               key={peer.id}
               player={peer}
               label={peer.status === 'connected' ? 'Conectado' : 'Conectando'}
+              active={peer.status === 'connected'}
+              speaking={speakingPeers.has(peer.id)}
               volume={peerVolumes[peer.id] ?? 1}
               masterVolume={outputVolume}
               onVolumeChange={(value) => setPeerVolume(peer.id, value)}
@@ -118,17 +128,22 @@ export default function VoicePanel({ compact = false }) {
   )
 }
 
-function VoiceChip({ player, label, active = false, muted = false, volume = null, masterVolume = 1, onVolumeChange }) {
+function VoiceChip({ player, label, active = false, muted = false, speaking = false, volume = null, masterVolume = 1, onVolumeChange }) {
   const name = player?.name || 'Jugador'
   const avatar = player?.avatar || name.trim().charAt(0).toUpperCase() || '?'
   const hasVolume = typeof onVolumeChange === 'function'
   const finalVolume = Math.round((Number(volume) || 0) * masterVolume * 100)
   return (
-    <div className={`voice-chip ${hasVolume ? 'voice-chip--remote' : ''} ${active ? 'is-active' : ''} ${muted ? 'is-muted' : ''}`}>
+    <div className={`voice-chip ${hasVolume ? 'voice-chip--remote' : ''} ${active ? 'is-active' : ''} ${muted ? 'is-muted' : ''} ${speaking ? 'is-speaking' : ''}`}>
       <span>{avatar}</span>
       <div className="voice-chip__body">
         <div className="voice-chip__head">
           <strong>{name}</strong>
+          {speaking && (
+            <i className="voice-chip__speaking" aria-label="Hablando" title="Hablando">
+              🔊
+            </i>
+          )}
           {hasVolume && <em>{finalVolume}%</em>}
         </div>
         <small>{hasVolume ? `${label} · volumen personal` : label}</small>

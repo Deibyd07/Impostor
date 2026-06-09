@@ -2,9 +2,29 @@ import { create } from 'zustand'
 
 const VOICE_VOLUME_KEY = 'el-impostor-voice-volume'
 const VOICE_PEER_VOLUME_KEY = 'el-impostor-voice-peer-volumes'
+export const LOCAL_SPEAKER_ID = '__local__'
+const VOICE_JOIN_RETRY_DELAY_MS = 450
+const PEER_RECONNECT_DELAY_MS = 900
+const SPEECH_THRESHOLD = 0.035
+const SPEECH_HOLD_MS = 360
+const SPEECH_POLL_MS = 90
+const TURN_URLS = (import.meta.env.VITE_TURN_URLS || import.meta.env.VITE_TURN_URL || '')
+  .split(',')
+  .map(url => url.trim())
+  .filter(Boolean)
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || ''
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || ''
+const TURN_SERVER = TURN_URLS.length
+  ? {
+      urls: TURN_URLS,
+      ...(TURN_USERNAME ? { username: TURN_USERNAME } : {}),
+      ...(TURN_CREDENTIAL ? { credential: TURN_CREDENTIAL } : {}),
+    }
+  : null
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  ...(TURN_SERVER ? [TURN_SERVER] : []),
 ]
 
 let socketRef = null
@@ -20,6 +40,14 @@ let micWantedRef = true
 let canSpeakRef = true
 let allowedPeerIdsRef = null
 let peerVolumePrefs = loadPeerVolumePrefs()
+let audioContext = null
+let speechMeters = new Map()
+let speechLoopId = null
+let lastSpeechPublishAt = 0
+let lastSpeakingKey = ''
+let socketHandlers = null
+let voiceJoinRetryTimer = null
+let peerReconnectTimers = new Map()
 
 function loadVolume() {
   try {
@@ -104,6 +132,149 @@ function buildPeerPatch(peerId, patch = {}) {
 }
 
 export const useVoiceStore = create((set, get) => {
+  const clearVoiceJoinRetry = () => {
+    if (!voiceJoinRetryTimer) return
+    clearTimeout(voiceJoinRetryTimer)
+    voiceJoinRetryTimer = null
+  }
+
+  const scheduleVoiceJoinRetry = () => {
+    clearVoiceJoinRetry()
+    if (typeof window === 'undefined') return
+    voiceJoinRetryTimer = window.setTimeout(() => {
+      voiceJoinRetryTimer = null
+      joinIfReady({ force: true })
+    }, VOICE_JOIN_RETRY_DELAY_MS)
+  }
+
+  const clearPeerReconnectTimer = (peerId) => {
+    const timer = peerReconnectTimers.get(peerId)
+    if (!timer) return
+    clearTimeout(timer)
+    peerReconnectTimers.delete(peerId)
+  }
+
+  const clearPeerReconnectTimers = () => {
+    peerReconnectTimers.forEach(timer => clearTimeout(timer))
+    peerReconnectTimers = new Map()
+  }
+
+  const schedulePeerReconnect = (peerId) => {
+    if (!peerId || !get().enabled || !localStream || !isPeerAllowed(peerId)) return
+    clearPeerReconnectTimer(peerId)
+    const timer = setTimeout(() => {
+      peerReconnectTimers.delete(peerId)
+      if (!get().enabled || !localStream || !isPeerAllowed(peerId)) return
+      removePeer(peerId)
+      registerAvailablePeer(peerId)
+      joinIfReady({ force: true })
+    }, PEER_RECONNECT_DELAY_MS)
+    peerReconnectTimers.set(peerId, timer)
+  }
+
+  const publishSpeaking = (force = false) => {
+    const speakingPeerIds = [...speechMeters.entries()]
+      .filter(([peerId, meter]) => {
+        if (peerId === LOCAL_SPEAKER_ID && !get().micOpen) return false
+        return Date.now() - meter.lastSpokeAt < SPEECH_HOLD_MS
+      })
+      .map(([peerId]) => peerId)
+      .sort()
+    const key = speakingPeerIds.join('|')
+    if (!force && key === lastSpeakingKey) return
+    lastSpeakingKey = key
+    set({ speakingPeerIds })
+  }
+
+  const stopSpeechLoopIfIdle = () => {
+    if (speechMeters.size || !speechLoopId) return
+    cancelAnimationFrame(speechLoopId)
+    speechLoopId = null
+    lastSpeechPublishAt = 0
+    publishSpeaking(true)
+  }
+
+  const startSpeechLoop = () => {
+    if (speechLoopId || typeof requestAnimationFrame === 'undefined') return
+
+    const tick = () => {
+      const now = Date.now()
+      speechMeters.forEach((meter, peerId) => {
+        try {
+          meter.analyser.getByteTimeDomainData(meter.data)
+          let sum = 0
+          for (let i = 0; i < meter.data.length; i += 1) {
+            const value = (meter.data[i] - 128) / 128
+            sum += value * value
+          }
+          const level = Math.sqrt(sum / meter.data.length)
+          const shouldListen = peerId !== LOCAL_SPEAKER_ID || get().micOpen
+          if (shouldListen && level >= SPEECH_THRESHOLD) meter.lastSpokeAt = now
+        } catch {}
+      })
+
+      if (now - lastSpeechPublishAt >= SPEECH_POLL_MS) {
+        lastSpeechPublishAt = now
+        publishSpeaking()
+      }
+
+      if (speechMeters.size) {
+        speechLoopId = requestAnimationFrame(tick)
+      } else {
+        speechLoopId = null
+        publishSpeaking(true)
+      }
+    }
+
+    speechLoopId = requestAnimationFrame(tick)
+  }
+
+  const ensureAudioContext = async () => {
+    if (typeof window === 'undefined') return null
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) return null
+    audioContext = audioContext || new AudioContextClass()
+    if (audioContext.state === 'suspended') {
+      try { await audioContext.resume() } catch {}
+    }
+    return audioContext
+  }
+
+  const stopSpeechMeter = (peerId) => {
+    const meter = speechMeters.get(peerId)
+    if (!meter) return
+    try { meter.source.disconnect() } catch {}
+    speechMeters.delete(peerId)
+    stopSpeechLoopIfIdle()
+  }
+
+  const startSpeechMeter = async (peerId, stream) => {
+    if (!peerId || !stream?.getAudioTracks?.().length) return
+    const context = await ensureAudioContext()
+    if (!context) return
+    stopSpeechMeter(peerId)
+    try {
+      const source = context.createMediaStreamSource(stream)
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 512
+      analyser.smoothingTimeConstant = 0.72
+      source.connect(analyser)
+      speechMeters.set(peerId, {
+        source,
+        analyser,
+        data: new Uint8Array(analyser.fftSize),
+        lastSpokeAt: 0,
+      })
+      startSpeechLoop()
+    } catch {}
+  }
+
+  const stopRemoteSpeechMeters = () => {
+    ;[...speechMeters.keys()].forEach(peerId => {
+      if (peerId !== LOCAL_SPEAKER_ID) stopSpeechMeter(peerId)
+    })
+  }
+
   const publishRemoteStreams = () => {
     set({
       remoteStreams: [...remoteStreams.entries()].map(([peerId, stream]) => ({
@@ -131,6 +302,7 @@ export const useVoiceStore = create((set, get) => {
   }
 
   const removePeer = (peerId) => {
+    clearPeerReconnectTimer(peerId)
     const peer = peers.get(peerId)
     if (peer) {
       try { peer.pc.close() } catch {}
@@ -138,6 +310,7 @@ export const useVoiceStore = create((set, get) => {
     }
     pendingCandidates.delete(peerId)
     remoteStreams.delete(peerId)
+    stopSpeechMeter(peerId)
     publishRemoteStreams()
     set((state) => {
       const next = { ...state.peers }
@@ -149,12 +322,14 @@ export const useVoiceStore = create((set, get) => {
   }
 
   const closeAllPeers = () => {
+    clearPeerReconnectTimers()
     peers.forEach(({ pc }) => {
       try { pc.close() } catch {}
     })
     peers = new Map()
     pendingCandidates = new Map()
     remoteStreams = new Map()
+    stopRemoteSpeechMeters()
     publishRemoteStreams()
     set({ peers: {}, peerVolumes: {} })
   }
@@ -209,16 +384,24 @@ export const useVoiceStore = create((set, get) => {
       if (!stream) return
       remoteStreams.set(peerId, stream)
       publishRemoteStreams()
+      startSpeechMeter(peerId, stream)
       setPeer(peerId, { status: 'connected' })
     }
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed' || pc.connectionState === 'disconnected') {
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
         setPeer(peerId, { status: pc.connectionState })
-        if (pc.connectionState === 'failed') removePeer(peerId)
+        schedulePeerReconnect(peerId)
         return
       }
-      if (pc.connectionState === 'connected') setPeer(peerId, { status: 'connected' })
+      if (pc.connectionState === 'closed') {
+        setPeer(peerId, { status: pc.connectionState })
+        return
+      }
+      if (pc.connectionState === 'connected') {
+        clearPeerReconnectTimer(peerId)
+        setPeer(peerId, { status: 'connected' })
+      }
     }
 
     return pc
@@ -272,17 +455,22 @@ export const useVoiceStore = create((set, get) => {
   }
 
   const leaveJoinedRoom = () => {
-    if (socketRef && joinedRoomCode) {
+    clearVoiceJoinRetry()
+    if (socketRef && (joinedRoomCode || roomCodeRef)) {
       socketRef.emit('voice:leave')
     }
     joinedRoomCode = null
     closeAllPeers()
   }
 
-  const joinIfReady = () => {
+  const joinIfReady = ({ force = false } = {}) => {
     if (!get().enabled || !socketRef || !roomCodeRef || !localStream) return
     if (joinedRoomCode && joinedRoomCode !== roomCodeRef) leaveJoinedRoom()
-    if (joinedRoomCode === roomCodeRef) return
+    if (!socketRef.connected) {
+      set({ status: 'connecting' })
+      return
+    }
+    if (!force && joinedRoomCode === roomCodeRef) return
     joinedRoomCode = roomCodeRef
     set({ status: 'connecting', error: null })
     socketRef.emit('voice:join')
@@ -302,10 +490,17 @@ export const useVoiceStore = create((set, get) => {
   const bindSocket = (socket) => {
     if (socketRef === socket) return
     if (socketRef) {
-      socketRef.off('voice:peers')
-      socketRef.off('voice:peerJoined')
-      socketRef.off('voice:peerLeft')
-      socketRef.off('voice:signal')
+      if (socketHandlers) {
+        socketRef.off('connect', socketHandlers.connect)
+        socketRef.off('disconnect', socketHandlers.disconnect)
+        socketRef.off('voice:peers', socketHandlers.voicePeers)
+        socketRef.off('voice:peerJoined', socketHandlers.voicePeerJoined)
+        socketRef.off('voice:peerLeft', socketHandlers.voicePeerLeft)
+        socketRef.off('voice:signal', socketHandlers.voiceSignal)
+      }
+      closeAllPeers()
+      joinedRoomCode = null
+      socketHandlers = null
     }
     socketRef = socket || null
     if (!socketRef) {
@@ -313,19 +508,48 @@ export const useVoiceStore = create((set, get) => {
       return
     }
 
-    socketRef.on('voice:peers', ({ peers: peerIds = [] } = {}) => {
-      const allowedPeers = peerIds.filter(peerId => peerId !== myIdRef && isPeerAllowed(peerId))
-      set({ status: allowedPeers.length ? 'connecting' : 'connected' })
-      allowedPeers.forEach(registerAvailablePeer)
-    })
-    socketRef.on('voice:peerJoined', ({ peerId } = {}) => {
-      registerAvailablePeer(peerId)
-    })
-    socketRef.on('voice:peerLeft', ({ peerId } = {}) => {
-      if (peerId) removePeer(peerId)
-    })
-    socketRef.on('voice:signal', handleSignal)
-    joinIfReady()
+    socketHandlers = {
+      connect: () => {
+        joinedRoomCode = null
+        closeAllPeers()
+        if (get().enabled) {
+          set({ status: 'connecting' })
+          scheduleVoiceJoinRetry()
+        }
+      },
+      disconnect: () => {
+        clearVoiceJoinRetry()
+        joinedRoomCode = null
+        closeAllPeers()
+        set({ status: get().enabled ? 'connecting' : 'idle' })
+      },
+      voicePeers: ({ peers: peerIds = [] } = {}) => {
+        clearVoiceJoinRetry()
+        joinedRoomCode = roomCodeRef
+        const allowedPeers = peerIds.filter(peerId => peerId !== myIdRef && isPeerAllowed(peerId))
+        set({ status: allowedPeers.length ? 'connecting' : 'connected' })
+        allowedPeers.forEach(registerAvailablePeer)
+      },
+      voicePeerJoined: ({ peerId } = {}) => {
+        registerAvailablePeer(peerId)
+      },
+      voicePeerLeft: ({ peerId } = {}) => {
+        if (peerId) removePeer(peerId)
+      },
+      voiceSignal: handleSignal,
+    }
+
+    socketRef.on('connect', socketHandlers.connect)
+    socketRef.on('disconnect', socketHandlers.disconnect)
+    socketRef.on('voice:peers', socketHandlers.voicePeers)
+    socketRef.on('voice:peerJoined', socketHandlers.voicePeerJoined)
+    socketRef.on('voice:peerLeft', socketHandlers.voicePeerLeft)
+    socketRef.on('voice:signal', socketHandlers.voiceSignal)
+    if (socketRef.connected) {
+      joinIfReady({ force: true })
+    } else if (get().enabled) {
+      set({ status: 'connecting' })
+    }
   }
 
   return {
@@ -342,6 +566,7 @@ export const useVoiceStore = create((set, get) => {
     remoteStreams: [],
     outputVolume: loadVolume(),
     peerVolumes: {},
+    speakingPeerIds: [],
 
     bindSocket,
 
@@ -362,7 +587,7 @@ export const useVoiceStore = create((set, get) => {
         return { peers: nextPeers, peerVolumes: nextVolumes }
       })
       if (!roomCodeRef) leaveJoinedRoom()
-      else joinIfReady()
+      else joinIfReady({ force: true })
     },
 
     setAllowedPeerIds: (peerIds) => {
@@ -374,10 +599,7 @@ export const useVoiceStore = create((set, get) => {
         if (!isPeerAllowed(peerId)) removePeer(peerId)
       })
 
-      if (get().enabled && socketRef && joinedRoomCode && localStream) {
-        set({ status: 'connecting' })
-        socketRef.emit('voice:join')
-      }
+      if (get().enabled && socketRef && localStream) joinIfReady({ force: true })
     },
 
     setCanSpeak: (canSpeak, reason = null) => {
@@ -405,6 +627,7 @@ export const useVoiceStore = create((set, get) => {
         })
         micWantedRef = true
         set({ enabled: true, micWanted: true, permission: 'granted', status: 'ready' })
+        startSpeechMeter(LOCAL_SPEAKER_ID, localStream)
         applyMicState()
         joinIfReady()
       } catch (error) {
@@ -420,6 +643,7 @@ export const useVoiceStore = create((set, get) => {
 
     stop: () => {
       leaveJoinedRoom()
+      stopSpeechMeter(LOCAL_SPEAKER_ID)
       localStream?.getTracks().forEach(track => track.stop())
       localStream = null
       set({
@@ -428,6 +652,7 @@ export const useVoiceStore = create((set, get) => {
         permission: 'idle',
         status: 'idle',
         error: null,
+        speakingPeerIds: [],
       })
     },
 

@@ -17,6 +17,7 @@ export default function RoleCard({
   variant = 'citizen',
   word = '',
   clue,
+  impostorTeammates = [],
   seconds = 8,
   totalSeconds = 8,
 }) {
@@ -37,12 +38,12 @@ export default function RoleCard({
     )
   }
   if (variant === 'impostor-clue') {
-    return <ImpostorCard withClue clue={clue} seconds={seconds} totalSeconds={totalSeconds} />
+    return <ImpostorCard withClue clue={clue} impostorTeammates={impostorTeammates} seconds={seconds} totalSeconds={totalSeconds} />
   }
   if (variant === 'detective-impostor') {
-    return <DetectiveImpostorCard word={word} clue={clue} seconds={seconds} totalSeconds={totalSeconds} />
+    return <DetectiveImpostorCard word={word} clue={clue} impostorTeammates={impostorTeammates} seconds={seconds} totalSeconds={totalSeconds} />
   }
-  return <ImpostorCard seconds={seconds} totalSeconds={totalSeconds} />
+  return <ImpostorCard impostorTeammates={impostorTeammates} seconds={seconds} totalSeconds={totalSeconds} />
 }
 
 function CitizenCard({
@@ -132,7 +133,7 @@ function CitizenCard({
   )
 }
 
-function ImpostorCard({ withClue = false, clue, seconds, totalSeconds }) {
+function ImpostorCard({ withClue = false, clue, impostorTeammates = [], seconds, totalSeconds }) {
   return (
     <div className="role-card role-card--impostor grain grain-heavy" style={{
       position: 'relative',
@@ -214,11 +215,13 @@ function ImpostorCard({ withClue = false, clue, seconds, totalSeconds }) {
           }}>{clue || '—'}</div>
         </div>
       )}
+
+      <ImpostorTeammates teammates={impostorTeammates} />
     </div>
   )
 }
 
-function DetectiveImpostorCard({ word, clue, seconds, totalSeconds }) {
+function DetectiveImpostorCard({ word, clue, impostorTeammates = [], seconds, totalSeconds }) {
   const hasWord = !!word
   const hasClue = !!clue
   return (
@@ -347,6 +350,8 @@ function DetectiveImpostorCard({ word, clue, seconds, totalSeconds }) {
           </div>
         )}
 
+        <ImpostorTeammates teammates={impostorTeammates} compact />
+
         <div style={{
           color: 'rgba(252, 165, 165, 0.86)',
           fontFamily: 'var(--font-ui)',
@@ -357,6 +362,76 @@ function DetectiveImpostorCard({ word, clue, seconds, totalSeconds }) {
         }}>
           Pareces una herramienta de la mesa. Usa esa confianza con cuidado.
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ImpostorTeammates({ teammates = [], compact = false }) {
+  if (!teammates.length) return null
+  return (
+    <div style={{
+      marginTop: compact ? 0 : 18,
+      position: 'relative',
+      zIndex: 2,
+      padding: compact ? '12px 13px' : '13px 14px',
+      borderRadius: 12,
+      border: '1px solid rgba(248, 113, 113, 0.32)',
+      background:
+        'linear-gradient(135deg, rgba(220, 38, 38, 0.16), rgba(245, 158, 11, 0.05))',
+      boxShadow: 'inset 0 0 18px rgba(220, 38, 38, 0.08)',
+    }}>
+      <div style={{
+        fontFamily: 'var(--font-ui)',
+        fontSize: 9,
+        fontWeight: 900,
+        letterSpacing: '0.24em',
+        textTransform: 'uppercase',
+        color: 'var(--gold)',
+        marginBottom: 9,
+        textAlign: 'center',
+      }}>Tus complices</div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: teammates.length > 1 ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)',
+        gap: 8,
+      }}>
+        {teammates.map(teammate => (
+          <div key={teammate.id} style={{
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '8px 10px',
+            borderRadius: 999,
+            border: '1px solid rgba(245, 158, 11, 0.22)',
+            background: 'rgba(7, 7, 15, 0.46)',
+            color: '#fecaca',
+            fontFamily: 'var(--font-ui)',
+            fontSize: 12,
+            fontWeight: 800,
+            lineHeight: 1,
+          }}>
+            <span style={{
+              width: 22,
+              height: 22,
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+              borderRadius: 999,
+              background: 'rgba(220, 38, 38, 0.18)',
+              border: '1px solid rgba(248, 113, 113, 0.28)',
+            }}>{teammate.avatar || teammate.name?.trim()?.charAt(0)?.toUpperCase() || '?'}</span>
+            <strong style={{
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              font: 'inherit',
+            }}>{teammate.name}</strong>
+          </div>
+        ))}
       </div>
     </div>
   )
