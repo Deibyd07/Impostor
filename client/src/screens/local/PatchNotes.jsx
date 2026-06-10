@@ -4,6 +4,65 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const patches = [
   {
+    version: '0.2.2',
+    path: '/patch-0-2-2',
+    eyebrow: 'Identidad visual',
+    title: 'Mesa de juego con estilo de expediente',
+    summary: 'Esta version empieza a transformar la experiencia para que se sienta menos como una pagina y mas como una mesa de investigacion con cartas, fichas y pistas visuales.',
+    highlights: [
+      {
+        code: 'MESA',
+        title: 'Nueva identidad de tablero',
+        body: 'El menu y las pantallas online ganan detalles visuales de cartas, fichas y expediente para reforzar la fantasia del juego.',
+      },
+      {
+        code: 'ICONOS',
+        title: 'Senales mas reconocibles',
+        body: 'Modos, acciones, jugadores, estado de sala y votaciones tienen iconos que ayudan a leer la partida mas rapido.',
+      },
+      {
+        code: 'ROL',
+        title: 'Cartas con mas presencia',
+        body: 'Las cartas de rol y la votacion tienen marcas visuales mas dramaticas para que los momentos importantes pesen mas.',
+      },
+    ],
+    sections: [
+      {
+        title: 'Menu principal',
+        items: [
+          'Los modos del juego ahora usan simbolos visuales propios en lugar de depender solo de texto.',
+          'Las acciones principales tienen iconos de cartas, jugadores, ranking y objetivo.',
+          'La seccion de novedades muestra Alpha 0.2.2 como parche actual.',
+          'El menu conserva el estilo oscuro de expediente, pero con mas detalles de juego.',
+        ],
+      },
+      {
+        title: 'Lobby y sala online',
+        items: [
+          'La lista de jugadores conectados tiene iconos para anfitrion, espacios libres y mesa activa.',
+          'El panel de estado de la sala distingue mejor modo, categoria y Detective.',
+          'La invitacion y los paneles laterales se sienten mas integrados con el tema de investigacion.',
+          'Los elementos importantes son mas faciles de ubicar durante la preparacion de la sala.',
+        ],
+      },
+      {
+        title: 'Cartas y votacion',
+        items: [
+          'Las cartas de rol incluyen simbolos grandes de fondo para reforzar ciudadano, impostor y roles especiales.',
+          'La carta de Detective-impostor tiene un tratamiento visual mas intenso.',
+          'La votacion marca mejor el objetivo de cada voto con una senal visual dedicada.',
+          'La experiencia queda preparada para seguir sumando arte propio sin cambiar la forma de jugar.',
+        ],
+      },
+    ],
+    testFlow: [
+      'Abre el menu principal y revisa los iconos de modos, acciones y novedades.',
+      'Crea una sala online y confirma los iconos en jugadores, estado de sala e invitacion.',
+      'Inicia una partida y revisa las cartas de rol de ciudadano, impostor o Detective.',
+      'Llega a votacion y confirma que las tarjetas de voto tienen senal visual clara.',
+    ],
+  },
+  {
     version: '0.2.1',
     path: '/patch-0-2-1',
     eyebrow: 'Voz y escritorio',

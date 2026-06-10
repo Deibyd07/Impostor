@@ -45,7 +45,7 @@ app.use(rateLimit({
     message: 'Demasiadas solicitudes desde esta IP. Intenta de nuevo en un momento.',
   }),
 }))
-app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '0.2.0' }))
+app.get('/', (_, res) => res.json({ ok: true, app: 'el-impostor', version: '0.2.2' }))
 app.get('/leaderboard', async (req, res) => {
   const limit = Number.parseInt(req.query.limit, 10) || 50
   const leaderboard = await leaderboardStore.getLeaderboard({ limit })
