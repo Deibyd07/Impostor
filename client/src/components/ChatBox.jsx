@@ -2,7 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 
 const CHAT_TEXT_MAX_LENGTH = 20
 
-export default function ChatBox({ messages = [], myId, onSend, disabled = false }) {
+export default function ChatBox({
+  messages = [],
+  myId,
+  onSend,
+  disabled = false,
+  maxLength = CHAT_TEXT_MAX_LENGTH,
+  placeholder = 'Mensaje',
+  emptyText = 'Todavia no hay mensajes.',
+  tone = 'public',
+}) {
   const [text, setText] = useState('')
   const listRef = useRef(null)
   const cleaned = text.trim()
@@ -19,7 +28,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
   }
 
   return (
-    <div className="chat-box" style={{
+    <div className={`chat-box chat-box--${tone}`} style={{
       background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
       border: '1px solid var(--hairline-cold)',
       borderRadius: 14,
@@ -56,7 +65,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
             fontStyle: 'italic',
             padding: '0 24px',
           }}>
-            Todavia no hay mensajes.
+            {emptyText}
           </div>
         )}
       </div>
@@ -71,9 +80,9 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
         <input
           type="text"
           value={text}
-          maxLength={CHAT_TEXT_MAX_LENGTH}
+          maxLength={maxLength}
           disabled={disabled}
-          placeholder="Mensaje"
+          placeholder={placeholder}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') send()
@@ -121,7 +130,7 @@ export default function ChatBox({ messages = [], myId, onSend, disabled = false 
         color: 'var(--text-faint)',
         letterSpacing: '0.08em',
       }}>
-        {text.length}/{CHAT_TEXT_MAX_LENGTH}
+        {text.length}/{maxLength}
       </div>
     </div>
   )

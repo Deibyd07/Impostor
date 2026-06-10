@@ -23,9 +23,12 @@ export default function Discussion() {
   const goToVote = useOnlineStore(s => s.goToVote)
   const round = useOnlineStore(s => s.round)
   const lastGuessRound = useOnlineStore(s => s.lastGuessRound)
+  const impostorLastGuessRound = useOnlineStore(s => s.impostorLastGuessRound)
   const speakOrder = useOnlineStore(s => s.speakOrder)
   const chatMessages = useOnlineStore(s => s.chatMessages)
+  const impostorChatMessages = useOnlineStore(s => s.impostorChatMessages)
   const sendChatMessage = useOnlineStore(s => s.sendChatMessage)
+  const sendImpostorChatMessage = useOnlineStore(s => s.sendImpostorChatMessage)
   const detectiveInterrogation = useOnlineStore(s => s.detectiveInterrogation)
   const detectiveInterrogationUsed = useOnlineStore(s => s.detectiveInterrogationUsed)
   const startDetectiveInterrogation = useOnlineStore(s => s.startDetectiveInterrogation)
@@ -43,9 +46,12 @@ export default function Discussion() {
   }, [players, speakOrder])
 
   const activeSpeaker = orderedPlayers.find(player => !player.eliminated && !player.disconnected) || orderedPlayers[0]
+  const me = players.find(player => player.id === myId)
+  const isActivePlayer = me ? !me.eliminated && !me.disconnected : false
   const isImpostor = canGuessWordRole(myRole)
-  const canGuess = isImpostor && (round - lastGuessRound >= 2)
-  const guessAvailableAt = lastGuessRound + 2
+  const teamLastGuessRound = Number.isFinite(impostorLastGuessRound) ? impostorLastGuessRound : lastGuessRound
+  const canGuess = isImpostor && isActivePlayer && (round - teamLastGuessRound >= 2)
+  const guessAvailableAt = teamLastGuessRound + 2
   const isInterrogationSpeaker = detectiveInterrogation
     ? myId === detectiveInterrogation.detectiveId || myId === detectiveInterrogation.targetId
     : true
@@ -65,9 +71,13 @@ export default function Discussion() {
   const chatPanel = (
     <DiscussionChatPanel
       messages={chatMessages}
+      impostorMessages={impostorChatMessages}
       myId={myId}
       onSend={sendChatMessage}
+      onSendImpostor={sendImpostorChatMessage}
       locked={chatLocked}
+      impostorLocked={!!detectiveInterrogation}
+      canUseImpostorChat={isImpostor && isActivePlayer}
     />
   )
 
@@ -203,16 +213,63 @@ function DiscussionDossier({ role, word, clue, impostorTeammates = [], round, st
   )
 }
 
-function DiscussionChatPanel({ messages, myId, onSend, locked }) {
+function DiscussionChatPanel({
+  messages,
+  impostorMessages,
+  myId,
+  onSend,
+  onSendImpostor,
+  locked,
+  impostorLocked,
+  canUseImpostorChat,
+}) {
+  const [activeTab, setActiveTab] = useState('public')
+  const privateActive = canUseImpostorChat && activeTab === 'impostor'
+  const visibleMessages = privateActive ? impostorMessages : messages
+  const visibleCount = visibleMessages.length
+
   return (
     <aside className="discussion-chat-panel">
-      <SectionHeader right={`${messages.length}/50`}>Chat en vivo</SectionHeader>
-      {locked && (
+      <SectionHeader right={`${visibleCount}/50`}>Chat en vivo</SectionHeader>
+      {canUseImpostorChat && (
+        <div className="discussion-chat-tabs" role="tablist" aria-label="Canales de chat">
+          <button
+            type="button"
+            className={!privateActive ? 'is-active' : ''}
+            onClick={() => setActiveTab('public')}
+          >
+            Mesa
+          </button>
+          <button
+            type="button"
+            className={privateActive ? 'is-active' : ''}
+            onClick={() => setActiveTab('impostor')}
+          >
+            Impostores
+          </button>
+        </div>
+      )}
+      {!privateActive && locked && (
         <div className="discussion-chat-lock">
           Silencio en la mesa: solo Detective e interrogado pueden escribir.
         </div>
       )}
-      <ChatBox messages={messages} myId={myId} onSend={onSend} disabled={locked} />
+      {privateActive && impostorLocked && (
+        <div className="discussion-chat-lock discussion-chat-lock--impostor">
+          Canal impostor pausado durante el interrogatorio.
+        </div>
+      )}
+      <ChatBox
+        key={privateActive ? 'impostor' : 'public'}
+        messages={visibleMessages}
+        myId={myId}
+        onSend={privateActive ? onSendImpostor : onSend}
+        disabled={privateActive ? impostorLocked : locked}
+        maxLength={privateActive ? 80 : 20}
+        placeholder={privateActive ? 'Mensaje privado' : 'Mensaje'}
+        emptyText={privateActive ? 'Sin mensajes del equipo impostor.' : 'Todavia no hay mensajes.'}
+        tone={privateActive ? 'impostor' : 'public'}
+      />
     </aside>
   )
 }
@@ -255,7 +312,7 @@ function DiscussionActions({ isHost, isImpostor, canGuess, guessAvailableAt, onG
           </button>
         ) : (
           <div className="discussion-action discussion-action--muted">
-            Adivinar disponible en ronda {guessAvailableAt}
+            Equipo puede adivinar en ronda {guessAvailableAt}
           </div>
         )
       )}

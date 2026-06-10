@@ -182,6 +182,8 @@ const ROOM_SCHEMA_VERSION = 1
 const RECENT_WORD_LIMIT = 10
 const CHAT_MESSAGE_LIMIT = 50
 const CHAT_TEXT_MAX_LENGTH = 20
+const IMPOSTOR_CHAT_MESSAGE_LIMIT = 50
+const IMPOSTOR_CHAT_TEXT_MAX_LENGTH = 80
 const CHAT_RATE_LIMIT = 20
 const CHAT_RATE_WINDOW_MS = 60_000
 const INTERROGATION_DURATION_MS = 30_000
@@ -385,6 +387,10 @@ function sanitizeChatText(raw) {
   if (typeof raw !== 'string') return ''
   return raw.replace(/\s+/g, ' ').trim().slice(0, CHAT_TEXT_MAX_LENGTH)
 }
+function sanitizeImpostorChatText(raw) {
+  if (typeof raw !== 'string') return ''
+  return raw.replace(/\s+/g, ' ').trim().slice(0, IMPOSTOR_CHAT_TEXT_MAX_LENGTH)
+}
 function isValidCode(s) {
   return typeof s === 'string' && /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/i.test(s)
 }
@@ -539,10 +545,12 @@ function serializeRoom(room) {
     gameCounter: room.gameCounter || 0,
     gameId: room.gameId,
     chatMessages: room.chatMessages || [],
+    impostorChatMessages: room.impostorChatMessages || [],
     roles: room.roles || {},
     detectiveInterrogationUsedBy: room.detectiveInterrogationUsedBy || null,
     interrogation: room.interrogation || null,
     impostorGuessedWord: !!room.impostorGuessedWord,
+    impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
     lastGuessRounds: room.lastGuessRounds || {},
     speakOrder: room.speakOrder || [],
     lastTie: room.lastTie || null,
@@ -603,11 +611,13 @@ function restoreRoom(snapshot) {
     gameCounter: Number.isFinite(snapshot.gameCounter) ? snapshot.gameCounter : 0,
     gameId: snapshot.gameId || null,
     chatMessages: Array.isArray(snapshot.chatMessages) ? snapshot.chatMessages.slice(-CHAT_MESSAGE_LIMIT) : [],
+    impostorChatMessages: Array.isArray(snapshot.impostorChatMessages) ? snapshot.impostorChatMessages.slice(-IMPOSTOR_CHAT_MESSAGE_LIMIT) : [],
     roles: snapshot.roles || {},
     detectiveInterrogationUsedBy: snapshot.detectiveInterrogationUsedBy || null,
     interrogation: snapshot.interrogation?.expiresAt > now ? snapshot.interrogation : null,
     interrogationTimer: null,
     impostorGuessedWord: !!snapshot.impostorGuessedWord,
+    impostorLastGuessRound: Number.isFinite(snapshot.impostorLastGuessRound) ? snapshot.impostorLastGuessRound : -1,
     lastGuessRounds: snapshot.lastGuessRounds || {},
     disconnectTimers: {},
     voicePeers: new Set(),
@@ -773,11 +783,13 @@ async function makeRoom(hostSocketId, hostName, avatar, config, profile = {}) {
     gameCounter: 0,
     gameId: null,
     chatMessages: [],
+    impostorChatMessages: [],
     roles: {},
     detectiveInterrogationUsedBy: null,
     interrogation: null,
     interrogationTimer: null,
     impostorGuessedWord: false,
+    impostorLastGuessRound: -1,
     lastGuessRounds: {},   // socketId -> última ronda en que intentó adivinar
     disconnectTimers: {},   // playerId -> timeout
     voicePeers: new Set(),  // playerIds con chat de voz activo
@@ -827,6 +839,8 @@ function sanitizeRoom(room, viewerId = null) {
     lastTie: room.lastTie || null,
     result: room.result || null,
     chatMessages: room.chatMessages,
+    impostorChatMessages: impostorChatMessagesFor(room, viewerId),
+    impostorLastGuessRound: canUseImpostorChat(room, viewerId) ? (room.impostorLastGuessRound ?? -1) : -1,
     interrogation: interrogationPayloadFor(room.interrogation, viewerId),
   }
 }
@@ -864,6 +878,26 @@ function isImpostorRole(role) {
 
 function isCitizenTeamRole(role) {
   return role === 'citizen' || role === 'detective' || role === 'detective-blind'
+}
+
+function canUseImpostorChat(room, playerId) {
+  if (!room || !playerId || room.config?.mode === 'blind') return false
+  const player = room.players.find(item => item.id === playerId)
+  if (!player || player.eliminated || player.disconnected) return false
+  return isImpostorRole(room.roles[playerId])
+}
+
+function impostorChatMessagesFor(room, playerId) {
+  return canUseImpostorChat(room, playerId)
+    ? (room.impostorChatMessages || []).slice(-IMPOSTOR_CHAT_MESSAGE_LIMIT)
+    : []
+}
+
+function emitToConsciousImpostors(room, event, payload) {
+  room.players.forEach(player => {
+    if (!player.socketId || player.disconnected || !canUseImpostorChat(room, player.id)) return
+    io.to(player.socketId).emit(event, payload)
+  })
 }
 
 function canGuessWord(room, playerId) {
@@ -1007,6 +1041,15 @@ function rolePayloadFor(room, playerId) {
   const role = room.roles[playerId]
   if (!role) return null
   const impostorTeammates = impostorTeammatesFor(room, playerId)
+  const impostorPrivate = canUseImpostorChat(room, playerId)
+    ? {
+        impostorChatMessages: impostorChatMessagesFor(room, playerId),
+        impostorLastGuessRound: room.impostorLastGuessRound ?? -1,
+      }
+    : {
+        impostorChatMessages: [],
+        impostorLastGuessRound: -1,
+      }
   if (role === 'citizen') return { role: 'citizen', word: room.word, clue: null, impostorTeammates: [] }
   if (role === 'detective') {
     return {
@@ -1041,12 +1084,13 @@ function rolePayloadFor(room, playerId) {
       word: room.config.mode === 'blind' ? room.fakeWord : null,
       clue: room.config.mode === 'clue' ? room.clue : null,
       impostorTeammates,
+      ...impostorPrivate,
       detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
     }
   }
   if (room.config.mode === 'blind') return { role: 'impostor-blind', word: room.fakeWord, clue: null, impostorTeammates: [] }
-  if (room.config.mode === 'clue')  return { role: 'impostor-clue',  word: null, clue: room.clue, impostorTeammates }
-  return { role: 'impostor', word: null, clue: null, impostorTeammates }
+  if (room.config.mode === 'clue')  return { role: 'impostor-clue',  word: null, clue: room.clue, impostorTeammates, ...impostorPrivate }
+  return { role: 'impostor', word: null, clue: null, impostorTeammates, ...impostorPrivate }
 }
 
 function impostorTeammatesFor(room, playerId) {
@@ -1486,8 +1530,10 @@ io.on('connection', (socket) => {
     room.votes = {}; room.voters = {}
     room.eliminatedIds = []
     room.chatMessages = []
+    room.impostorChatMessages = []
     room.detectiveInterrogationUsedBy = null
     room.impostorGuessedWord = false
+    room.impostorLastGuessRound = -1
     room.lastGuessRounds = {}
     room.speakOrder = []
     room.lastTie = null
@@ -1545,6 +1591,29 @@ io.on('connection', (socket) => {
     const message = chatPayloadFor(player, cleanText)
     room.chatMessages = [...room.chatMessages, message].slice(-CHAT_MESSAGE_LIMIT)
     io.to(room.code).emit('chat:message', { message })
+    saveRoom(room)
+  })
+
+  socket.on('impostor:message', ({ text } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    if (!room || room.phase !== 'discussion') return
+    const player = getPlayerBySocket(room, socket.id)
+    if (!player || !canUseImpostorChat(room, player.id)) return
+    if (room.interrogation) {
+      socket.emit('impostor:error', { message: 'El canal impostor se pausa durante el interrogatorio' })
+      return
+    }
+    if (!allowChatMessage(socket.id)) {
+      socket.emit('impostor:error', { message: 'Estas enviando mensajes muy rapido' })
+      return
+    }
+    const cleanText = sanitizeImpostorChatText(text)
+    if (!cleanText) return
+
+    const message = chatPayloadFor(player, cleanText)
+    room.impostorChatMessages = [...(room.impostorChatMessages || []), message].slice(-IMPOSTOR_CHAT_MESSAGE_LIMIT)
+    emitToConsciousImpostors(room, 'impostor:message', { message })
     saveRoom(room)
   })
 
@@ -1642,10 +1711,12 @@ io.on('connection', (socket) => {
     room.category = null
     room.gameId = null
     room.chatMessages = []
+    room.impostorChatMessages = []
     room.roles = {}
     room.detectiveInterrogationUsedBy = null
     clearInterrogation(room, { emit: false })
     room.impostorGuessedWord = false
+    room.impostorLastGuessRound = -1
     room.lastGuessRounds = {}
     room.speakOrder = []
     room.lastTie = null
@@ -1665,13 +1736,14 @@ io.on('connection', (socket) => {
     const player = getPlayerBySocket(room, socket.id)
     if (!player || !canGuessWord(room, player.id)) return
     if (room.phase === 'ended') return
-    const lastRound = room.lastGuessRounds[player.id] ?? -1
+    const lastRound = Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1
     if (room.round - lastRound < 2) {
-      socket.emit('game:guessBlocked', { availableAt: lastRound + 2 })
+      socket.emit('game:guessBlocked', { availableAt: lastRound + 2, lastGuessRound: lastRound })
       return
     }
     const guess = (word || '').toString().trim().toLowerCase()
     if (!guess) return
+    room.impostorLastGuessRound = room.round
     room.lastGuessRounds[player.id] = room.round
     const correct = guess === (room.word || '').toLowerCase()
     if (correct) {
@@ -1683,7 +1755,11 @@ io.on('connection', (socket) => {
       io.to(room.code).emit('game:over', room.result)
       recordGlobalResult(room.result)
     } else {
-      io.to(room.code).emit('game:guessFailed', { playerId: player.id })
+      io.to(room.code).emit('game:guessFailed', {
+        playerId: player.id,
+        lastGuessRound: room.impostorLastGuessRound,
+        availableAt: room.impostorLastGuessRound + 2,
+      })
     }
     saveRoom(room)
   })

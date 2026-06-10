@@ -77,6 +77,8 @@ export const useOnlineStore = create((set, get) => ({
   speakOrder: [],       // ids de jugadores en orden aleatorio de turno
   lastTie: null,        // { counts, at }
   chatMessages: [],
+  impostorChatMessages: [],
+  impostorLastGuessRound: -1,
   detectiveInterrogation: null,
   detectiveInterrogationUsed: false,
   eliminationReveal: null,
@@ -121,6 +123,8 @@ export const useOnlineStore = create((set, get) => ({
         speakOrder: room.speakOrder || [],
         lastTie: room.lastTie || null,
         chatMessages: room.chatMessages || [],
+        impostorChatMessages: room.impostorChatMessages || [],
+        impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
         myImpostorTeammates: [],
@@ -145,6 +149,8 @@ export const useOnlineStore = create((set, get) => ({
         speakOrder: room.speakOrder || [],
         lastTie: room.lastTie || null,
         chatMessages: room.chatMessages || [],
+        impostorChatMessages: room.impostorChatMessages || [],
+        impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
         myImpostorTeammates: [],
@@ -173,6 +179,12 @@ export const useOnlineStore = create((set, get) => ({
         myProfileId: you?.profileId || null,
         isGuest: you?.isGuest !== false || !you?.profileId,
         chatMessages: room.chatMessages || [],
+        impostorChatMessages: room.impostorChatMessages || [],
+        impostorLastGuessRound: Number.isFinite(you?.impostorLastGuessRound)
+          ? you.impostorLastGuessRound
+          : Number.isFinite(room?.impostorLastGuessRound)
+            ? room.impostorLastGuessRound
+            : -1,
         detectiveInterrogation: room.interrogation || null,
         votedFor: you?.votedFor || null,
         lastGuessRound: Number.isFinite(you?.lastGuessRound) ? you.lastGuessRound : -1,
@@ -194,6 +206,8 @@ export const useOnlineStore = create((set, get) => ({
           myWord: you.word ?? null,
           myClue: you.clue ?? null,
           myImpostorTeammates: Array.isArray(you.impostorTeammates) ? you.impostorTeammates : [],
+          impostorChatMessages: Array.isArray(you.impostorChatMessages) ? you.impostorChatMessages : get().impostorChatMessages,
+          impostorLastGuessRound: Number.isFinite(you.impostorLastGuessRound) ? you.impostorLastGuessRound : get().impostorLastGuessRound,
           detectiveInterrogationUsed: !!you.detectiveInterrogationUsed,
         })
       } else {
@@ -202,6 +216,8 @@ export const useOnlineStore = create((set, get) => ({
           myWord: null,
           myClue: null,
           myImpostorTeammates: [],
+          impostorChatMessages: [],
+          impostorLastGuessRound: -1,
           detectiveInterrogationUsed: false,
         })
       }
@@ -224,6 +240,8 @@ export const useOnlineStore = create((set, get) => ({
         votes: {},
         votedFor: null,
         chatMessages: [],
+        impostorChatMessages: [],
+        impostorLastGuessRound: -1,
         detectiveInterrogation: null,
         detectiveInterrogationUsed: false,
         eliminationReveal: null,
@@ -272,20 +290,24 @@ export const useOnlineStore = create((set, get) => ({
         guessAttempts: 0,
         round: 1,
         lastGuessRound: -1,
+        impostorLastGuessRound: -1,
         speakOrder: [],
         lastTie: null,
         chatMessages: [],
+        impostorChatMessages: [],
         detectiveInterrogation: null,
         detectiveInterrogationUsed: false,
         eliminationReveal: null,
       })
     })
-    socket.on('game:yourRole', ({ role, word, clue, impostorTeammates, detectiveInterrogationUsed }) => {
+    socket.on('game:yourRole', ({ role, word, clue, impostorTeammates, impostorChatMessages, impostorLastGuessRound, detectiveInterrogationUsed }) => {
       set({
         myRole: role,
         myWord: word,
         myClue: clue,
         myImpostorTeammates: Array.isArray(impostorTeammates) ? impostorTeammates : [],
+        impostorChatMessages: Array.isArray(impostorChatMessages) ? impostorChatMessages : [],
+        impostorLastGuessRound: Number.isFinite(impostorLastGuessRound) ? impostorLastGuessRound : -1,
         detectiveInterrogationUsed: !!detectiveInterrogationUsed,
       })
     })
@@ -308,6 +330,14 @@ export const useOnlineStore = create((set, get) => ({
     })
     socket.on('chat:error', ({ message }) => {
       toast.warn(message || 'No se pudo enviar el mensaje', { duration: 2500 })
+    })
+    socket.on('impostor:message', ({ message }) => {
+      if (!message?.id) return
+      set((s) => ({ impostorChatMessages: [...s.impostorChatMessages, message].slice(-CHAT_MESSAGE_LIMIT) }))
+      if (message.playerId !== get().myId) sfx.chatMessage()
+    })
+    socket.on('impostor:error', ({ message }) => {
+      toast.warn(message || 'No se pudo enviar el mensaje privado', { duration: 2500 })
     })
     socket.on('game:interrogationStarted', ({ interrogation }) => {
       if (!interrogation?.id) return
@@ -362,18 +392,21 @@ export const useOnlineStore = create((set, get) => ({
       }
       toast.warn('Empate. Nueva ronda de discusión.', { duration: 3500 })
     })
-    socket.on('game:guessFailed', ({ playerId, socketId }) => {
+    socket.on('game:guessFailed', ({ playerId, socketId, lastGuessRound }) => {
       const { myId } = get()
       sfx.guessWrong()
+      const nextLastGuessRound = Number.isFinite(lastGuessRound) ? lastGuessRound : get().round
+      set({ impostorLastGuessRound: nextLastGuessRound })
       if ((playerId || socketId) === myId) {
-        set((s) => ({ guessAttempts: s.guessAttempts + 1, lastGuessRound: s.round }))
+        set((s) => ({ guessAttempts: s.guessAttempts + 1, lastGuessRound: nextLastGuessRound }))
         toast.error('Palabra incorrecta', { duration: 3000 })
       } else {
         toast.info('Un impostor intentó adivinar... y falló', { duration: 3000 })
       }
     })
-    socket.on('game:guessBlocked', ({ availableAt }) => {
-      toast.warn(`Podrás adivinar en la ronda ${availableAt}`, { duration: 3500 })
+    socket.on('game:guessBlocked', ({ availableAt, lastGuessRound }) => {
+      if (Number.isFinite(lastGuessRound)) set({ impostorLastGuessRound: lastGuessRound })
+      toast.warn(`El equipo podra adivinar en la ronda ${availableAt}`, { duration: 3500 })
     })
     socket.on('game:over', (result) => {
       clearInterrogationClearTimer()
@@ -389,8 +422,9 @@ export const useOnlineStore = create((set, get) => ({
         isHost: isCurrentHost(room.players, get().myId, get().isHost),
         myRole: null, myWord: null, myClue: null, myImpostorTeammates: [],
         votes: {}, votedFor: null, votersReady: 0,
-        result: null, guessAttempts: 0, round: 1, lastGuessRound: -1, speakOrder: [], lastTie: null,
+        result: null, guessAttempts: 0, round: 1, lastGuessRound: -1, impostorLastGuessRound: -1, speakOrder: [], lastTie: null,
         chatMessages: room.chatMessages || [],
+        impostorChatMessages: room.impostorChatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
         eliminationReveal: null,
@@ -422,9 +456,11 @@ export const useOnlineStore = create((set, get) => ({
       myWord: null,
       myClue: null,
       myImpostorTeammates: [],
-        myAvatar: null,
-        myProfileId: null,
-        isGuest: true,
+      impostorChatMessages: [],
+      impostorLastGuessRound: -1,
+      myAvatar: null,
+      myProfileId: null,
+      isGuest: true,
       chatMessages: [],
       detectiveInterrogation: null,
       detectiveInterrogationUsed: false,
@@ -469,6 +505,8 @@ export const useOnlineStore = create((set, get) => ({
       votes: {},
       votedFor: null,
       chatMessages: [],
+      impostorChatMessages: [],
+      impostorLastGuessRound: -1,
       detectiveInterrogation: null,
       detectiveInterrogationUsed: false,
       eliminationReveal: null,
@@ -499,6 +537,10 @@ export const useOnlineStore = create((set, get) => ({
 
   sendChatMessage: (text) => {
     get().socket?.emit('chat:message', { text })
+  },
+
+  sendImpostorChatMessage: (text) => {
+    get().socket?.emit('impostor:message', { text })
   },
 
   startDetectiveInterrogation: (targetId) => {

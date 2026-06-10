@@ -1494,6 +1494,58 @@ textarea:focus-visible {
   background: rgba(0, 0, 0, 0.22) !important;
 }
 
+.discussion-chat-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.discussion-chat-tabs button {
+  min-height: 34px;
+  border: 1px solid rgba(245, 158, 11, 0.16);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent),
+    rgba(8, 8, 18, 0.72);
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.discussion-chat-tabs button.is-active {
+  border-color: rgba(245, 158, 11, 0.58);
+  color: var(--gold);
+  background:
+    linear-gradient(180deg, rgba(245, 158, 11, 0.14), transparent),
+    rgba(13, 11, 18, 0.88);
+  box-shadow: 0 0 24px -18px var(--gold-glow);
+}
+
+.discussion-chat-lock--impostor {
+  border-color: rgba(220, 38, 38, 0.34) !important;
+  color: rgba(252, 165, 165, 0.86) !important;
+}
+
+.chat-box--impostor {
+  border-color: rgba(220, 38, 38, 0.34) !important;
+  box-shadow: 0 0 34px -28px rgba(220, 38, 38, 0.8);
+}
+
+.chat-box--impostor .chat-box__list {
+  background:
+    linear-gradient(180deg, rgba(220, 38, 38, 0.075), transparent),
+    rgba(18, 8, 14, 0.56);
+}
+
+.chat-box--impostor .chat-box__composer {
+  border-top-color: rgba(220, 38, 38, 0.20) !important;
+}
+
 .chat-message.is-own {
   filter: drop-shadow(0 8px 14px rgba(59, 130, 246, 0.08));
 }
