@@ -3,6 +3,7 @@ import CornerOrnament from './CornerOrnament.jsx'
 import CircularTimer from './CircularTimer.jsx'
 import ParticleField from './ParticleField.jsx'
 import MaskIcon from './MaskIcon.jsx'
+import GameIcon from './GameIcon.jsx'
 
 /**
  * RoleCard — variantes:
@@ -76,6 +77,11 @@ function CitizenCard({
         WebkitMaskComposite: 'xor', maskComposite: 'exclude',
       }} />
       <CornerOrnament color="rgba(96,165,250,0.45)" />
+      <GameIcon
+        name={timerAccent === 'gold' ? 'notepad' : 'shield'}
+        size={92}
+        className="role-card__asset role-card__asset--blueprint"
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
         <Badge color={badgeColor} dot>{label}</Badge>
@@ -155,6 +161,7 @@ function ImpostorCard({ withClue = false, clue, impostorTeammates = [], seconds,
         WebkitMaskComposite: 'xor', maskComposite: 'exclude',
       }} />
       <CornerOrnament color="rgba(248, 113, 113, 0.45)" />
+      <GameIcon name="cardsSkull" size={96} className="role-card__asset role-card__asset--danger" />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
         <Badge color="var(--impostor)" dot warn>IMPOSTOR</Badge>
@@ -255,6 +262,7 @@ function DetectiveImpostorCard({ word, clue, impostorTeammates = [], seconds, to
         WebkitMaskComposite: 'xor', maskComposite: 'exclude',
       }} />
       <CornerOrnament color="rgba(245, 158, 11, 0.55)" />
+      <GameIcon name="lock" size={92} className="role-card__asset role-card__asset--gold" />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
         <Badge color="var(--gold)" dot warn>DETECTIVE IMPOSTOR</Badge>

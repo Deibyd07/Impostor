@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
+import GameIcon from '../../components/GameIcon.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { sfx } from '../../utils/sfx.js'
 
@@ -40,6 +41,12 @@ const releaseNotes = [
   'Lobby y discusion online mas comodos en escritorio.',
 ]
 
+const modeIconById = {
+  '01': 'cardsSkull',
+  '02': 'notepad',
+  '03': 'lock',
+}
+
 export default function Home() {
   const navigate = useNavigate()
   const hasSavedGame = useGameStore(s => s.hasSavedGame())
@@ -63,7 +70,7 @@ export default function Home() {
             <div className="case-mode-card__index">{mode.id}</div>
             <div className="case-mode-card__body">
               <div className="case-mode-card__title">
-                <span>{mode.icon}</span>
+                <GameIcon name={modeIconById[mode.id]} size={22} />
                 {mode.title}
               </div>
               <p>{mode.desc}</p>
@@ -112,6 +119,11 @@ export default function Home() {
     >
       <main className="evidence-home">
         <section className="case-file" aria-labelledby="home-title">
+          <div className="case-file__props" aria-hidden="true">
+            <GameIcon name="cardsStack" size={42} className="case-file__prop case-file__prop--cards" />
+            <GameIcon name="token" size={30} className="case-file__prop case-file__prop--token" />
+            <GameIcon name="skull" size={36} className="case-file__prop case-file__prop--skull" />
+          </div>
           <div className="case-file__clip" />
           <div className="case-file__stamp">Caso abierto</div>
           <div className="case-file__number">IM-09</div>
@@ -126,23 +138,27 @@ export default function Home() {
 
           <div className="case-actions" aria-label="Acciones principales">
             <button className="case-action case-action--primary" onClick={onNew}>
+              <GameIcon name="cardTarget" size={25} className="case-action__icon" />
               <span>Abrir caso</span>
               <strong>Nueva partida</strong>
             </button>
 
             {hasSavedGame && (
               <button className="case-action" onClick={onResume}>
+                <GameIcon name="cardsStack" size={24} className="case-action__icon" />
                 <span>Expediente activo</span>
                 <strong>Reanudar</strong>
               </button>
             )}
 
             <button className="case-action" onClick={onProfile}>
+              <GameIcon name="character" size={24} className="case-action__icon" />
               <span>Identidad</span>
               <strong>Mis perfiles</strong>
             </button>
 
             <button className="case-action" onClick={onRanking}>
+              <GameIcon name="award" size={24} className="case-action__icon" />
               <span>Global</span>
               <strong>Ranking</strong>
             </button>
@@ -152,6 +168,7 @@ export default function Home() {
         <section className="case-online-card" aria-label="Modo online">
           <div>
             <span className="case-online-card__signal" />
+            <GameIcon name="tokens" size={22} className="case-online-card__icon" />
             <strong>Sala privada</strong>
             <p>Invita a tu grupo y deja que el anfitrión controle el expediente.</p>
           </div>

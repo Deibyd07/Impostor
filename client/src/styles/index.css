@@ -168,6 +168,27 @@ textarea:focus-visible {
   margin-top: 12px;
 }
 
+.game-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: var(--game-icon-url) center / contain no-repeat;
+  -webkit-mask: var(--game-icon-url) center / contain no-repeat;
+}
+
+.case-rail__stamp,
+.lobby-section-title span,
+.lobby-status-list span {
+  align-items: center;
+  gap: 7px;
+}
+
+.case-rail__stamp,
+.lobby-section-title span,
+.lobby-status-list span {
+  display: inline-flex;
+}
+
 /* Home: Mesa de Evidencias */
 .evidence-home-screen {
   overflow: hidden;
@@ -278,6 +299,39 @@ textarea:focus-visible {
   box-shadow: 0 12px 28px -16px var(--gold-glow);
 }
 
+.case-file__props {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  color: rgba(245, 158, 11, 0.16);
+}
+
+.case-file__prop {
+  position: absolute;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45));
+}
+
+.case-file__prop--cards {
+  right: 24px;
+  bottom: 28px;
+  transform: rotate(-10deg);
+}
+
+.case-file__prop--token {
+  left: 26px;
+  top: 42px;
+  color: rgba(100, 210, 255, 0.18);
+  transform: rotate(16deg);
+}
+
+.case-file__prop--skull {
+  right: 34px;
+  top: 42px;
+  color: rgba(248, 113, 113, 0.18);
+  transform: rotate(12deg);
+}
+
 .case-file__stamp,
 .case-file__number {
   position: relative;
@@ -363,8 +417,9 @@ textarea:focus-visible {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
+  position: relative;
   min-height: 58px;
-  padding: 12px 14px;
+  padding: 12px 14px 12px 54px;
   border-radius: 12px;
   border: 1px solid rgba(245, 158, 11, 0.22);
   background:
@@ -375,6 +430,15 @@ textarea:focus-visible {
   flex-direction: column;
   justify-content: center;
   transition: transform 140ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.case-action__icon {
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  color: rgba(245, 158, 11, 0.82);
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.18));
 }
 
 .case-action:hover {
@@ -418,6 +482,10 @@ textarea:focus-visible {
   color: rgba(255, 226, 226, 0.86);
 }
 
+.case-action--primary .case-action__icon {
+  color: rgba(255, 226, 226, 0.92);
+}
+
 .case-online-card {
   position: relative;
   z-index: 4;
@@ -454,6 +522,12 @@ textarea:focus-visible {
   border-radius: 999px;
   background: var(--citizen);
   box-shadow: 0 0 16px var(--citizen-glow);
+}
+
+.case-online-card__icon {
+  margin-right: 8px;
+  color: var(--citizen);
+  vertical-align: -4px;
 }
 
 .case-online-card__actions {
@@ -602,6 +676,18 @@ textarea:focus-visible {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.case-mode-card__title .game-icon {
+  color: var(--gold);
+}
+
+.case-mode-card--red .case-mode-card__title .game-icon {
+  color: var(--impostor);
+}
+
+.case-mode-card--blue .case-mode-card__title .game-icon {
+  color: var(--citizen);
 }
 
 .case-mode-card__body p,
@@ -1458,6 +1544,14 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.vote-card__target-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: rgba(245, 158, 11, 0.34);
+  pointer-events: none;
+}
+
 .vote-card::before {
   content: "SOSPECHOSO";
   position: absolute;
@@ -1654,6 +1748,31 @@ textarea:focus-visible {
   font-weight: 900;
   letter-spacing: 0.18em;
   pointer-events: none;
+}
+
+.role-card__asset {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.1;
+  filter: drop-shadow(0 0 24px currentColor);
+  transform: rotate(-10deg);
+}
+
+.role-card__asset--blueprint {
+  color: var(--citizen);
+}
+
+.role-card__asset--danger {
+  color: var(--impostor);
+  opacity: 0.13;
+}
+
+.role-card__asset--gold {
+  color: var(--gold);
+  opacity: 0.14;
 }
 
 .role-card--citizen {
@@ -3370,6 +3489,7 @@ textarea:focus-visible {
 }
 
 .lobby-player-card__avatar {
+  position: relative;
   grid-row: 1 / span 2;
   width: 36px;
   height: 36px;
@@ -3380,6 +3500,24 @@ textarea:focus-visible {
   border-radius: 999px;
   background: rgba(255,255,255,0.025);
   font-size: 18px;
+}
+
+.lobby-player-card__avatar .game-icon:not(.lobby-player-card__role-icon) {
+  color: rgba(245, 158, 11, 0.74);
+}
+
+.lobby-player-card__role-icon {
+  position: absolute;
+  right: -5px;
+  top: -7px;
+  color: var(--gold);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+}
+
+.lobby-section-title .game-icon,
+.lobby-status-list .game-icon,
+.case-rail__stamp .game-icon {
+  color: currentColor;
 }
 
 .lobby-player-card__name {

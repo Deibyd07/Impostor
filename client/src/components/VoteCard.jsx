@@ -1,3 +1,5 @@
+import GameIcon from './GameIcon.jsx'
+
 export default function VoteCard({ name, avatar, votes = 0, isLeader = false, disabled = false, onClick }) {
   const initial = (name || '?').charAt(0).toUpperCase()
   const displayAvatar = avatar || initial
@@ -23,6 +25,7 @@ export default function VoteCard({ name, avatar, votes = 0, isLeader = false, di
         opacity: disabled ? 0.5 : 1,
       }}
     >
+      <GameIcon name="cardTarget" size={15} className="vote-card__target-icon" />
       <div style={{
         width: 56, height: 56, borderRadius: 999,
         background: votes > 0

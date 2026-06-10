@@ -7,6 +7,7 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 import AvatarPicker from '../../components/AvatarPicker.jsx'
 import ProfileIdentityPicker from '../../components/ProfileIdentityPicker.jsx'
 import CornerOrnament from '../../components/CornerOrnament.jsx'
+import GameIcon from '../../components/GameIcon.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
@@ -266,14 +267,17 @@ function LobbyPlayersBoard({ players }) {
   return (
     <section className="lobby-players-board">
       <div className="lobby-section-title">
-        <span>Jugadores conectados</span>
+        <span><GameIcon name="tokens" size={16} /> Jugadores conectados</span>
         <strong>{players.length}<small>/12</small></strong>
       </div>
       <div className="lobby-player-grid">
         {players.map((player, index) => (
           <div key={player.id} className={`lobby-player-card ${player.isHost ? 'is-host' : ''} ${player.ready ? 'is-ready' : ''}`}>
             <span className="lobby-player-card__index">{String(index + 1).padStart(2, '0')}</span>
-            <span className="lobby-player-card__avatar">{player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}</span>
+            <span className="lobby-player-card__avatar">
+              {player.isHost && <GameIcon name="crown" size={15} className="lobby-player-card__role-icon" />}
+              {player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}
+            </span>
             <span className="lobby-player-card__name">{player.name}</span>
             <span className="lobby-player-card__status">
               {player.isHost ? 'Anfitrión' : player.ready ? 'Listo' : 'En espera'}
@@ -283,7 +287,7 @@ function LobbyPlayersBoard({ players }) {
         {Array.from({ length: missing }).map((_, index) => (
           <div key={`missing-${index}`} className="lobby-player-card is-empty">
             <span className="lobby-player-card__index">{String(players.length + index + 1).padStart(2, '0')}</span>
-            <span className="lobby-player-card__avatar">+</span>
+            <span className="lobby-player-card__avatar"><GameIcon name="token" size={20} /></span>
             <span className="lobby-player-card__name">Falta jugador</span>
             <span className="lobby-player-card__status">Mínimo requerido</span>
           </div>
@@ -306,14 +310,17 @@ function LobbyStatusPanel({ players, config }) {
 
   return (
     <aside className="lobby-status-panel">
-      <div className="case-rail__stamp">Estado del caso</div>
+      <div className="case-rail__stamp">
+        <GameIcon name="notepad" size={16} />
+        Estado del caso
+      </div>
       <div className="lobby-status-panel__metric">
         <span>En mesa</span>
         <strong>{players.length}<small>/12</small></strong>
       </div>
       <div className="lobby-status-list">
         <div>
-          <span>Modo</span>
+          <span><GameIcon name="cardsFan" size={14} /> Modo</span>
           <strong>{modeLabel}</strong>
         </div>
         <div>
@@ -321,7 +328,7 @@ function LobbyStatusPanel({ players, config }) {
           <strong>{categoryLabel}</strong>
         </div>
         <div>
-          <span>Detective</span>
+          <span><GameIcon name="shield" size={14} /> Detective</span>
           <strong>{config?.detectiveEnabled ? 'Activo' : 'Inactivo'}</strong>
         </div>
       </div>

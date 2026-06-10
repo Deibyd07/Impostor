@@ -1,10 +1,14 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { categories } from '../data/wordBank.js'
+import GameIcon from './GameIcon.jsx'
 
 export function LobbyInvitePanel({ roomCode, joinUrl, copied, onCopy }) {
   return (
     <section className="lobby-invite-card">
-      <div className="case-rail__stamp">Invitacion</div>
+      <div className="case-rail__stamp">
+        <GameIcon name="card" size={16} />
+        Invitacion
+      </div>
       <div className="lobby-invite-card__code">
         {roomCode.split('').map((ch, i) => (
           <span key={i}>{ch}</span>
@@ -31,7 +35,7 @@ export function LobbyPlayersBoard({ players, myId, minPlayers = 3 }) {
   return (
     <section className="lobby-players-board">
       <div className="lobby-section-title">
-        <span>Jugadores conectados</span>
+        <span><GameIcon name="tokens" size={16} /> Jugadores conectados</span>
         <strong>{players.length}<small>/12</small></strong>
       </div>
       <div className="lobby-player-grid">
@@ -41,7 +45,10 @@ export function LobbyPlayersBoard({ players, myId, minPlayers = 3 }) {
             className={`lobby-player-card ${player.isHost ? 'is-host' : ''} ${player.ready ? 'is-ready' : ''} ${player.id === myId ? 'is-you' : ''}`}
           >
             <span className="lobby-player-card__index">{String(index + 1).padStart(2, '0')}</span>
-            <span className="lobby-player-card__avatar">{player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}</span>
+            <span className="lobby-player-card__avatar">
+              {player.isHost && <GameIcon name="crown" size={15} className="lobby-player-card__role-icon" />}
+              {player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}
+            </span>
             <span className="lobby-player-card__name">{player.name}</span>
             <span className="lobby-player-card__status">
               {player.isHost ? 'Anfitrion' : player.id === myId ? 'Tu lugar' : player.ready ? 'Listo' : 'En espera'}
@@ -51,7 +58,7 @@ export function LobbyPlayersBoard({ players, myId, minPlayers = 3 }) {
         {Array.from({ length: missing }).map((_, index) => (
           <div key={`missing-${index}`} className="lobby-player-card is-empty">
             <span className="lobby-player-card__index">{String(players.length + index + 1).padStart(2, '0')}</span>
-            <span className="lobby-player-card__avatar">+</span>
+            <span className="lobby-player-card__avatar"><GameIcon name="token" size={20} /></span>
             <span className="lobby-player-card__name">Falta jugador</span>
             <span className="lobby-player-card__status">Minimo requerido</span>
           </div>
@@ -74,22 +81,25 @@ export function LobbyStatusPanel({ players, config, note }) {
 
   return (
     <aside className="lobby-status-panel">
-      <div className="case-rail__stamp">Estado del caso</div>
+      <div className="case-rail__stamp">
+        <GameIcon name="notepad" size={16} />
+        Estado del caso
+      </div>
       <div className="lobby-status-panel__metric">
         <span>En mesa</span>
         <strong>{players.length}<small>/12</small></strong>
       </div>
       <div className="lobby-status-list">
         <div>
-          <span>Modo</span>
+          <span><GameIcon name="cardsFan" size={14} /> Modo</span>
           <strong>{modeLabel}</strong>
         </div>
         <div>
-          <span>Categoria</span>
+          <span><GameIcon name="cardTarget" size={14} /> Categoria</span>
           <strong>{categoryLabel}</strong>
         </div>
         <div>
-          <span>Detective</span>
+          <span><GameIcon name="shield" size={14} /> Detective</span>
           <strong>{config?.detectiveEnabled ? 'Activo' : 'Inactivo'}</strong>
         </div>
       </div>
