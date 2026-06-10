@@ -2,6 +2,9 @@
   "name": "el-impostor",
   "version": "0.2.2",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "workspaces": [
     "client",
     "server"
