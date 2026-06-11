@@ -21,8 +21,8 @@ export default function WinImpostor({
     <PhoneScreen padTop={false} padBottom={false} className={className} rightPanel={rightPanel}>
       <div style={{ position: 'absolute', inset: 0,
         background:
-          'radial-gradient(80% 60% at 50% 30%, rgba(220, 38, 38, 0.4) 0%, transparent 65%),' +
-          'linear-gradient(180deg, #1a0505, var(--bg-base))',
+          'radial-gradient(80% 60% at 50% 30%, rgba(207, 59, 52, 0.4) 0%, transparent 65%),' +
+          'linear-gradient(180deg, #240f10, var(--bg-base))',
       }} />
       <div className="grain grain-heavy" style={{ position: 'absolute', inset: 0 }} />
       <div style={{
@@ -36,16 +36,17 @@ export default function WinImpostor({
         display: 'flex', flexDirection: 'column',
         padding: '88px 28px 36px', alignItems: 'center',
       }}>
+        <div className="stamp stamp--lg" style={{ marginBottom: 16 }}>Caso sin resolver</div>
         <div className="t-eyebrow" style={{ color: 'var(--impostor)', marginBottom: 10 }}>Final · Victoria</div>
         <div style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 44,
           letterSpacing: '0.05em', textAlign: 'center', lineHeight: 0.95,
           color: 'var(--text-1)', position: 'relative',
-          textShadow: '0 0 36px rgba(220, 38, 38, 0.7), 2px 0 0 rgba(220, 38, 38, 0.5), -2px 0 0 rgba(59, 130, 246, 0.4)',
+          textShadow: '0 0 36px rgba(207, 59, 52, 0.7), 2px 0 0 rgba(207, 59, 52, 0.5), -2px 0 0 rgba(94, 138, 166, 0.4)',
         }}>{single ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}<br />GANÓ{single ? '' : 'N'}</div>
 
-        <div style={{ marginTop: 38, filter: 'drop-shadow(0 0 30px rgba(220, 38, 38, 0.6))' }}>
-          <MaskIcon size={120} color="#ef4444" />
+        <div style={{ marginTop: 38, filter: 'drop-shadow(0 0 30px rgba(207, 59, 52, 0.6))' }}>
+          <MaskIcon size={120} color="#e0584b" />
         </div>
 
         <div style={{

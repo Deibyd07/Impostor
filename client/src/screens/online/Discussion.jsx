@@ -4,11 +4,13 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import ChatBox from '../../components/ChatBox.jsx'
+import AlibiMap from '../../components/AlibiMap.jsx'
 import DetectiveInterrogationPanel from '../../components/DetectiveInterrogationPanel.jsx'
 import GuessWordModal from '../../components/GuessWordModal.jsx'
 import VoicePanel from '../../components/VoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
-import { canGuessWordRole } from '../../utils/roles.js'
+import { isAlibiGame } from '../../utils/gameTypes.js'
+import { canGuessWordRole, isDetectiveRole } from '../../utils/roles.js'
 
 export default function Discussion() {
   const navigate = useNavigate()
@@ -16,7 +18,10 @@ export default function Discussion() {
   const myRole = useOnlineStore(s => s.myRole)
   const myWord = useOnlineStore(s => s.myWord)
   const myClue = useOnlineStore(s => s.myClue)
+  const myAlibi = useOnlineStore(s => s.myAlibi)
+  const alibiCase = useOnlineStore(s => s.alibiCase)
   const myImpostorTeammates = useOnlineStore(s => s.myImpostorTeammates)
+  const config = useOnlineStore(s => s.config)
   const myId = useOnlineStore(s => s.myId)
   const players = useOnlineStore(s => s.players)
   const phase = useOnlineStore(s => s.phase)
@@ -35,7 +40,9 @@ export default function Discussion() {
   const [showGuess, setShowGuess] = useState(false)
 
   useEffect(() => {
+    if (phase === 'caseIntro') navigate('/online/alibi-case')
     if (phase === 'voting') navigate('/online/vote')
+    if (phase === 'roundResult') navigate('/online/alibi-result')
     if (phase === 'ended') navigate('/online/end')
     if (phase === 'spectator') navigate('/online/spectator')
   }, [phase, navigate])
@@ -57,6 +64,26 @@ export default function Discussion() {
     : true
   const chatLocked = !!detectiveInterrogation && !isInterrogationSpeaker
   const strategy = strategyForRole(myRole)
+
+  if (isAlibiGame(config)) {
+    return (
+      <AlibiDiscussion
+        isHost={isHost}
+        myId={myId}
+        myAlibi={myAlibi}
+        alibiCase={alibiCase}
+        players={players}
+        round={round}
+        chatMessages={chatMessages}
+        sendChatMessage={sendChatMessage}
+        myRole={myRole}
+        interrogation={detectiveInterrogation}
+        interrogationUsed={detectiveInterrogationUsed}
+        onInterrogate={startDetectiveInterrogation}
+        onVote={goToVote}
+      />
+    )
+  }
 
   const actions = (
     <DiscussionActions
@@ -166,6 +193,265 @@ export default function Discussion() {
 
       <GuessWordModal open={showGuess} onClose={() => setShowGuess(false)} />
     </PhoneScreen>
+  )
+}
+
+function AlibiDiscussion({
+  myId,
+  myAlibi,
+  alibiCase,
+  players,
+  round,
+  chatMessages,
+  sendChatMessage,
+  myRole,
+  interrogation,
+  interrogationUsed,
+  onInterrogate,
+  onVote,
+}) {
+  const caseInfo = alibiCase || myAlibi || {}
+  const totalRounds = caseInfo.totalRounds || 3
+  const isDetective = isDetectiveRole(myRole) || myAlibi?.role === 'alibi-detective'
+  const detective = caseInfo.detective || myAlibi?.detective || null
+  const activePlayers = players.filter(player => !player.disconnected)
+  const activeSuspects = activePlayers.filter(player => player.id !== detective?.id)
+  const evidence = Array.isArray(caseInfo.publicEvidence) ? caseInfo.publicEvidence : []
+  const questions = Array.isArray(caseInfo.tableQuestions) ? caseInfo.tableQuestions : []
+  const primaryEvidence = caseInfo.evidence || evidence[0] || 'Las versiones de la mesa no encajan del todo.'
+  const objective = caseInfo.objective || 'Encuentren quien sostiene una coartada falsa.'
+  const chatPanel = (
+    <aside className="discussion-chat-panel">
+      <SectionHeader right={`${chatMessages.length}/50`}>Mesa</SectionHeader>
+      <ChatBox
+        messages={chatMessages}
+        myId={myId}
+        onSend={sendChatMessage}
+        maxLength={80}
+        placeholder="Comparte una pista"
+        emptyText="La mesa aun no ha cruzado versiones."
+        tone="public"
+      />
+    </aside>
+  )
+
+  return (
+    <PhoneScreen
+      className={`online-discussion-screen alibi-discussion-screen ${isDetective ? 'is-detective' : ''}`}
+      leftPanel={
+        <div className="discussion-side-stack">
+          {isDetective ? (
+            <AlibiDetectiveDossier myAlibi={myAlibi} round={round} totalRounds={totalRounds} />
+          ) : (
+            <AlibiPrivateDossier myAlibi={myAlibi} round={round} totalRounds={totalRounds} />
+          )}
+          <VoicePanel compact />
+        </div>
+      }
+      rightPanel={chatPanel}
+      footer={
+        <div className="discussion-actions">
+          {isDetective ? (
+            <button type="button" className="btn btn-primary discussion-action--vote" onClick={onVote}>
+              Emitir acusacion
+            </button>
+          ) : (
+            <div className="discussion-action discussion-action--waiting">
+              Esperando la acusacion del detective...
+            </div>
+          )}
+        </div>
+      }
+    >
+      <div className="discussion-room alibi-discussion-room">
+        <div className="discussion-topbar alibi-discussion-topbar">
+          <div>
+            <span className="t-eyebrow">Modo Coartada</span>
+            <strong>Ronda {round}/{totalRounds}</strong>
+          </div>
+          <Badge color="var(--gold)" dot>{activeSuspects.length} sospechosos</Badge>
+        </div>
+
+        <div className="ds-mobile-only">
+          {isDetective ? (
+            <AlibiDetectiveDossier myAlibi={myAlibi} round={round} totalRounds={totalRounds} compact />
+          ) : (
+            <AlibiPrivateDossier myAlibi={myAlibi} round={round} totalRounds={totalRounds} compact />
+          )}
+        </div>
+
+        <section className="alibi-command-panel">
+          <div>
+            <span className="t-eyebrow">Expediente abierto</span>
+            <h1>{caseInfo.title || 'Coartada cruzada'}</h1>
+            <p>{caseInfo.brief || 'La mesa debe encontrar quien esta defendiendo una version falsa.'}</p>
+          </div>
+          <aside className="alibi-command-panel__objective">
+            <span>Objetivo</span>
+            <strong>{objective}</strong>
+            <small>{caseInfo.roundPrompt || 'Pregunten por rutas, sonidos y detalles concretos.'}</small>
+          </aside>
+        </section>
+
+        {(isDetective || interrogation) && (
+          <section className="alibi-detective-workbench">
+            <div className="alibi-detective-workbench__brief">
+              <span className="t-eyebrow">Panel del detective</span>
+              <strong>{isDetective ? 'Tú decides a quién acusar.' : `${detective?.name || 'El Detective'} dirige la investigación.`}</strong>
+              <p>
+                {isDetective
+                  ? 'Elige un sospechoso para interrogar en privado y usa la acusación final cuando tengas una contradicción clara.'
+                  : 'Responde con tu versión y observa qué preguntas hace el Detective.'}
+              </p>
+            </div>
+            <DetectiveInterrogationPanel
+              players={activeSuspects}
+              myId={myId}
+              role={myRole}
+              interrogation={interrogation}
+              used={interrogationUsed}
+              onStart={onInterrogate}
+            />
+          </section>
+        )}
+
+        <section className="alibi-public-board">
+          <article className="alibi-public-evidence">
+            <span className="t-eyebrow">Evidencia clave</span>
+            <strong>{primaryEvidence}</strong>
+            {evidence.length > 1 && (
+              <ul>
+                {evidence.slice(1, 4).map(item => <li key={item}>{item}</li>)}
+              </ul>
+            )}
+          </article>
+
+          <article className="alibi-question-card">
+            <span className="t-eyebrow">Para interrogar</span>
+            <div>
+              {(questions.length ? questions : [
+                '¿Qué podías ver desde tu ubicación?',
+                '¿Qué escuchaste durante el apagón?',
+                '¿Quién podía cruzar más rápido?',
+              ]).slice(0, 4).map((question, index) => (
+                <p key={question}><b>{index + 1}</b>{question}</p>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <section className="alibi-investigation-layout">
+          <AlibiMap map={caseInfo.map} highlight={myAlibi?.claimedLocation} compact />
+
+          <aside className="alibi-table-guide">
+            <span className="t-eyebrow">Como ganar la discusion</span>
+            <strong>Busca una version que no sobreviva al mapa.</strong>
+            <p>
+              Pide detalles de vision, sonido y ruta. Si alguien explica demasiado, cambia su orden o evita una zona clave, la mesa tiene una acusacion.
+            </p>
+            <div className="alibi-table-guide__chips">
+              <span>Vista</span>
+              <span>Sonido</span>
+              <span>Ruta</span>
+              <span>Tiempo</span>
+            </div>
+          </aside>
+        </section>
+
+        <section className="discussion-table alibi-suspects-panel">
+          <SectionHeader right={`${activeSuspects.length} jugadores`}>Sospechosos</SectionHeader>
+          <div className="discussion-player-grid">
+            {activeSuspects.map((player, index) => (
+              <article
+                key={player.id}
+                className={`discussion-player-card ${player.id === myId ? 'is-you' : ''}`}
+              >
+                <span className="discussion-player-card__index">{String(index + 1).padStart(2, '0')}</span>
+                <Avatar value={player.avatar} name={player.name} />
+                <div className="discussion-player-card__body">
+                  <strong>{player.name}</strong>
+                  <span>{player.id === myId ? 'Tu version' : 'Coartada por comprobar'}</span>
+                </div>
+                {player.id === myId && <span className="discussion-player-card__you">Tu</span>}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <div className="ds-mobile-only">
+          <VoicePanel compact />
+          {chatPanel}
+        </div>
+      </div>
+    </PhoneScreen>
+  )
+}
+
+function AlibiDetectiveDossier({ myAlibi, round, totalRounds, compact = false }) {
+  const suspects = Array.isArray(myAlibi?.suspects) ? myAlibi.suspects : []
+
+  return (
+    <aside className={`discussion-dossier alibi-dossier alibi-dossier--detective ${compact ? 'alibi-dossier--compact' : ''}`}>
+      <div className="case-rail__stamp">Detective</div>
+      <div className="discussion-dossier__role">
+        <Badge color="var(--citizen)" dot>Director del caso</Badge>
+        <span>Ronda {round}/{totalRounds}</span>
+      </div>
+      <div className="discussion-dossier__secret">
+        <span>Tu objetivo</span>
+        <strong>ACUSAR LA COARTADA FALSA</strong>
+        <small>{suspects.length} sospechosos bajo investigacion.</small>
+      </div>
+      <div className="discussion-dossier__strategy">
+        <span>Metodo</span>
+        <p>{myAlibi?.statement || 'Escucha cada version y cruza mapa, sonidos y evidencia.'}</p>
+      </div>
+      <div className="discussion-dossier__strategy">
+        <span>Pista del caso</span>
+        <p>{myAlibi?.clue || 'La mentira suele fallar en una ruta, un sonido o un detalle de visibilidad.'}</p>
+      </div>
+    </aside>
+  )
+}
+
+function AlibiPrivateDossier({ myAlibi, round, totalRounds, compact = false }) {
+  const isLiar = myAlibi?.role === 'alibi-liar'
+
+  return (
+    <aside className={`discussion-dossier alibi-dossier ${isLiar ? 'discussion-dossier--red' : 'discussion-dossier--gold'} ${compact ? 'alibi-dossier--compact' : ''}`}>
+      <div className="case-rail__stamp">Mi coartada</div>
+      <div className="discussion-dossier__role">
+        <Badge color={isLiar ? 'var(--impostor)' : 'var(--gold)'} dot warn={isLiar}>
+          {isLiar ? 'Coartada falsa' : 'Testigo'}
+        </Badge>
+        <span>Ronda {round}/{totalRounds}</span>
+      </div>
+      <div className="discussion-dossier__secret">
+        <span>{isLiar ? 'Debes decir' : 'Ubicacion'}</span>
+        <strong>{(myAlibi?.claimedLocation || 'Sin lugar').toUpperCase()}</strong>
+        {isLiar && myAlibi?.realLocation && <small>Real: {myAlibi.realLocation}</small>}
+      </div>
+      <div className="discussion-dossier__strategy">
+        <span>Tu version</span>
+        <p>{myAlibi?.statement || 'Defiende tu coartada sin regalar informacion.'}</p>
+      </div>
+      {(myAlibi?.saw || myAlibi?.heard || myAlibi?.detail) && (
+        <div className="discussion-dossier__strategy alibi-dossier__facts">
+          {myAlibi?.saw && <p><span>Viste</span>{myAlibi.saw}</p>}
+          {myAlibi?.heard && <p><span>Oiste</span>{myAlibi.heard}</p>}
+          {myAlibi?.detail && <p><span>Detalle</span>{myAlibi.detail}</p>}
+        </div>
+      )}
+      <div className="discussion-dossier__strategy">
+        <span>{isLiar ? 'Consejo' : 'Pista privada'}</span>
+        <p>{myAlibi?.clue || 'Escucha contradicciones antes de acusar.'}</p>
+      </div>
+      {myAlibi?.risk && (
+        <div className="discussion-dossier__status">
+          Riesgo: {myAlibi.risk}
+        </div>
+      )}
+    </aside>
   )
 }
 

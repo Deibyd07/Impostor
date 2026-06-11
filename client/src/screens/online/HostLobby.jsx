@@ -16,6 +16,7 @@ import { useOnlineStore } from '../../store/onlineStore.js'
 import { profileIdentity, usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
 import { categories, wordBank } from '../../data/wordBank.js'
 import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
+import { isAlibiGame } from '../../utils/gameTypes.js'
 
 export default function HostLobby() {
   const navigate = useNavigate()
@@ -95,35 +96,30 @@ export default function HostLobby() {
   if (!roomCode) {
     return (
       <PhoneScreen
+        className="register-screen"
         footer={
           <button
             className="btn btn-primary"
             disabled={!currentName || !connected}
             onClick={() => createRoom(currentName, {
-              impostorCount: 1, mode: 'classic', category: 'random',
+              gameType: 'impostor', impostorCount: 1, mode: 'classic', category: 'random',
               clueType: 'category', blindIntensity: 'medium', roundTime: '3',
-              detectiveEnabled: false,
+              detectiveEnabled: false, alibiRounds: 3,
             }, currentAvatar, profileIdentity(selectedProfile))}
             style={{ padding: '18px 20px', letterSpacing: '0.2em' }}
           >
-            {connected ? 'Crear sala' : 'Conectando…'}
+            {connected ? 'Abrir la sala' : 'Conectando…'}
           </button>
         }
       >
-        <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => navigate('/')} style={{
-            all: 'unset', cursor: 'pointer', color: 'var(--text-2)',
-            fontFamily: 'var(--font-ui)', fontSize: 13,
-          }}>← Volver</button>
+        <div className="register-nav">
+          <button onClick={() => navigate('/')}>← Volver</button>
           <Badge color="var(--gold)" dot>Anfitrión</Badge>
         </div>
-        <div style={{ padding: '40px 28px' }}>
-          <div className="t-eyebrow" style={{ textAlign: 'center', marginBottom: 8 }}>Crea tu sala</div>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 32,
-            color: 'var(--text-1)', textAlign: 'center', letterSpacing: '0.04em', lineHeight: 1.05,
-          }}>¿Cuál es<br />tu nombre?</div>
-          <div style={{ marginTop: 24 }}>
+        <div className="register-sheet">
+          <span className="register-sheet__eyebrow">Ficha de registro · Anfitrión</span>
+          <h1 className="register-sheet__title">¿Quién dirige<br />esta mesa?</h1>
+          <div className="register-sheet__field">
             <ProfileIdentityPicker
               profiles={profiles}
               value={identityId}
@@ -131,7 +127,8 @@ export default function HostLobby() {
               helper="Los invitados juegan normal, pero no entran al ranking."
             />
           </div>
-          <div style={{ marginTop: 32 }}>
+          <div className="register-sheet__field">
+            <span className="register-sheet__label">Nombre del agente</span>
             <input
               type="text"
               value={selectedProfile ? selectedProfile.name : hostName}
@@ -139,23 +136,13 @@ export default function HostLobby() {
               onChange={(e) => { setIdentityId('guest'); setHostName(e.target.value) }}
               placeholder="Tu nombre"
               maxLength={16}
-              style={{
-                width: '100%', padding: '16px 18px', boxSizing: 'border-box',
-                background: 'var(--surface-1)',
-                border: '1px solid var(--hairline-cold)', borderRadius: 12,
-                color: 'var(--text-1)', fontFamily: 'var(--font-ui)',
-                fontSize: 18, fontWeight: 500, outline: 'none', textAlign: 'center',
-              }}
             />
           </div>
-          <div style={{ marginTop: 24 }}>
-            <div style={{
-              fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
-              letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 10,
-            }}>Avatar</div>
+          <div className="register-sheet__field">
+            <span className="register-sheet__label">Retrato</span>
             <AvatarPicker value={avatar} onChange={chooseAvatar} />
           </div>
-          {error && <div style={{ marginTop: 14, color: 'var(--impostor)', textAlign: 'center', fontSize: 13 }}>{error}</div>}
+          {error && <div className="register-sheet__error">{error}</div>}
         </div>
       </PhoneScreen>
     )
@@ -199,7 +186,7 @@ export default function HostLobby() {
         </div>
 
         <section className="lobby-command">
-          <CornerOrnament color="rgba(245, 158, 11, 0.42)" />
+          <CornerOrnament color="rgba(214, 164, 80, 0.42)" />
           <div className="lobby-command__copy">
             <div className="t-eyebrow">Sala privada</div>
             <h1>Mesa abierta</h1>
@@ -247,7 +234,7 @@ function LobbyInvitePanel({ roomCode, joinUrl, copied, onCopy }) {
         ))}
       </div>
       <div className="lobby-invite-card__qr">
-        <QRCodeSVG value={joinUrl} size={132} bgColor="#f1f5f9" fgColor="#07070f" />
+        <QRCodeSVG value={joinUrl} size={132} bgColor="#f3e8d2" fgColor="#160e11" />
       </div>
       <button
         type="button"
@@ -298,14 +285,17 @@ function LobbyPlayersBoard({ players }) {
 }
 
 function LobbyStatusPanel({ players, config }) {
+  const alibiGame = isAlibiGame(config)
   const activeCategory = config?.category || 'random'
   const categoryLabel = activeCategory === 'random'
     ? 'Aleatoria'
     : categories[activeCategory]?.label || 'Sin categoría'
+  const gameLabel = alibiGame ? 'Coartada' : 'El Impostor'
   const modeLabel = {
     classic: 'Clásico',
     clue: 'Con pista',
     blind: 'Ciego',
+    alibi: 'Coartada',
   }[config?.mode] || 'Sin modo'
 
   return (
@@ -320,9 +310,16 @@ function LobbyStatusPanel({ players, config }) {
       </div>
       <div className="lobby-status-list">
         <div>
-          <span><GameIcon name="cardsFan" size={14} /> Modo</span>
-          <strong>{modeLabel}</strong>
+          <span><GameIcon name="cardsFan" size={14} /> Juego</span>
+          <strong>{gameLabel}</strong>
         </div>
+        {alibiGame ? (
+          <div>
+            <span><GameIcon name="cardTarget" size={14} /> Rondas</span>
+            <strong>{config?.alibiRounds || 3}</strong>
+          </div>
+        ) : (
+          <>
         <div>
           <span>Categoría</span>
           <strong>{categoryLabel}</strong>
@@ -331,6 +328,8 @@ function LobbyStatusPanel({ players, config }) {
           <span><GameIcon name="shield" size={14} /> Detective</span>
           <strong>{config?.detectiveEnabled ? 'Activo' : 'Inactivo'}</strong>
         </div>
+          </>
+        )}
       </div>
       <p className="lobby-status-panel__note">
         Cuando todos estén en la mesa, inicia la partida para repartir cartas privadas.
@@ -341,6 +340,19 @@ function LobbyStatusPanel({ players, config }) {
 
 function HostConfigPanel({ config, setConfig, playerCount }) {
   const maxImpostors = Math.max(1, playerCount)
+  const alibiGame = isAlibiGame(config)
+  const switchToImpostor = () => setConfig({
+    gameType: 'impostor',
+    mode: ['classic', 'clue', 'blind'].includes(config.mode) ? config.mode : 'classic',
+    impostorCount: Math.max(1, config.impostorCount || 1),
+  })
+  const switchToAlibi = () => setConfig({
+    gameType: 'alibi',
+    mode: 'alibi',
+    detectiveEnabled: false,
+    impostorCount: 1,
+    alibiRounds: config.alibiRounds || 3,
+  })
   const catOptions = [
     {
       value: 'random',
@@ -357,7 +369,40 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
   ]
   return (
     <>
-      <SectionHeader>Modo de Juego</SectionHeader>
+      <SectionHeader>Juego</SectionHeader>
+      <div className="mystery-game-selector">
+        <ModeCard icon="IM" title="EL IMPOSTOR" accent="red" selected={!alibiGame}
+          description="Palabra secreta, impostores y sospechas."
+          onClick={switchToImpostor} />
+        <ModeCard icon="CO" title="COARTADA" accent="gold" selected={alibiGame}
+          description="Caso por rondas, pistas privadas y una mentira."
+          onClick={switchToAlibi} />
+      </div>
+
+      {alibiGame && (
+        <>
+          <SectionHeader>Coartada</SectionHeader>
+          <div className="alibi-config-note">
+            Juego independiente: no hay palabra secreta, impostores, categoria ni detective. Cada ronda reparte un caso y una persona sostiene una coartada falsa.
+          </div>
+          <SectionHeader>Rondas del caso</SectionHeader>
+          <div style={{ marginBottom: 18 }}>
+            <ChipGroup
+              value={String(config.alibiRounds || 3)}
+              onChange={(value) => setConfig({ alibiRounds: Number(value) })}
+              options={[
+                { value: '3', label: '3 rondas' },
+                { value: '5', label: '5 rondas' },
+                { value: '7', label: '7 rondas' },
+              ]}
+            />
+          </div>
+        </>
+      )}
+
+      {!alibiGame && (
+        <>
+      <SectionHeader>Variante de El Impostor</SectionHeader>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
         <ModeCard icon="🎭" title="CLÁSICO" accent="red" selected={config.mode === 'classic'}
           description="El impostor no sabe la palabra."
@@ -384,59 +429,14 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
         type="button"
         aria-pressed={!!config.detectiveEnabled}
         onClick={() => setConfig({ detectiveEnabled: !config.detectiveEnabled })}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          boxSizing: 'border-box',
-          width: '100%',
-          marginBottom: 18,
-          padding: '14px 16px',
-          borderRadius: 14,
-          border: `1px solid ${config.detectiveEnabled ? 'rgba(245, 158, 11, 0.72)' : 'var(--hairline-cold)'}`,
-          background: config.detectiveEnabled
-            ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04))'
-            : 'var(--surface-1)',
-          boxShadow: config.detectiveEnabled ? '0 0 24px -14px var(--gold-glow)' : 'none',
-        }}
+        className={`host-toggle ${config.detectiveEnabled ? 'is-on' : ''}`}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div className="host-toggle__row">
           <div style={{ minWidth: 0 }}>
-            <div style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 14,
-              fontWeight: 700,
-              color: config.detectiveEnabled ? 'var(--gold)' : 'var(--text-1)',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}>Detective</div>
-            <div style={{
-              marginTop: 4,
-              fontFamily: 'var(--font-ui)',
-              fontSize: 12,
-              lineHeight: 1.4,
-              color: 'var(--text-2)',
-            }}>Puede iniciar un interrogatorio publico una vez por partida.</div>
+            <div className="host-toggle__title">Detective</div>
+            <div className="host-toggle__desc">Puede iniciar un interrogatorio público una vez por partida.</div>
           </div>
-          <span style={{
-            width: 42,
-            height: 24,
-            borderRadius: 999,
-            background: config.detectiveEnabled ? 'rgba(245, 158, 11, 0.28)' : 'rgba(255,255,255,0.08)',
-            border: `1px solid ${config.detectiveEnabled ? 'var(--gold)' : 'var(--hairline-cold)'}`,
-            position: 'relative',
-            flexShrink: 0,
-          }}>
-            <span style={{
-              position: 'absolute',
-              top: 3,
-              left: config.detectiveEnabled ? 21 : 3,
-              width: 16,
-              height: 16,
-              borderRadius: 999,
-              background: config.detectiveEnabled ? 'var(--gold)' : 'var(--text-3)',
-              transition: 'left 0.16s ease',
-            }} />
-          </span>
+          <span className="host-toggle__switch" />
         </div>
       </button>
 
@@ -489,6 +489,8 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
               {(config.blindIntensity || 'medium') === 'far' && 'Otra categoría — el impostor sospechará rápido.'}
             </div>
           </div>
+        </>
+      )}
         </>
       )}
     </>

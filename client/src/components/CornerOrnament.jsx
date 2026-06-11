@@ -1,4 +1,4 @@
-export default function CornerOrnament({ color = 'rgba(245, 158, 11, 0.5)' }) {
+export default function CornerOrnament({ color = 'rgba(214, 164, 80, 0.5)' }) {
   const c = { position: 'absolute', width: 26, height: 26, opacity: 0.7, pointerEvents: 'none' }
   const linePath = (
     <svg viewBox="0 0 26 26" width="26" height="26">

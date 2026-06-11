@@ -1,7 +1,7 @@
 const palette = {
-  red:  { color: 'var(--impostor)', glow: 'var(--impostor-glow)', soft: 'rgba(220,38,38,0.08)' },
-  gold: { color: 'var(--gold)',     glow: 'var(--gold-glow)',     soft: 'rgba(245,158,11,0.08)' },
-  blue: { color: 'var(--citizen)',  glow: 'var(--citizen-glow)',  soft: 'rgba(59,130,246,0.08)' },
+  red:  { color: 'var(--impostor)', glow: 'var(--impostor-glow)', soft: 'rgba(207, 59, 52,0.08)' },
+  gold: { color: 'var(--gold)',     glow: 'var(--gold-glow)',     soft: 'rgba(214, 164, 80,0.08)' },
+  blue: { color: 'var(--citizen)',  glow: 'var(--citizen-glow)',  soft: 'rgba(94, 138, 166,0.08)' },
 }
 
 export default function ModeCard({ icon, title, description, accent, selected, onClick }) {

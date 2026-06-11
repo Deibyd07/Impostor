@@ -148,9 +148,9 @@ function ActionTile({ icon, label, accent, primary, onClick }) {
       all: 'unset', cursor: 'pointer',
       padding: '20px 14px',
       background: primary
-        ? 'linear-gradient(180deg, rgba(220, 38, 38, 0.16), rgba(220, 38, 38, 0.04))'
+        ? 'linear-gradient(180deg, rgba(207, 59, 52, 0.16), rgba(207, 59, 52, 0.04))'
         : 'var(--surface-1)',
-      border: `1px solid ${primary ? 'rgba(220, 38, 38, 0.5)' : 'var(--hairline-cold)'}`,
+      border: `1px solid ${primary ? 'rgba(207, 59, 52, 0.5)' : 'var(--hairline-cold)'}`,
       borderRadius: 14,
       textAlign: 'left',
       boxShadow: primary ? `0 0 24px -10px ${glow}` : 'none',

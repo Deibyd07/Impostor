@@ -16,7 +16,7 @@ export default function PassPhone() {
     <PhoneScreen padTop={false} padBottom={false}>
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'radial-gradient(70% 50% at 50% 35%, rgba(220, 38, 38, 0.1), transparent 75%)',
+        background: 'radial-gradient(70% 50% at 50% 35%, rgba(207, 59, 52, 0.1), transparent 75%)',
       }} />
       <div style={{
         position: 'relative', zIndex: 3,
@@ -45,7 +45,7 @@ export default function PassPhone() {
             fontFamily: 'var(--font-display)', fontWeight: 700,
             fontSize: player.name.length > 10 ? 42 : 56,
             color: 'var(--text-1)', letterSpacing: '0.06em',
-            textShadow: '0 0 40px rgba(245, 158, 11, 0.3), 0 4px 1px rgba(0,0,0,0.8)',
+            textShadow: '0 0 40px rgba(214, 164, 80, 0.3), 0 4px 1px rgba(0,0,0,0.8)',
             lineHeight: 1, padding: '0 20px', wordBreak: 'break-word',
           }}>{player.name.toUpperCase()}</div>
 

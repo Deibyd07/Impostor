@@ -13,6 +13,7 @@ import { normalizeAvatar } from './avatars.js'
 import { createRoomStore } from './roomStore.js'
 import { createLeaderboardStore } from './leaderboardStore.js'
 import { applyRoomScoreSummary } from './scoreboard.js'
+import { alibiCases } from './alibiCases.js'
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true })
 
@@ -187,6 +188,14 @@ const IMPOSTOR_CHAT_TEXT_MAX_LENGTH = 80
 const CHAT_RATE_LIMIT = 20
 const CHAT_RATE_WINDOW_MS = 60_000
 const INTERROGATION_DURATION_MS = 30_000
+const ALIBI_ROUND_OPTIONS = [3, 5, 7]
+const ALIBI_POINTS = {
+  correctAccusation: 3,
+  detectiveCorrect: 4,
+  honestCleared: 1,
+  lieSurvived: 4,
+  lieTied: 2,
+}
 const INTERROGATION_PROMPTS = [
   'Describe la palabra usando exactamente 3 palabras.',
   'Da una pista sin mencionar la categoria.',
@@ -194,6 +203,14 @@ const INTERROGATION_PROMPTS = [
   'Menciona algo cercano a la palabra, sin decir la palabra.',
   'Da una pista que suene natural en una conversacion.',
   'Explica por que alguien reconoceria esta palabra.',
+]
+const ALIBI_INTERROGATION_PROMPTS = [
+  'Reconstruye tu ruta desde {claimedLocation} hasta el momento del apagon.',
+  'Di que podias ver desde {claimedLocation} sin agregar detalles nuevos.',
+  'Explica que sonido escuchaste primero y de donde crees que venia.',
+  'Responde por que tu ubicacion encaja con la evidencia publica.',
+  'Nombra a una persona cuya version confirme o contradiga la tuya.',
+  'Describe que hiciste en los 17 segundos del apagon.',
 ]
 
 // --- rate limiting (token bucket por socket) ---
@@ -383,9 +400,9 @@ function sanitizePlayerProfile({ profileId, isGuest } = {}) {
     isGuest: guest,
   }
 }
-function sanitizeChatText(raw) {
+function sanitizeChatText(raw, maxLength = CHAT_TEXT_MAX_LENGTH) {
   if (typeof raw !== 'string') return ''
-  return raw.replace(/\s+/g, ' ').trim().slice(0, CHAT_TEXT_MAX_LENGTH)
+  return raw.replace(/\s+/g, ' ').trim().slice(0, maxLength)
 }
 function sanitizeImpostorChatText(raw) {
   if (typeof raw !== 'string') return ''
@@ -397,16 +414,30 @@ function isValidCode(s) {
 function isValidSessionToken(s) {
   return typeof s === 'string' && /^[0-9A-Za-z]{24}$/.test(s)
 }
+function isAlibiConfig(config) {
+  return config?.gameType === 'alibi' || config?.mode === 'alibi'
+}
 function sanitizeConfig(cfg) {
   const out = {}
   if (typeof cfg !== 'object' || !cfg) return out
-  if (typeof cfg.mode === 'string' && ['classic', 'clue', 'blind'].includes(cfg.mode)) out.mode = cfg.mode
+  const requestedAlibi = cfg.gameType === 'alibi' || cfg.mode === 'alibi'
+  if (requestedAlibi) {
+    out.gameType = 'alibi'
+    out.mode = 'alibi'
+  } else {
+    if (cfg.gameType === 'impostor') out.gameType = 'impostor'
+    if (typeof cfg.mode === 'string' && ['classic', 'clue', 'blind'].includes(cfg.mode)) out.mode = cfg.mode
+  }
   if (typeof cfg.category === 'string' && (cfg.category === 'random' || wordBank[cfg.category])) out.category = cfg.category
   if (Number.isFinite(cfg.impostorCount)) out.impostorCount = Math.max(1, Math.floor(cfg.impostorCount))
   if (typeof cfg.clueType === 'string' && ['category','firstLetter','wordLength','vague','custom'].includes(cfg.clueType)) out.clueType = cfg.clueType
   if (typeof cfg.customClue === 'string') out.customClue = cfg.customClue.slice(0, 80)
   if (typeof cfg.blindIntensity === 'string' && ['near','medium','far'].includes(cfg.blindIntensity)) out.blindIntensity = cfg.blindIntensity
   if (typeof cfg.roundTime === 'string') out.roundTime = cfg.roundTime
+  if (Number.isFinite(cfg.alibiRounds)) {
+    const rounds = Math.floor(cfg.alibiRounds)
+    out.alibiRounds = ALIBI_ROUND_OPTIONS.includes(rounds) ? rounds : 3
+  }
   if (typeof cfg.detectiveEnabled === 'boolean') out.detectiveEnabled = cfg.detectiveEnabled
   return out
 }
@@ -556,6 +587,8 @@ function serializeRoom(room) {
     lastTie: room.lastTie || null,
     result: room.result || null,
     roomScores: room.roomScores || {},
+    alibi: room.alibi || null,
+    alibiScores: room.alibiScores || {},
     updatedAt: Date.now(),
   }
 }
@@ -625,6 +658,8 @@ function restoreRoom(snapshot) {
     lastTie: snapshot.lastTie || null,
     result: snapshot.result || null,
     roomScores: snapshot.roomScores || {},
+    alibi: snapshot.alibi || null,
+    alibiScores: snapshot.alibiScores || {},
   }
   if (room.players.some(player => player.id === room.hostId)) {
     syncHostFlags(room)
@@ -771,7 +806,7 @@ async function makeRoom(hostSocketId, hostName, avatar, config, profile = {}) {
   }
   const room = {
     code, hostId: player.id,
-    config: { ...sanitizeConfig(config) },
+    config: { gameType: 'impostor', mode: 'classic', category: 'random', impostorCount: 1, ...sanitizeConfig(config) },
     players: [player],
     phase: 'lobby',
     round: 1,
@@ -797,6 +832,8 @@ async function makeRoom(hostSocketId, hostName, avatar, config, profile = {}) {
     lastTie: null,
     result: null,
     roomScores: {},
+    alibi: null,
+    alibiScores: {},
   }
   rooms.set(code, room)
   return room
@@ -842,6 +879,9 @@ function sanitizeRoom(room, viewerId = null) {
     impostorChatMessages: impostorChatMessagesFor(room, viewerId),
     impostorLastGuessRound: canUseImpostorChat(room, viewerId) ? (room.impostorLastGuessRound ?? -1) : -1,
     interrogation: interrogationPayloadFor(room.interrogation, viewerId),
+    alibiCase: publicAlibiCase(room),
+    alibiRoundResult: room.alibi?.roundResult || null,
+    alibiScoreboard: alibiScoreboard(room),
   }
 }
 
@@ -920,6 +960,13 @@ function clearInterrogation(room, { emit = true } = {}) {
 
 function buildInterrogationPayload(room, detective, target) {
   const now = Date.now()
+  const assignment = room.alibi?.assignments?.[target.id]
+  const prompt = isAlibiConfig(room.config)
+    ? formatTemplate(pickOne(ALIBI_INTERROGATION_PROMPTS), {
+        targetName: target.name,
+        claimedLocation: assignment?.claimedLocation || 'tu ubicacion',
+      })
+    : pickOne(INTERROGATION_PROMPTS)
   return {
     id: `${room.gameId || room.code}-${now}`,
     detectiveId: detective.id,
@@ -928,7 +975,7 @@ function buildInterrogationPayload(room, detective, target) {
     targetId: target.id,
     targetName: target.name,
     targetAvatar: normalizeAvatar(target.avatar, target.name),
-    prompt: pickOne(INTERROGATION_PROMPTS),
+    prompt,
     startedAt: now,
     expiresAt: now + INTERROGATION_DURATION_MS,
   }
@@ -988,6 +1035,304 @@ function removeVoicePeer(playerId, room = null) {
   })
 }
 
+function formatTemplate(template, values) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => values[key] ?? '')
+}
+
+function publicAlibiCase(room) {
+  if (!room?.alibi?.currentCase) return null
+  const current = room.alibi.currentCase
+  const detective = room.players.find(player => player.id === room.alibi?.detectiveId)
+  return {
+    round: room.round,
+    totalRounds: room.alibi.totalRounds || 3,
+    id: current.id,
+    title: current.title,
+    subtitle: current.subtitle || '',
+    chapterLabel: current.chapterLabel || '',
+    brief: current.brief,
+    premise: current.premise || '',
+    objective: current.objective || '',
+    roundPrompt: current.roundPrompt || '',
+    howToPlay: current.howToPlay || [],
+    story: current.story || [],
+    victim: current.victim || null,
+    incident: current.incident || null,
+    evidence: current.evidence || current.publicEvidence?.[0] || '',
+    publicEvidence: current.publicEvidence || [],
+    tableQuestions: current.tableQuestions || [],
+    map: current.map || null,
+    locations: current.locations || [],
+    detective: detective ? {
+      id: detective.id,
+      name: detective.name,
+      avatar: normalizeAvatar(detective.avatar, detective.name),
+    } : null,
+  }
+}
+
+function alibiAssignmentFor(room, playerId) {
+  if (room?.alibi?.detectiveId === playerId) {
+    const current = room.alibi.currentCase
+    return {
+      ...publicAlibiCase(room),
+      role: 'alibi-detective',
+      objective: 'Dirige la investigacion, interroga sospechosos y emite la acusacion final.',
+      statement: current?.detectiveBrief || 'Usa el mapa, las evidencias y las versiones privadas que escuches para encontrar la coartada falsa.',
+      clue: current?.detectiveTip || 'No busques una confesion. Busca una ruta imposible, un sonido mal ubicado o una version demasiado larga.',
+      suspects: room.players
+        .filter(player => room.alibi?.assignments?.[player.id])
+        .map(player => ({
+          id: player.id,
+          name: player.name,
+          avatar: normalizeAvatar(player.avatar, player.name),
+        })),
+    }
+  }
+  const assignment = room?.alibi?.assignments?.[playerId]
+  if (!assignment) return null
+  return {
+    ...publicAlibiCase(room),
+    role: assignment.role,
+    realLocation: assignment.realLocation,
+    claimedLocation: assignment.claimedLocation,
+    statement: assignment.statement,
+    saw: assignment.saw,
+    heard: assignment.heard,
+    detail: assignment.detail,
+    risk: assignment.risk,
+    clue: assignment.clue,
+    objective: assignment.objective,
+  }
+}
+
+function emptyAlibiScore(player) {
+  return {
+    playerId: player.id,
+    name: player.name,
+    avatar: normalizeAvatar(player.avatar, player.name),
+    profileId: player.profileId || null,
+    isGuest: player.isGuest !== false || !player.profileId,
+    totalPoints: 0,
+    correctAccusations: 0,
+    liesSurvived: 0,
+    rounds: 0,
+    lastDelta: 0,
+  }
+}
+
+function alibiScoreboard(room) {
+  return Object.values(room.alibiScores || {})
+    .sort((a, b) => (
+      b.totalPoints - a.totalPoints ||
+      b.correctAccusations - a.correctAccusations ||
+      a.name.localeCompare(b.name)
+    ))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }))
+}
+
+function createAlibiRound(room) {
+  const players = room.players.filter(player => !player.disconnected)
+  if (players.length < 3) return
+  const currentCase = room.alibi?.caseFile || pickOne(alibiCases)
+  let detective = players.find(player => player.id === room.alibi?.detectiveId)
+  if (!detective) detective = pickOne(players)
+  const suspects = players.filter(player => player.id !== detective.id)
+  if (suspects.length < 2) return
+  const liar = pickOne(suspects)
+  const locationPool = shuffle(currentCase.locations)
+  const realLocations = new Map()
+  suspects.forEach((player, index) => {
+    realLocations.set(player.id, locationPool[index % locationPool.length])
+  })
+  const reservedRealLocations = new Set(realLocations.values())
+  const assignments = {}
+
+  room.roles = {}
+  room.roles[detective.id] = 'detective'
+
+  suspects.forEach((player) => {
+    const realLocation = realLocations.get(player.id)
+    const role = player.id === liar.id ? 'alibi-liar' : 'alibi-witness'
+    const falseLocationPool = currentCase.locations.filter(location => (
+      location !== realLocation && !reservedRealLocations.has(location)
+    ))
+    const claimedLocation = role === 'alibi-liar'
+      ? pickOne(falseLocationPool.length ? falseLocationPool : currentCase.locations.filter(location => location !== realLocation))
+      : realLocation
+    const other = pickOne(suspects.filter(item => item.id !== player.id)) || player
+    const clueTemplates = role === 'alibi-liar' ? currentCase.liarHints : currentCase.clues
+    const version = currentCase.versions?.[claimedLocation] || {}
+    const clue = formatTemplate(pickOne(clueTemplates), {
+      liarName: liar.name,
+      liarClaim: claimedLocation,
+      otherName: other.name,
+    })
+
+    assignments[player.id] = {
+      role,
+      realLocation,
+      claimedLocation,
+      statement: version.statement || currentCase.statements[claimedLocation] || `Estaba en ${claimedLocation}.`,
+      saw: version.saw || '',
+      heard: version.heard || '',
+      detail: version.detail || '',
+      risk: version.risk || '',
+      clue,
+      objective: role === 'alibi-liar'
+        ? 'Defiende tu version falsa y evita que el Detective te acuse.'
+        : 'Ayuda al Detective a encontrar quien sostiene una coartada falsa.',
+    }
+    room.roles[player.id] = role
+  })
+
+  room.alibi = {
+    ...(room.alibi || {}),
+    totalRounds: ALIBI_ROUND_OPTIONS.includes(Number(room.config?.alibiRounds)) ? Number(room.config.alibiRounds) : 3,
+    caseFile: currentCase,
+    currentCase,
+    detectiveId: detective.id,
+    liarId: liar.id,
+    assignments,
+    roundResult: null,
+    history: room.alibi?.history || [],
+  }
+}
+
+function resetAlibiGame(room) {
+  room.roles = {}
+  room.alibiScores = {}
+  room.alibi = {
+    totalRounds: ALIBI_ROUND_OPTIONS.includes(Number(room.config?.alibiRounds)) ? Number(room.config.alibiRounds) : 3,
+    caseFile: pickOne(alibiCases),
+    currentCase: null,
+    detectiveId: null,
+    liarId: null,
+    assignments: {},
+    roundResult: null,
+    history: [],
+  }
+  createAlibiRound(room)
+}
+
+function alibiVoteResult(room) {
+  const roundPlayers = room.players.filter(player => (
+    room.alibi?.assignments?.[player.id] || player.id === room.alibi?.detectiveId
+  ))
+  const suspects = room.players.filter(player => room.alibi?.assignments?.[player.id])
+  const counts = room.votes || {}
+  const detectiveId = room.alibi?.detectiveId
+  const detective = room.players.find(player => player.id === detectiveId)
+  const accusedId = room.voters[detectiveId] || null
+  const leaderIds = accusedId ? [accusedId] : []
+  const liarId = room.alibi?.liarId
+  const liar = room.players.find(player => player.id === liarId)
+  const liarAssignment = room.alibi?.assignments?.[liarId] || null
+  const detected = accusedId === liarId
+  const tiedWithLiar = false
+  const pointRows = []
+
+  roundPlayers.forEach(player => {
+    const previous = room.alibiScores[player.id] || emptyAlibiScore(player)
+    const isDetective = player.id === detectiveId
+    const votedCorrectly = isDetective && detected
+    const isLiar = player.id === liarId
+    const isHonestSuspect = !!room.alibi?.assignments?.[player.id] && !isLiar
+    const breakdown = []
+    if (isDetective && detected) breakdown.push({ label: 'Detective acerto', points: ALIBI_POINTS.detectiveCorrect })
+    if (isHonestSuspect && detected) breakdown.push({ label: 'Coartada validada', points: ALIBI_POINTS.honestCleared })
+    if (isLiar && !detected) {
+      breakdown.push({
+        label: 'Engano al detective',
+        points: ALIBI_POINTS.lieSurvived,
+      })
+    }
+    const delta = breakdown.reduce((total, item) => total + item.points, 0)
+    const next = {
+      ...previous,
+      playerId: player.id,
+      name: player.name,
+      avatar: normalizeAvatar(player.avatar, player.name),
+      profileId: player.profileId || null,
+      isGuest: player.isGuest !== false || !player.profileId,
+      totalPoints: previous.totalPoints + delta,
+      correctAccusations: previous.correctAccusations + (votedCorrectly ? 1 : 0),
+      liesSurvived: previous.liesSurvived + (isLiar && !detected ? 1 : 0),
+      rounds: previous.rounds + 1,
+      lastDelta: delta,
+    }
+    room.alibiScores[player.id] = next
+    pointRows.push({
+      playerId: player.id,
+      name: player.name,
+      avatar: normalizeAvatar(player.avatar, player.name),
+      isLiar,
+      isDetective,
+      votedCorrectly,
+      votedFor: isDetective ? accusedId : null,
+      points: delta,
+      totalPoints: next.totalPoints,
+      breakdown,
+    })
+  })
+
+  const voteCounts = suspects.map(player => ({
+    playerId: player.id,
+    name: player.name,
+    avatar: normalizeAvatar(player.avatar, player.name),
+    votes: counts[player.id] || 0,
+    isLiar: player.id === liarId,
+  })).sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name))
+
+  return {
+    id: `${room.gameId}-${room.round}-${Date.now()}`,
+    round: room.round,
+    totalRounds: room.alibi?.totalRounds || 3,
+    caseTitle: room.alibi?.currentCase?.title || 'Coartada',
+    caseBrief: room.alibi?.currentCase?.brief || '',
+    accusedId,
+    detected,
+    tiedWithLiar,
+    leaderIds,
+    detective: detective ? {
+      id: detective.id,
+      name: detective.name,
+      avatar: normalizeAvatar(detective.avatar, detective.name),
+    } : null,
+    liar: liar ? {
+      id: liar.id,
+      name: liar.name,
+      avatar: normalizeAvatar(liar.avatar, liar.name),
+      claimedLocation: liarAssignment?.claimedLocation || null,
+      realLocation: liarAssignment?.realLocation || null,
+    } : null,
+    voteCounts,
+    points: pointRows,
+    scoreboard: alibiScoreboard(room),
+  }
+}
+
+function alibiGameOverPayload(room, roundResult) {
+  const scoreboard = alibiScoreboard(room)
+  return {
+    gameId: room.gameId,
+    winner: 'alibi',
+    reason: 'roundsComplete',
+    mode: 'alibi',
+    playedAt: Date.now(),
+    roundResult,
+    alibiScoreboard: scoreboard,
+    players: room.players.map(player => ({
+      id: player.id,
+      name: player.name,
+      avatar: normalizeAvatar(player.avatar, player.name),
+      profileId: player.profileId || null,
+      isGuest: player.isGuest !== false || !player.profileId,
+      role: room.roles[player.id],
+    })),
+  }
+}
+
 function assignRoles(room) {
   const cfg = room.config
   const catKey = cfg.category === 'random' || !cfg.category
@@ -1040,6 +1385,16 @@ function assignRoles(room) {
 function rolePayloadFor(room, playerId) {
   const role = room.roles[playerId]
   if (!role) return null
+  if (isAlibiConfig(room.config)) {
+    return {
+      role,
+      word: null,
+      clue: null,
+      impostorTeammates: [],
+      alibi: alibiAssignmentFor(room, playerId),
+      detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
+    }
+  }
   const impostorTeammates = impostorTeammatesFor(room, playerId)
   const impostorPrivate = canUseImpostorChat(room, playerId)
     ? {
@@ -1116,6 +1471,7 @@ function emitYourRole(room) {
 function activePlayers(room) { return room.players.filter(p => !p.eliminated) }
 
 function checkVictory(room) {
+  if (isAlibiConfig(room.config)) return null
   if (room.impostorGuessedWord) return { winner: 'impostor', reason: 'wordGuessed' }
   const active = activePlayers(room)
   const activeImpostors = active.filter(p => isImpostorRole(room.roles[p.id]))
@@ -1255,6 +1611,10 @@ function afterPlayerListChanged(room) {
 }
 
 function tryResolveVotes(room) {
+  if (isAlibiConfig(room.config)) {
+    tryResolveAlibiVotes(room)
+    return
+  }
   const activeIds = activePlayers(room).map(p => p.id)
   const allVoted = activeIds.every(id => !!room.voters[id])
   if (!allVoted) return
@@ -1295,6 +1655,33 @@ function tryResolveVotes(room) {
   } else {
     advanceToDiscussion(room)
   }
+}
+
+function tryResolveAlibiVotes(room) {
+  const detectiveId = room.alibi?.detectiveId
+  const detective = room.players.find(player => (
+    player.id === detectiveId && !player.eliminated && !player.disconnected
+  ))
+  if (!detective || !room.voters[detectiveId]) return
+  recalculateVotes(room)
+  emitVoteUpdate(room)
+  const roundResult = alibiVoteResult(room)
+  room.alibi.roundResult = roundResult
+  room.alibi.history = [...(room.alibi.history || []), roundResult]
+
+  if (room.round >= (room.alibi?.totalRounds || 3)) {
+    room.phase = 'ended'
+    room.result = alibiGameOverPayload(room, roundResult)
+    io.to(room.code).emit('game:alibiRoundResult', { roundResult })
+    io.to(room.code).emit('game:over', room.result)
+    saveRoom(room)
+    return
+  }
+
+  room.phase = 'roundResult'
+  io.to(room.code).emit('game:alibiRoundResult', { roundResult })
+  io.to(room.code).emit('game:phase', { phase: 'roundResult' })
+  saveRoom(room)
 }
 
 function findPlayerByName(room, name) {
@@ -1430,7 +1817,7 @@ io.on('connection', (socket) => {
       clientPhase,
       votedFor: room.voters[player.id] || null,
       lastGuessRound: room.lastGuessRounds[player.id] ?? -1,
-      ...(rolePayloadFor(room, player.id) || {}),
+      ...(room.phase === 'caseIntro' ? {} : (rolePayloadFor(room, player.id) || {})),
     }
     socket.emit('room:resumed', { code: room.code, room: sanitizeRoom(room, player.id), you })
     broadcastPlayers(room)
@@ -1524,9 +1911,11 @@ io.on('connection', (socket) => {
     room.gameCounter += 1
     room.gameId = `${room.code}-${room.gameCounter}-${Date.now()}`
     clearInterrogation(room, { emit: false })
-    assignRoles(room)
-    room.phase = 'reveal'
     room.round = 1
+    const alibiGame = isAlibiConfig(room.config)
+    if (alibiGame) resetAlibiGame(room)
+    else assignRoles(room)
+    room.phase = alibiGame ? 'caseIntro' : 'reveal'
     room.votes = {}; room.voters = {}
     room.eliminatedIds = []
     room.chatMessages = []
@@ -1538,8 +1927,27 @@ io.on('connection', (socket) => {
     room.speakOrder = []
     room.lastTie = null
     room.result = null
+    if (!isAlibiConfig(room.config)) {
+      room.alibi = null
+      room.alibiScores = {}
+    }
     room.players.forEach(p => { p.eliminated = false; p.ready = false })
-    io.to(room.code).emit('game:started')
+    io.to(room.code).emit('game:started', {
+      phase: room.phase,
+      alibiCase: alibiGame ? publicAlibiCase(room) : null,
+    })
+    if (!alibiGame) emitYourRole(room)
+    saveRoom(room)
+  })
+
+  socket.on('game:continueAlibiIntro', () => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || room.hostId !== player.id) return
+    if (!isAlibiConfig(room.config) || room.phase !== 'caseIntro') return
+    room.phase = 'reveal'
+    io.to(room.code).emit('game:phase', { phase: 'reveal' })
     emitYourRole(room)
     saveRoom(room)
   })
@@ -1559,7 +1967,12 @@ io.on('connection', (socket) => {
     if (!allow(socket.id, 1)) return
     const room = getRoomBySocket(socket.id)
     const player = getPlayerBySocket(room, socket.id)
-    if (!room || !player || room.hostId !== player.id) return
+    if (!room || !player) return
+    if (isAlibiConfig(room.config)) {
+      if (!isDetectiveRole(room.roles[player.id])) return
+    } else if (room.hostId !== player.id) {
+      return
+    }
     clearInterrogation(room)
     room.phase = 'voting'
     room.votes = {}; room.voters = {}
@@ -1585,7 +1998,7 @@ io.on('connection', (socket) => {
       socket.emit('chat:error', { message: 'Estas enviando mensajes muy rapido' })
       return
     }
-    const cleanText = sanitizeChatText(text)
+    const cleanText = sanitizeChatText(text, isAlibiConfig(room.config) ? 80 : CHAT_TEXT_MAX_LENGTH)
     if (!cleanText) return
 
     const message = chatPayloadFor(player, cleanText)
@@ -1644,6 +2057,10 @@ io.on('connection', (socket) => {
       socket.emit('game:detectiveError', { message: 'Ese jugador no esta disponible' })
       return
     }
+    if (isAlibiConfig(room.config) && !room.alibi?.assignments?.[target.id]) {
+      socket.emit('game:detectiveError', { message: 'Solo puedes interrogar sospechosos del caso' })
+      return
+    }
 
     room.detectiveInterrogationUsedBy = detective.id
     room.interrogation = buildInterrogationPayload(room, detective, target)
@@ -1667,6 +2084,10 @@ io.on('connection', (socket) => {
     if (voter.id === targetId) return
     const target = room.players.find(p => p.id === targetId)
     if (!target || target.eliminated) return
+    if (isAlibiConfig(room.config)) {
+      if (!isDetectiveRole(room.roles[voter.id])) return
+      if (!room.alibi?.assignments?.[targetId]) return
+    }
     room.voters[voter.id] = targetId
     recalculateVotes(room)
     emitVoteUpdate(room)
@@ -1679,6 +2100,7 @@ io.on('connection', (socket) => {
     const room = getRoomBySocket(socket.id)
     const player = getPlayerBySocket(room, socket.id)
     if (!room || !player || room.hostId !== player.id) return
+    if (isAlibiConfig(room.config)) return
     room.round += 1
     room.votes = {}; room.voters = {}
     room.phase = 'discussion'
@@ -1687,6 +2109,30 @@ io.on('connection', (socket) => {
     room.lastTie = null
     io.to(room.code).emit('game:newRound', { round: room.round, speakOrder })
     io.to(room.code).emit('game:phase', { phase: 'discussion', speakOrder })
+    saveRoom(room)
+  })
+
+  socket.on('game:nextAlibiRound', () => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || room.hostId !== player.id) return
+    if (!isAlibiConfig(room.config) || room.phase !== 'roundResult') return
+    if (room.players.filter(p => !p.disconnected).length < 2) return
+    room.round += 1
+    room.votes = {}
+    room.voters = {}
+    room.lastTie = null
+    room.phase = 'caseIntro'
+    room.chatMessages = []
+    room.players.forEach(p => { p.ready = false; p.eliminated = false })
+    createAlibiRound(room)
+    io.to(room.code).emit('game:alibiNextRound', {
+      round: room.round,
+      alibiCase: publicAlibiCase(room),
+    })
+    io.to(room.code).emit('game:phase', { phase: 'caseIntro' })
+    broadcastPlayers(room)
     saveRoom(room)
   })
 
@@ -1721,6 +2167,8 @@ io.on('connection', (socket) => {
     room.speakOrder = []
     room.lastTie = null
     room.result = null
+    room.alibi = null
+    room.alibiScores = {}
     room.players.forEach(p => {
       p.eliminated = false
       p.ready = false

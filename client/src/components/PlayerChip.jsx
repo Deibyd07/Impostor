@@ -27,7 +27,7 @@ export default function PlayerChip({
     <div className={`player-chip ${eliminated ? 'is-eliminated' : ''}`} style={{
       display: 'inline-flex', alignItems: 'center', gap: 8,
       background: eliminated ? 'rgba(15, 15, 25, 0.6)' : 'var(--surface-2)',
-      border: `1px solid ${eliminated ? 'rgba(220,38,38,0.25)' : 'var(--hairline-cold)'}`,
+      border: `1px solid ${eliminated ? 'rgba(207, 59, 52,0.25)' : 'var(--hairline-cold)'}`,
       borderRadius: 999,
       padding: '6px 12px 6px 6px',
       opacity: eliminated ? 0.45 : 1,
@@ -42,12 +42,12 @@ export default function PlayerChip({
           all: 'unset',
           width: 26, height: 26, borderRadius: 999,
           background: eliminated
-            ? 'linear-gradient(135deg, #2a0a0a, #110404)'
-            : 'linear-gradient(135deg, #2a2a45, #15152a)',
+            ? 'linear-gradient(135deg, #321114, #110404)'
+            : 'linear-gradient(135deg, #3d2a30, #261a1e)',
           color: eliminated ? 'var(--impostor)' : 'var(--gold)',
           fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: avatar ? 15 : 13,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: 'inset 0 0 0 1px rgba(245, 158, 11, 0.2)',
+          boxShadow: 'inset 0 0 0 1px rgba(214, 164, 80, 0.2)',
           flexShrink: 0,
           cursor: canPickAvatar ? 'pointer' : 'default',
           lineHeight: 1,

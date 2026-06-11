@@ -16,7 +16,7 @@ export default function CompactRoleReminder({ role, word, clue }) {
       style={{
         position: 'sticky', top: 0, zIndex: 5,
         margin: '0 -20px', padding: '12px 20px',
-        background: 'linear-gradient(180deg, var(--bg-base) 70%, rgba(7,7,15,0.85))',
+        background: 'linear-gradient(180deg, var(--bg-base) 70%, rgba(22, 14, 17,0.85))',
         borderBottom: '1px solid var(--hairline-cold)',
         cursor: 'pointer',
         backdropFilter: 'blur(6px)',

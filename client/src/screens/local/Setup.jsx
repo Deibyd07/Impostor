@@ -144,7 +144,7 @@ export default function Setup() {
           <button onClick={randomize} style={{
             all: 'unset', cursor: 'pointer',
             padding: '8px 14px', borderRadius: 999,
-            border: '1px solid rgba(245, 158, 11, 0.4)', color: 'var(--gold)',
+            border: '1px solid rgba(214, 164, 80, 0.4)', color: 'var(--gold)',
             fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 500,
             letterSpacing: '0.04em',
           }}>🎲 Aleatorizar</button>
@@ -230,7 +230,7 @@ export default function Setup() {
               all: 'unset', cursor: 'pointer', flexShrink: 0,
               padding: '10px 16px', borderRadius: 999,
               fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 500,
-              background: config.category === c.v ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-1)',
+              background: config.category === c.v ? 'rgba(214, 164, 80, 0.12)' : 'var(--surface-1)',
               border: `1px solid ${config.category === c.v ? 'var(--gold)' : 'var(--hairline-cold)'}`,
               color: config.category === c.v ? 'var(--gold)' : 'var(--text-1)',
               boxShadow: config.category === c.v ? '0 0 20px -8px var(--gold-glow)' : 'none',

@@ -60,7 +60,7 @@ export function resolveVoiceChannel({
     }
   }
 
-  if (!['lobby', 'reveal', 'discussion', 'voting', 'voted', 'ended'].includes(phase)) {
+  if (!['lobby', 'caseIntro', 'reveal', 'discussion', 'voting', 'voted', 'roundResult', 'ended'].includes(phase)) {
     return {
       ...base,
       allowedPeerIds: [],

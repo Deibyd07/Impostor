@@ -16,7 +16,7 @@ export default function ChipGroup({ options, value, onChange, accent = 'gold' })
               all: 'unset', cursor: 'pointer',
               padding: '8px 14px', borderRadius: 999,
               fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 500,
-              background: active ? 'rgba(245, 158, 11, 0.1)' : 'var(--surface-1)',
+              background: active ? 'rgba(214, 164, 80, 0.1)' : 'var(--surface-1)',
               border: `1px solid ${active ? color : 'var(--hairline-cold)'}`,
               color: active ? color : 'var(--text-2)',
               transition: 'all 0.15s ease',

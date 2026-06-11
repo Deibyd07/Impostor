@@ -33,9 +33,9 @@ export default function SplashScreen({ onDone }) {
         zIndex: 2400,
         overflow: 'hidden',
         background:
-          'radial-gradient(90% 55% at 50% 28%, rgba(220,38,38,0.24), transparent 62%),' +
-          'radial-gradient(90% 45% at 50% 72%, rgba(245,158,11,0.12), transparent 70%),' +
-          'linear-gradient(180deg, #04040a 0%, #07070f 58%, #020207 100%)',
+          'radial-gradient(90% 55% at 50% 28%, rgba(207, 59, 52,0.24), transparent 62%),' +
+          'radial-gradient(90% 45% at 50% 72%, rgba(214, 164, 80,0.12), transparent 70%),' +
+          'linear-gradient(180deg, #0c0709 0%, #160e11 58%, #020207 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -66,26 +66,26 @@ export default function SplashScreen({ onDone }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'radial-gradient(circle at 50% 38%, rgba(220,38,38,0.24), rgba(0,0,0,0.34) 70%)',
-            border: '1px solid rgba(245,158,11,0.38)',
+            background: 'radial-gradient(circle at 50% 38%, rgba(207, 59, 52,0.24), rgba(0,0,0,0.34) 70%)',
+            border: '1px solid rgba(214, 164, 80,0.38)',
             boxShadow:
-              '0 0 0 1px rgba(220,38,38,0.22), 0 0 52px -10px rgba(220,38,38,0.8), inset 0 0 32px rgba(245,158,11,0.08)',
-            color: '#ef4444',
+              '0 0 0 1px rgba(207, 59, 52,0.22), 0 0 52px -10px rgba(207, 59, 52,0.8), inset 0 0 32px rgba(214, 164, 80,0.08)',
+            color: '#e0584b',
           }}
         >
-          <MaskIcon size={74} color="#ef4444" />
+          <MaskIcon size={74} color="#e0584b" />
         </motion.div>
 
         <div style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 900,
-          fontSize: 52,
-          letterSpacing: '0.04em',
+          fontSize: 50,
+          letterSpacing: '0.01em',
           lineHeight: 0.94,
           textShadow:
-            '0 0 52px rgba(220,38,38,0.78), 0 0 22px rgba(220,38,38,0.5), 0 3px 1px rgba(0,0,0,0.9)',
+            '0 0 52px rgba(207, 59, 52,0.78), 0 0 22px rgba(207, 59, 52,0.5), 0 3px 1px rgba(0,0,0,0.9)',
         }}>
-          EL<br />IMPOSTOR
+          MESA DE<br />MISTERIO
         </div>
 
         <motion.div
@@ -114,7 +114,7 @@ export default function SplashScreen({ onDone }) {
             textTransform: 'uppercase',
           }}
         >
-          Nadie esta a salvo
+          El Impostor · Coartada
         </motion.div>
       </motion.div>
 
@@ -129,7 +129,7 @@ export default function SplashScreen({ onDone }) {
             inset: '0 auto 0 0',
             width: '44%',
             transform: 'skewX(-16deg)',
-            background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.24), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(214, 164, 80,0.24), transparent)',
             filter: 'blur(1px)',
           }}
         />

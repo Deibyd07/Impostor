@@ -61,10 +61,14 @@ export const useOnlineStore = create((set, get) => ({
   isGuest: true,
   players: [],          // [{ id, name, isHost, ready, eliminated }]
   config: null,
-  phase: 'lobby',       // lobby | reveal | discussion | voting | voted | ended | spectator
+  phase: 'lobby',       // lobby | caseIntro | reveal | discussion | voting | voted | roundResult | ended | spectator
   myRole: null,         // 'citizen' | 'detective' | 'detective-impostor' | 'impostor' | 'impostor-blind' | 'impostor-clue'
   myWord: null,
   myClue: null,
+  myAlibi: null,
+  alibiCase: null,
+  alibiRoundResult: null,
+  alibiScoreboard: [],
   myImpostorTeammates: [],
   votes: {},            // { targetId: count }
   votedFor: null,
@@ -123,6 +127,9 @@ export const useOnlineStore = create((set, get) => ({
         speakOrder: room.speakOrder || [],
         lastTie: room.lastTie || null,
         chatMessages: room.chatMessages || [],
+        alibiCase: room.alibiCase || null,
+        alibiRoundResult: room.alibiRoundResult || null,
+        alibiScoreboard: room.alibiScoreboard || [],
         impostorChatMessages: room.impostorChatMessages || [],
         impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
         detectiveInterrogation: room.interrogation || null,
@@ -149,6 +156,9 @@ export const useOnlineStore = create((set, get) => ({
         speakOrder: room.speakOrder || [],
         lastTie: room.lastTie || null,
         chatMessages: room.chatMessages || [],
+        alibiCase: room.alibiCase || null,
+        alibiRoundResult: room.alibiRoundResult || null,
+        alibiScoreboard: room.alibiScoreboard || [],
         impostorChatMessages: room.impostorChatMessages || [],
         impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
         detectiveInterrogation: room.interrogation || null,
@@ -179,6 +189,9 @@ export const useOnlineStore = create((set, get) => ({
         myProfileId: you?.profileId || null,
         isGuest: you?.isGuest !== false || !you?.profileId,
         chatMessages: room.chatMessages || [],
+        alibiCase: room.alibiCase || null,
+        alibiRoundResult: room.alibiRoundResult || null,
+        alibiScoreboard: room.alibiScoreboard || [],
         impostorChatMessages: room.impostorChatMessages || [],
         impostorLastGuessRound: Number.isFinite(you?.impostorLastGuessRound)
           ? you.impostorLastGuessRound
@@ -205,6 +218,7 @@ export const useOnlineStore = create((set, get) => ({
           myRole: you.role,
           myWord: you.word ?? null,
           myClue: you.clue ?? null,
+          myAlibi: you.alibi ?? null,
           myImpostorTeammates: Array.isArray(you.impostorTeammates) ? you.impostorTeammates : [],
           impostorChatMessages: Array.isArray(you.impostorChatMessages) ? you.impostorChatMessages : get().impostorChatMessages,
           impostorLastGuessRound: Number.isFinite(you.impostorLastGuessRound) ? you.impostorLastGuessRound : get().impostorLastGuessRound,
@@ -215,6 +229,7 @@ export const useOnlineStore = create((set, get) => ({
           myRole: null,
           myWord: null,
           myClue: null,
+          myAlibi: null,
           myImpostorTeammates: [],
           impostorChatMessages: [],
           impostorLastGuessRound: -1,
@@ -236,6 +251,10 @@ export const useOnlineStore = create((set, get) => ({
         myRole: null,
         myWord: null,
         myClue: null,
+        myAlibi: null,
+        alibiCase: null,
+        alibiRoundResult: null,
+        alibiScoreboard: [],
         myImpostorTeammates: [],
         votes: {},
         votedFor: null,
@@ -266,6 +285,9 @@ export const useOnlineStore = create((set, get) => ({
         speakOrder: room?.speakOrder || get().speakOrder,
         lastTie: room?.lastTie || get().lastTie,
         result: room?.result || get().result,
+        alibiCase: room?.alibiCase || get().alibiCase,
+        alibiRoundResult: room?.alibiRoundResult || get().alibiRoundResult,
+        alibiScoreboard: room?.alibiScoreboard || get().alibiScoreboard,
         detectiveInterrogation: room?.interrogation || get().detectiveInterrogation,
       })
       toast.success('Ahora eres el anfitrion', { duration: 3000 })
@@ -276,14 +298,17 @@ export const useOnlineStore = create((set, get) => ({
       toast.error(message || 'Error en la sala', { title: 'Sala' })
     })
 
-    socket.on('game:started', () => {
+    socket.on('game:started', ({ phase = 'reveal', alibiCase = null } = {}) => {
       sfx.startGame()
       clearInterrogationClearTimer()
       set({
-        phase: 'reveal',
+        phase,
         myRole: null,
         myWord: null,
         myClue: null,
+        myAlibi: null,
+        alibiCase: alibiCase || null,
+        alibiRoundResult: null,
         myImpostorTeammates: [],
         votes: {},
         votedFor: null,
@@ -300,11 +325,12 @@ export const useOnlineStore = create((set, get) => ({
         eliminationReveal: null,
       })
     })
-    socket.on('game:yourRole', ({ role, word, clue, impostorTeammates, impostorChatMessages, impostorLastGuessRound, detectiveInterrogationUsed }) => {
+    socket.on('game:yourRole', ({ role, word, clue, alibi, impostorTeammates, impostorChatMessages, impostorLastGuessRound, detectiveInterrogationUsed }) => {
       set({
         myRole: role,
         myWord: word,
         myClue: clue,
+        myAlibi: alibi ?? null,
         myImpostorTeammates: Array.isArray(impostorTeammates) ? impostorTeammates : [],
         impostorChatMessages: Array.isArray(impostorChatMessages) ? impostorChatMessages : [],
         impostorLastGuessRound: Number.isFinite(impostorLastGuessRound) ? impostorLastGuessRound : -1,
@@ -318,6 +344,18 @@ export const useOnlineStore = create((set, get) => ({
         ...(phase !== 'discussion' ? { detectiveInterrogation: null } : {}),
       }
       if (phase === 'voting') update.votersReady = 0
+      if (phase === 'caseIntro') {
+        update.myRole = null
+        update.myWord = null
+        update.myClue = null
+        update.myAlibi = null
+      }
+      if (phase === 'reveal') {
+        update.votedFor = null
+        update.votes = {}
+        update.votersReady = 0
+        update.alibiRoundResult = null
+      }
       if (phase !== 'discussion') clearInterrogationClearTimer()
       set(update)
       if (phase === 'voting') sfx.startVoting()
@@ -410,8 +448,36 @@ export const useOnlineStore = create((set, get) => ({
     })
     socket.on('game:over', (result) => {
       clearInterrogationClearTimer()
-      set({ phase: 'ended', result, detectiveInterrogation: null })
+      set({
+        phase: 'ended',
+        result,
+        detectiveInterrogation: null,
+        alibiRoundResult: result?.roundResult || get().alibiRoundResult,
+        alibiScoreboard: result?.alibiScoreboard || get().alibiScoreboard,
+      })
       if (result?.winner === 'impostor' && result?.reason === 'wordGuessed') sfx.guessCorrect()
+    })
+    socket.on('game:alibiRoundResult', ({ roundResult }) => {
+      set({
+        alibiRoundResult: roundResult || null,
+        alibiScoreboard: roundResult?.scoreboard || get().alibiScoreboard,
+      })
+    })
+    socket.on('game:alibiNextRound', ({ round, alibiCase }) => {
+      set({
+        phase: 'caseIntro',
+        round: round || get().round + 1,
+        alibiCase: alibiCase || null,
+        alibiRoundResult: null,
+        myRole: null,
+        myWord: null,
+        myClue: null,
+        myAlibi: null,
+        votes: {},
+        votedFor: null,
+        votersReady: 0,
+        chatMessages: [],
+      })
     })
     socket.on('game:newRound', ({ round, speakOrder }) => set({ votes: {}, votedFor: null, phase: 'discussion', round, ...(speakOrder ? { speakOrder } : {}) }))
     socket.on('room:rematch', ({ room }) => {
@@ -420,10 +486,13 @@ export const useOnlineStore = create((set, get) => ({
         players: room.players,
         config: room.config,
         isHost: isCurrentHost(room.players, get().myId, get().isHost),
-        myRole: null, myWord: null, myClue: null, myImpostorTeammates: [],
+        myRole: null, myWord: null, myClue: null, myAlibi: null, myImpostorTeammates: [],
         votes: {}, votedFor: null, votersReady: 0,
         result: null, guessAttempts: 0, round: 1, lastGuessRound: -1, impostorLastGuessRound: -1, speakOrder: [], lastTie: null,
         chatMessages: room.chatMessages || [],
+        alibiCase: room.alibiCase || null,
+        alibiRoundResult: null,
+        alibiScoreboard: [],
         impostorChatMessages: room.impostorChatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
@@ -455,6 +524,10 @@ export const useOnlineStore = create((set, get) => ({
       myRole: null,
       myWord: null,
       myClue: null,
+      myAlibi: null,
+      alibiCase: null,
+      alibiRoundResult: null,
+      alibiScoreboard: [],
       myImpostorTeammates: [],
       impostorChatMessages: [],
       impostorLastGuessRound: -1,
@@ -499,6 +572,10 @@ export const useOnlineStore = create((set, get) => ({
       myRole: null,
       myWord: null,
       myClue: null,
+      myAlibi: null,
+      alibiCase: null,
+      alibiRoundResult: null,
+      alibiScoreboard: [],
       myImpostorTeammates: [],
       myProfileId: null,
       isGuest: true,
@@ -519,6 +596,10 @@ export const useOnlineStore = create((set, get) => ({
 
   cardReady: () => {
     get().socket?.emit('game:cardReady')
+  },
+
+  continueAlibiIntro: () => {
+    get().socket?.emit('game:continueAlibiIntro')
   },
 
   goToVote: () => {
@@ -553,6 +634,10 @@ export const useOnlineStore = create((set, get) => ({
 
   newRound: () => {
     get().socket?.emit('game:newRound')
+  },
+
+  nextAlibiRound: () => {
+    get().socket?.emit('game:nextAlibiRound')
   },
 
   setConfig: (patch) => {

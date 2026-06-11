@@ -157,7 +157,7 @@ export default function Profile() {
                     padding: 13,
                     borderRadius: 14,
                     border: `1px solid ${active ? 'var(--gold)' : 'var(--hairline-cold)'}`,
-                    background: active ? 'rgba(245, 158, 11, 0.10)' : 'rgba(255,255,255,0.03)',
+                    background: active ? 'rgba(214, 164, 80, 0.10)' : 'rgba(255,255,255,0.03)',
                   }}>
                     <div style={avatarStyle}>{profile.avatar}</div>
                     <div style={{ minWidth: 0 }}>
@@ -238,7 +238,7 @@ function primaryButtonStyle(disabled) {
     minHeight: 46,
     borderRadius: 10,
     border: `1px solid ${disabled ? 'var(--hairline-cold)' : 'var(--gold)'}`,
-    background: disabled ? 'rgba(255,255,255,0.04)' : 'rgba(245, 158, 11, 0.14)',
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'rgba(214, 164, 80, 0.14)',
     color: disabled ? 'var(--text-3)' : 'var(--gold)',
     fontFamily: 'var(--font-ui)',
     fontSize: 12,
@@ -259,8 +259,8 @@ const secondaryButtonStyle = {
 const errorStyle = {
   padding: '10px 12px',
   borderRadius: 10,
-  border: '1px solid rgba(239, 68, 68, 0.35)',
-  background: 'rgba(239, 68, 68, 0.08)',
+  border: '1px solid rgba(224, 88, 75, 0.35)',
+  background: 'rgba(224, 88, 75, 0.08)',
   color: 'var(--impostor)',
   fontFamily: 'var(--font-ui)',
   fontSize: 12,
@@ -287,8 +287,8 @@ const avatarStyle = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  border: '1px solid rgba(245, 158, 11, 0.45)',
-  background: 'rgba(245, 158, 11, 0.10)',
+  border: '1px solid rgba(214, 164, 80, 0.45)',
+  background: 'rgba(214, 164, 80, 0.10)',
   fontSize: 22,
 }
 
@@ -301,7 +301,7 @@ function miniButtonStyle(active) {
     borderRadius: 999,
     border: `1px solid ${active ? 'var(--gold)' : 'var(--hairline-cold)'}`,
     color: active ? 'var(--gold)' : 'var(--text-2)',
-    background: active ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255,255,255,0.03)',
+    background: active ? 'rgba(214, 164, 80, 0.12)' : 'rgba(255,255,255,0.03)',
     fontFamily: 'var(--font-ui)',
     fontSize: 10,
     fontWeight: 900,
@@ -313,6 +313,6 @@ function miniButtonStyle(active) {
 
 const dangerMiniButtonStyle = {
   ...miniButtonStyle(false),
-  border: '1px solid rgba(239, 68, 68, 0.35)',
+  border: '1px solid rgba(224, 88, 75, 0.35)',
   color: 'var(--impostor)',
 }

@@ -199,8 +199,8 @@ function AnimatedPoints({ value, reduceMotion }) {
 const panelStyle = {
   padding: 12,
   borderRadius: 16,
-  border: '1px solid rgba(245, 158, 11, 0.34)',
-  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(7, 7, 15, 0.94))',
+  border: '1px solid rgba(214, 164, 80, 0.34)',
+  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(22, 14, 17, 0.94))',
   boxShadow: '0 20px 50px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.03)',
 }
 
@@ -211,8 +211,8 @@ const summaryStripStyle = {
   padding: '10px 12px',
   marginBottom: 10,
   borderRadius: 12,
-  border: '1px solid rgba(245, 158, 11, 0.20)',
-  background: 'rgba(245, 158, 11, 0.06)',
+  border: '1px solid rgba(214, 164, 80, 0.20)',
+  background: 'rgba(214, 164, 80, 0.06)',
   color: 'var(--text-2)',
   fontFamily: 'var(--font-ui)',
   fontSize: 11,
@@ -234,7 +234,7 @@ function tabButtonStyle(active) {
     padding: '6px 9px',
     borderRadius: 999,
     color: active ? 'var(--gold)' : 'var(--text-3)',
-    background: active ? 'rgba(245, 158, 11, 0.14)' : 'transparent',
+    background: active ? 'rgba(214, 164, 80, 0.14)' : 'transparent',
     fontFamily: 'var(--font-ui)',
     fontSize: 10,
     fontWeight: 900,
@@ -251,8 +251,8 @@ function roomRowStyle(rank) {
     alignItems: 'center',
     padding: '11px 10px',
     borderRadius: 13,
-    border: `1px solid ${rank === 1 ? 'rgba(245, 158, 11, 0.50)' : 'rgba(148, 163, 184, 0.20)'}`,
-    background: rank === 1 ? 'rgba(245, 158, 11, 0.10)' : 'rgba(255,255,255,0.035)',
+    border: `1px solid ${rank === 1 ? 'rgba(214, 164, 80, 0.50)' : 'rgba(195, 171, 140, 0.20)'}`,
+    background: rank === 1 ? 'rgba(214, 164, 80, 0.10)' : 'rgba(255,255,255,0.035)',
   }
 }
 
@@ -264,8 +264,8 @@ function globalRowStyle(highlighted) {
     alignItems: 'center',
     padding: '11px 10px',
     borderRadius: 13,
-    border: `1px solid ${highlighted ? 'rgba(59, 130, 246, 0.62)' : 'rgba(148, 163, 184, 0.20)'}`,
-    background: highlighted ? 'rgba(59, 130, 246, 0.11)' : 'rgba(255,255,255,0.035)',
+    border: `1px solid ${highlighted ? 'rgba(94, 138, 166, 0.62)' : 'rgba(195, 171, 140, 0.20)'}`,
+    background: highlighted ? 'rgba(94, 138, 166, 0.11)' : 'rgba(255,255,255,0.035)',
   }
 }
 
@@ -275,8 +275,8 @@ const avatarStyle = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  border: '1px solid rgba(245, 158, 11, 0.38)',
-  background: 'rgba(245, 158, 11, 0.09)',
+  border: '1px solid rgba(214, 164, 80, 0.38)',
+  background: 'rgba(214, 164, 80, 0.09)',
   fontSize: 19,
 }
 

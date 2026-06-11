@@ -25,6 +25,7 @@ export default function WinCitizens({
         display: 'flex', flexDirection: 'column',
         padding: '90px 28px 36px', alignItems: 'center',
       }}>
+        <div className="stamp stamp--green stamp--lg" style={{ marginBottom: 16 }}>Caso cerrado</div>
         <div className="t-eyebrow" style={{ color: 'var(--citizen)', marginBottom: 10, fontSize: 11 }}>
           Victoria · Ciudadanos
         </div>
@@ -47,7 +48,7 @@ export default function WinCitizens({
           }} />
           <div style={{
             width: 76, height: 76, borderRadius: 999, margin: '0 auto 14px',
-            background: 'linear-gradient(135deg, #2a0a0a, #1a0505)',
+            background: 'linear-gradient(135deg, #321114, #240f10)',
             color: 'var(--impostor)',
             fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -73,8 +74,8 @@ export default function WinCitizens({
           {mode === 'blind' && fakeWord && (
             <div style={{
               marginTop: 16, padding: '12px 14px',
-              background: 'rgba(59, 130, 246, 0.06)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
+              background: 'rgba(94, 138, 166, 0.06)',
+              border: '1px solid rgba(94, 138, 166, 0.3)',
               borderRadius: 10,
               fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.5,
               color: 'var(--text-2)', fontStyle: 'italic',

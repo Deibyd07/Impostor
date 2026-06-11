@@ -49,7 +49,7 @@ export default function WaitingLobby() {
         </div>
 
         <section className="lobby-command lobby-command--waiting">
-          <CornerOrnament color="rgba(100, 210, 255, 0.4)" />
+          <CornerOrnament color="rgba(125, 180, 204, 0.4)" />
           <div className="lobby-command__copy">
             <div className="t-eyebrow">Sala privada</div>
             <h1>Mesa en espera</h1>

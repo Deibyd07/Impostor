@@ -1,6 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { categories } from '../data/wordBank.js'
 import GameIcon from './GameIcon.jsx'
+import { isAlibiGame } from '../utils/gameTypes.js'
 
 export function LobbyInvitePanel({ roomCode, joinUrl, copied, onCopy }) {
   return (
@@ -15,7 +16,7 @@ export function LobbyInvitePanel({ roomCode, joinUrl, copied, onCopy }) {
         ))}
       </div>
       <div className="lobby-invite-card__qr">
-        <QRCodeSVG value={joinUrl} size={132} bgColor="#f1f5f9" fgColor="#07070f" />
+        <QRCodeSVG value={joinUrl} size={132} bgColor="#f3e8d2" fgColor="#160e11" />
       </div>
       <button
         type="button"
@@ -69,14 +70,17 @@ export function LobbyPlayersBoard({ players, myId, minPlayers = 3 }) {
 }
 
 export function LobbyStatusPanel({ players, config, note }) {
+  const alibiGame = isAlibiGame(config)
   const activeCategory = config?.category || 'random'
   const categoryLabel = activeCategory === 'random'
     ? 'Aleatoria'
     : categories[activeCategory]?.label || 'Sin categoria'
+  const gameLabel = alibiGame ? 'Coartada' : 'El Impostor'
   const modeLabel = {
     classic: 'Clasico',
     clue: 'Con pista',
     blind: 'Ciego',
+    alibi: 'Coartada',
   }[config?.mode] || 'Sin modo'
 
   return (
@@ -91,17 +95,30 @@ export function LobbyStatusPanel({ players, config, note }) {
       </div>
       <div className="lobby-status-list">
         <div>
-          <span><GameIcon name="cardsFan" size={14} /> Modo</span>
-          <strong>{modeLabel}</strong>
+          <span><GameIcon name="cardsFan" size={14} /> Juego</span>
+          <strong>{gameLabel}</strong>
         </div>
-        <div>
-          <span><GameIcon name="cardTarget" size={14} /> Categoria</span>
-          <strong>{categoryLabel}</strong>
-        </div>
-        <div>
-          <span><GameIcon name="shield" size={14} /> Detective</span>
-          <strong>{config?.detectiveEnabled ? 'Activo' : 'Inactivo'}</strong>
-        </div>
+        {alibiGame ? (
+          <div>
+            <span><GameIcon name="cardTarget" size={14} /> Rondas</span>
+            <strong>{config?.alibiRounds || 3}</strong>
+          </div>
+        ) : (
+          <>
+            <div>
+              <span><GameIcon name="cardTarget" size={14} /> Variante</span>
+              <strong>{modeLabel}</strong>
+            </div>
+            <div>
+              <span>Categoria</span>
+              <strong>{categoryLabel}</strong>
+            </div>
+            <div>
+              <span><GameIcon name="shield" size={14} /> Detective</span>
+              <strong>{config?.detectiveEnabled ? 'Activo' : 'Inactivo'}</strong>
+            </div>
+          </>
+        )}
       </div>
       <p className="lobby-status-panel__note">
         {note || 'Cuando todos esten en la mesa, inicia la partida para repartir cartas privadas.'}

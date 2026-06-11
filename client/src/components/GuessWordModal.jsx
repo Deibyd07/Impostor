@@ -41,7 +41,7 @@ export default function GuessWordModal({ open, onClose }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 800,
-        background: 'rgba(7, 7, 15, 0.78)', backdropFilter: 'blur(6px)',
+        background: 'rgba(22, 14, 17, 0.78)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
         animation: 'fadeIn 180ms ease-out',
       }}

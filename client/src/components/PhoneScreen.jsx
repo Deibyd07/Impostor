@@ -8,12 +8,16 @@ export default function PhoneScreen({
   leftPanel,
   rightPanel,
 }) {
+  const modifiers = [
+    leftPanel ? 'has-left' : 'no-left',
+    rightPanel ? 'has-right' : 'no-right',
+  ].join(' ')
+
   return (
-    <div className={`phone-screen grain ${className}`} style={{
+    <div className={`phone-screen ${modifiers} ${className}`} style={{
       width: '100%', minHeight: '100vh',
       color: 'var(--text-1)',
       position: 'relative',
-      overflow: 'hidden',
     }}>
       {leftPanel && (
         <aside className="ds-panel ds-panel-left">
@@ -23,18 +27,12 @@ export default function PhoneScreen({
 
       <div className="phone-screen-center">
         <div className="phone-screen-scroll" style={{
-          flex: 1,
           overflowY: scrollable ? 'auto' : 'hidden',
-          paddingTop: padTop ? 56 : 0,
-          paddingBottom: footer ? 0 : (padBottom ? 40 : 0),
-          position: 'relative', zIndex: 2,
+          paddingTop: padTop ? 48 : 0,
+          paddingBottom: footer ? 12 : (padBottom ? 40 : 0),
         }}>{children}</div>
         {footer && (
-          <div className="phone-screen-footer" style={{
-            padding: '12px 20px 32px',
-            background: 'linear-gradient(180deg, rgba(7,7,15,0) 0%, rgba(7,7,15,0.95) 30%, var(--bg-base) 100%)',
-            position: 'sticky', bottom: 0, zIndex: 3,
-          }}>{footer}</div>
+          <div className="phone-screen-footer">{footer}</div>
         )}
       </div>
 

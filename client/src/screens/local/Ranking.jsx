@@ -119,15 +119,15 @@ function rowStyle(rank) {
     gap: 11,
     alignItems: 'center',
     padding: '13px 14px',
-    borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
-    background: rank <= 3 ? 'rgba(245, 158, 11, 0.07)' : 'transparent',
+    borderBottom: '1px solid rgba(195, 171, 140, 0.16)',
+    background: rank <= 3 ? 'rgba(214, 164, 80, 0.07)' : 'transparent',
   }
 }
 
 const boardStyle = {
   borderRadius: 14,
   border: '1px solid var(--hairline-cold)',
-  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(7, 7, 15, 0.92))',
+  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(22, 14, 17, 0.92))',
   overflow: 'hidden',
 }
 
@@ -137,8 +137,8 @@ const avatarStyle = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  border: '1px solid rgba(59, 130, 246, 0.45)',
-  background: 'rgba(59, 130, 246, 0.12)',
+  border: '1px solid rgba(94, 138, 166, 0.45)',
+  background: 'rgba(94, 138, 166, 0.12)',
   fontSize: 21,
 }
 

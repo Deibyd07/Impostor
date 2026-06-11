@@ -14,8 +14,8 @@ export default function Confetti({ count = 36 }) {
       <div style={{
         position: 'absolute', inset: 0,
         background:
-          'radial-gradient(60% 50% at 50% 30%, rgba(34, 197, 94, 0.16), transparent 65%),' +
-          'radial-gradient(70% 50% at 50% 10%, rgba(245, 158, 11, 0.18), transparent 60%)',
+          'radial-gradient(60% 50% at 50% 30%, rgba(90, 158, 107, 0.16), transparent 65%),' +
+          'radial-gradient(70% 50% at 50% 10%, rgba(214, 164, 80, 0.18), transparent 60%)',
       }} />
       {pieces.map((p, i) => (
         <span key={i} style={{

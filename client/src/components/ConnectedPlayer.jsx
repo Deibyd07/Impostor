@@ -8,7 +8,7 @@ export default function ConnectedPlayer({
       <div className="connected-player connected-player--placeholder" style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 12px', borderRadius: 12,
-        border: '1px dashed rgba(245, 158, 11, 0.2)',
+        border: '1px dashed rgba(214, 164, 80, 0.2)',
         background: 'transparent', opacity: 0.4,
       }}>
         <div style={{
@@ -27,16 +27,16 @@ export default function ConnectedPlayer({
     <div className={`connected-player ${isYou ? 'is-you' : ''}`} style={{
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '10px 12px', borderRadius: 12,
-      background: isYou ? 'rgba(245, 158, 11, 0.06)' : 'var(--surface-1)',
-      border: `1px solid ${isYou ? 'rgba(245, 158, 11, 0.4)' : 'var(--hairline-cold)'}`,
+      background: isYou ? 'rgba(214, 164, 80, 0.06)' : 'var(--surface-1)',
+      border: `1px solid ${isYou ? 'rgba(214, 164, 80, 0.4)' : 'var(--hairline-cold)'}`,
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: 999,
-        background: 'linear-gradient(135deg, #2a2a45, #15152a)',
+        background: 'linear-gradient(135deg, #3d2a30, #261a1e)',
         color: 'var(--gold)',
         fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: avatar ? 18 : 14,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: 'inset 0 0 0 1px rgba(245, 158, 11, 0.25)',
+        boxShadow: 'inset 0 0 0 1px rgba(214, 164, 80, 0.25)',
         flexShrink: 0,
         lineHeight: 1,
       }}>{displayAvatar}</div>

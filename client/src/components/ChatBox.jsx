@@ -9,7 +9,7 @@ export default function ChatBox({
   disabled = false,
   maxLength = CHAT_TEXT_MAX_LENGTH,
   placeholder = 'Mensaje',
-  emptyText = 'Todavia no hay mensajes.',
+  emptyText = 'Todavía no hay mensajes.',
   tone = 'public',
 }) {
   const [text, setText] = useState('')
@@ -29,9 +29,7 @@ export default function ChatBox({
 
   return (
     <div className={`chat-box chat-box--${tone}`} style={{
-      background: 'linear-gradient(180deg, var(--surface-2), var(--surface-1))',
-      border: '1px solid var(--hairline-cold)',
-      borderRadius: 14,
+      borderRadius: 8,
       overflow: 'hidden',
       marginBottom: 24,
     }}>
@@ -42,10 +40,10 @@ export default function ChatBox({
           maxHeight: 210,
           minHeight: 128,
           overflowY: 'auto',
-          padding: '12px 12px 4px',
+          padding: '12px 12px 6px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
+          gap: 7,
         }}
       >
         {messages.length ? (
@@ -59,11 +57,11 @@ export default function ChatBox({
             alignItems: 'center',
             justifyContent: 'center',
             textAlign: 'center',
-            fontFamily: 'var(--font-ui)',
-            fontSize: 12,
+            fontFamily: 'var(--font-type)',
+            fontSize: 11.5,
             color: 'var(--text-3)',
-            fontStyle: 'italic',
             padding: '0 24px',
+            lineHeight: 1.6,
           }}>
             {emptyText}
           </div>
@@ -74,8 +72,6 @@ export default function ChatBox({
         display: 'flex',
         gap: 8,
         padding: 10,
-        borderTop: '1px solid var(--hairline-cold)',
-        background: 'rgba(0,0,0,0.16)',
       }}>
         <input
           type="text"
@@ -90,14 +86,13 @@ export default function ChatBox({
           style={{
             flex: 1,
             minWidth: 0,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid var(--hairline-cold)',
-            borderRadius: 10,
+            border: '1px solid rgba(231, 210, 168, 0.14)',
+            borderRadius: 6,
             color: 'var(--text-1)',
-            fontFamily: 'var(--font-ui)',
+            fontFamily: 'var(--font-type)',
             fontSize: 13,
             outline: 'none',
-            padding: '11px 12px',
+            padding: '10px 12px',
             boxSizing: 'border-box',
           }}
         />
@@ -108,27 +103,33 @@ export default function ChatBox({
           style={{
             border: 'none',
             cursor: !cleaned || disabled ? 'not-allowed' : 'pointer',
-            borderRadius: 10,
-            padding: '0 13px',
-            background: cleaned && !disabled ? 'var(--gold)' : 'rgba(255,255,255,0.08)',
-            color: cleaned && !disabled ? '#07070f' : 'var(--text-3)',
+            borderRadius: 6,
+            padding: '0 14px',
+            background: cleaned && !disabled
+              ? 'linear-gradient(180deg, #e8bd6d 0%, #c89540 60%, #a87a2c 100%)'
+              : 'rgba(240, 227, 200, 0.07)',
+            color: cleaned && !disabled ? '#2a1c0d' : 'var(--text-3)',
+            boxShadow: cleaned && !disabled
+              ? 'inset 0 1px 0 rgba(255,244,214,0.5), 0 3px 0 #7a5417'
+              : 'none',
             fontFamily: 'var(--font-ui)',
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
+            transition: 'transform 0.1s ease',
           }}
         >
           Enviar
         </button>
       </div>
       <div className="chat-box__counter" style={{
-        padding: '0 12px 10px',
+        padding: '0 12px 9px',
         textAlign: 'right',
-        fontFamily: 'var(--font-ui)',
-        fontSize: 10,
+        fontFamily: 'var(--font-type)',
+        fontSize: 9.5,
         color: 'var(--text-faint)',
-        letterSpacing: '0.08em',
+        letterSpacing: '0.1em',
       }}>
         {text.length}/{maxLength}
       </div>
@@ -140,70 +141,35 @@ function ChatMessage({ message, isOwn = false }) {
   return (
     <div className={`chat-message ${isOwn ? 'is-own' : ''}`} style={{
       display: 'flex',
-      flexDirection: isOwn ? 'row-reverse' : 'row',
-      gap: 9,
-      alignItems: 'flex-start',
-      alignSelf: isOwn ? 'flex-end' : 'stretch',
+      gap: 8,
+      alignItems: 'baseline',
       maxWidth: '100%',
+      fontFamily: 'var(--font-type)',
+      fontSize: 12.5,
+      lineHeight: 1.5,
+      borderBottom: '1px solid rgba(231, 210, 168, 0.07)',
+      paddingBottom: 6,
     }}>
-      <div style={{
-        width: 28,
-        height: 28,
-        borderRadius: 999,
-        background: isOwn
-          ? 'linear-gradient(135deg, #3a250b, #1f1608)'
-          : 'linear-gradient(135deg, #2a2a45, #15152a)',
-        border: `1px solid ${isOwn ? 'rgba(245, 158, 11, 0.48)' : 'rgba(245, 158, 11, 0.2)'}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 16,
-        lineHeight: 1,
+      <span style={{
         flexShrink: 0,
-      }}>{message.avatar || '?'}</div>
-      <div style={{
-        minWidth: 0,
-        flex: isOwn ? '0 1 auto' : 1,
-        maxWidth: isOwn ? '82%' : '100%',
-        textAlign: isOwn ? 'right' : 'left',
-      }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: isOwn ? 'row-reverse' : 'row',
-          alignItems: 'baseline',
-          gap: 8,
-          marginBottom: 3,
-          justifyContent: isOwn ? 'flex-start' : 'flex-start',
+        fontSize: 9.5,
+        color: 'var(--text-faint)',
+      }}>{formatTime(message.createdAt)}</span>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <span style={{
+          fontWeight: 400,
+          color: isOwn ? 'var(--gold-soft)' : '#a9c6da',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          fontSize: 11,
         }}>
-          <span style={{
-            fontFamily: 'var(--font-ui)',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--text-1)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>{message.name}</span>
-          <span style={{
-            fontFamily: 'var(--font-ui)',
-            fontSize: 10,
-            color: 'var(--text-faint)',
-            flexShrink: 0,
-          }}>{formatTime(message.createdAt)}</span>
-        </div>
-        <div style={{
-          display: 'inline-block',
-          maxWidth: '100%',
-          padding: '8px 10px',
-          borderRadius: isOwn ? '10px 0 10px 10px' : '0 10px 10px 10px',
-          background: isOwn ? 'rgba(59, 130, 246, 0.12)' : 'rgba(245, 158, 11, 0.08)',
-          border: `1px solid ${isOwn ? 'rgba(59, 130, 246, 0.28)' : 'rgba(245, 158, 11, 0.18)'}`,
+          {message.avatar ? `${message.avatar} ` : ''}{message.name}
+          <span style={{ color: 'var(--text-faint)' }}>:</span>
+        </span>{' '}
+        <span style={{
           color: 'var(--text-1)',
-          fontFamily: 'var(--font-ui)',
-          fontSize: 13,
-          lineHeight: 1.35,
           overflowWrap: 'anywhere',
-        }}>{message.text}</div>
+        }}>{message.text}</span>
       </div>
     </div>
   )

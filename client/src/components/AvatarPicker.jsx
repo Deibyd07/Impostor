@@ -23,7 +23,7 @@ export default function AvatarPicker({ value, onChange, columns = 6 }) {
               cursor: 'pointer',
               height: 42,
               borderRadius: 10,
-              background: selected ? 'rgba(245, 158, 11, 0.14)' : 'var(--surface-1)',
+              background: selected ? 'rgba(214, 164, 80, 0.14)' : 'var(--surface-1)',
               border: `1px solid ${selected ? 'var(--gold)' : 'var(--hairline-cold)'}`,
               boxShadow: selected ? '0 0 18px -8px var(--gold-glow)' : 'none',
               display: 'flex',

@@ -4,48 +4,35 @@ import GameIcon from '../../components/GameIcon.jsx'
 import { useGameStore } from '../../store/gameStore.js'
 import { sfx } from '../../utils/sfx.js'
 
-const modes = [
+const games = [
   {
     id: '01',
-    icon: '🎭',
-    title: 'Clásico',
-    desc: 'Un impostor sin palabra. Solo memoria, nervios y actuación.',
+    title: 'El Impostor',
+    desc: 'Palabras secretas, impostores y acusaciones en la mesa.',
     tone: 'red',
+    icon: 'cardsSkull',
   },
   {
     id: '02',
-    icon: '🔍',
-    title: 'Con pista',
-    desc: 'El impostor recibe una pista y puede mezclarse mejor.',
+    title: 'Coartada',
+    desc: 'Casos por rondas: pistas privadas, versiones falsas y sospechas.',
     tone: 'gold',
-  },
-  {
-    id: '03',
-    icon: '👁',
-    title: 'Ciego',
-    desc: 'El impostor cree ser ciudadano. La mesa se rompe sola.',
-    tone: 'blue',
+    icon: 'cardTarget',
   },
 ]
 
 const caseSteps = [
-  'Reparte palabras secretas.',
-  'Hablen por turnos sin decir la palabra.',
-  'Detecten contradicciones.',
-  'Voten antes de que el impostor escape.',
+  'Elige el juego de misterio.',
+  'Recibe información privada.',
+  'Cruza versiones por voz.',
+  'Vota cuando aparezca la contradicción.',
 ]
 
 const releaseNotes = [
+  'Coartada entra como juego independiente.',
   'Nueva identidad visual de tablero y expediente.',
-  'Iconos mas claros en modos, acciones y lobby.',
   'Cartas de rol y votacion con mas presencia visual.',
 ]
-
-const modeIconById = {
-  '01': 'cardsSkull',
-  '02': 'notepad',
-  '03': 'lock',
-}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -63,22 +50,22 @@ export default function Home() {
 
   const leftPanel = (
     <div className="case-rail case-rail--modes">
-      <div className="case-rail__stamp">Archivo de modos</div>
+      <div className="case-rail__stamp">Juegos de misterio</div>
       <div className="case-rail__stack">
-        {modes.map(mode => (
-          <article className={`case-mode-card case-mode-card--${mode.tone}`} key={mode.title}>
-            <div className="case-mode-card__index">{mode.id}</div>
+        {games.map(game => (
+          <article className={`case-mode-card case-mode-card--${game.tone}`} key={game.title}>
+            <div className="case-mode-card__index">{game.id}</div>
             <div className="case-mode-card__body">
               <div className="case-mode-card__title">
-                <GameIcon name={modeIconById[mode.id]} size={22} />
-                {mode.title}
+                <GameIcon name={game.icon} size={22} />
+                {game.title}
               </div>
-              <p>{mode.desc}</p>
+              <p>{game.desc}</p>
             </div>
           </article>
         ))}
       </div>
-      <div className="case-rail__note">3-12 jugadores · Detective opcional · Local u online</div>
+      <div className="case-rail__note">3-12 jugadores - palabras, coartadas y sospechas online</div>
     </div>
   )
 
@@ -125,10 +112,10 @@ export default function Home() {
             <GameIcon name="skull" size={36} className="case-file__prop case-file__prop--skull" />
           </div>
           <div className="case-file__clip" />
-          <div className="case-file__stamp">Caso abierto</div>
-          <div className="case-file__number">IM-09</div>
-          <h1 id="home-title" className="case-file__title">El Impostor</h1>
-          <p className="case-file__subtitle">Una palabra. Una mentira. Toda la mesa bajo sospecha.</p>
+          <div className="case-file__stamp">Mesa abierta</div>
+          <div className="case-file__number">Caso nº MS-01 · Distrito Centro</div>
+          <h1 id="home-title" className="case-file__title">Mesa de Misterio</h1>
+          <p className="case-file__subtitle">Elige entre juegos sociales de sospecha, palabras secretas y coartadas falsas.</p>
 
           <div className="case-file__thread" aria-hidden="true">
             <span />
@@ -139,7 +126,7 @@ export default function Home() {
           <div className="case-actions" aria-label="Acciones principales">
             <button className="case-action case-action--primary" onClick={onNew}>
               <GameIcon name="cardTarget" size={25} className="case-action__icon" />
-              <span>Abrir caso</span>
+              <span>El Impostor local</span>
               <strong>Nueva partida</strong>
             </button>
 
@@ -165,20 +152,20 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="case-online-card" aria-label="Modo online">
+        <section className="case-online-card" aria-label="Sala online">
           <div>
             <span className="case-online-card__signal" />
             <GameIcon name="tokens" size={22} className="case-online-card__icon" />
-            <strong>Sala privada</strong>
-            <p>Invita a tu grupo y deja que el anfitrión controle el expediente.</p>
+            <strong>Sala privada online</strong>
+            <p>Crea una mesa y elige si jugar El Impostor o Coartada antes de repartir cartas.</p>
           </div>
           <div className="case-online-card__actions">
             <button onClick={onHost}>Crear sala</button>
-            <button onClick={onJoin}>Unirme con código</button>
+            <button onClick={onJoin}>Unirme con codigo</button>
           </div>
         </section>
 
-        <section className="case-menu-links" aria-label="Información del juego">
+        <section className="case-menu-links" aria-label="Informacion del juego">
           <button className="case-how-link" onClick={onHow}>Cómo jugar</button>
           <button className="case-patch-link" onClick={onPatch}>
             <span>Novedades</span>
@@ -186,7 +173,7 @@ export default function Home() {
           </button>
         </section>
 
-        <div className="case-version">v0.2.2 alpha - identidad visual de tablero</div>
+        <div className="case-version">v0.2.2 alpha - juegos de misterio social</div>
       </main>
     </PhoneScreen>
   )

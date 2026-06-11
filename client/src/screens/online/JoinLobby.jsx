@@ -78,6 +78,7 @@ export default function JoinLobby() {
 
   return (
     <PhoneScreen
+      className="register-screen"
       footer={
         <button
           className="btn btn-primary"
@@ -89,20 +90,14 @@ export default function JoinLobby() {
         </button>
       }
     >
-      <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={() => navigate('/')} style={{
-          all: 'unset', cursor: 'pointer', color: 'var(--text-2)',
-          fontFamily: 'var(--font-ui)', fontSize: 13,
-        }}>← Volver</button>
+      <div className="register-nav">
+        <button onClick={() => navigate('/')}>← Volver</button>
         <Badge color="var(--citizen)" dot>Unirse</Badge>
       </div>
 
-      <div style={{ padding: '40px 28px 0' }}>
-        <div className="t-eyebrow" style={{ textAlign: 'center', marginBottom: 8 }}>Sala privada</div>
-        <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 32,
-          color: 'var(--text-1)', textAlign: 'center', letterSpacing: '0.04em', lineHeight: 1.05,
-        }}>Introduce<br />el código</div>
+      <div className="register-sheet">
+        <span className="register-sheet__eyebrow">Ficha de acceso · Invitado</span>
+        <h1 className="register-sheet__title">Introduce<br />el código</h1>
 
         <button
           type="button"
@@ -114,7 +109,7 @@ export default function JoinLobby() {
             display: 'flex',
             justifyContent: 'center',
             gap: 10,
-            marginTop: 28,
+            marginTop: 26,
             width: '100%',
           }}
         >
@@ -123,15 +118,10 @@ export default function JoinLobby() {
             const active = code.length === i
             return (
               <div key={i} className={`code-slot ${active ? 'is-active' : ''} ${ch ? 'has-value' : ''}`} style={{
-                width: 56, height: 64, borderRadius: 12,
-                background: 'var(--surface-1)',
-                border: `1px solid ${active ? 'var(--gold)' : ch ? 'rgba(245, 158, 11, 0.35)' : 'var(--hairline-cold)'}`,
-                boxShadow: active ? '0 0 18px -4px var(--gold-glow)' : 'none',
+                width: 56, height: 64, borderRadius: 8,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 32,
-                color: 'var(--text-1)', textTransform: 'uppercase',
-                cursor: 'text',
-              }}>{ch || (active && <span style={{ width: 2, height: 28, background: 'var(--gold)', animation: 'caretBlink 1s steps(2) infinite' }} />)}</div>
+                fontSize: 30, color: '#e9c277', textTransform: 'uppercase',
+              }}>{ch || (active && <span style={{ width: 2, height: 28, background: '#e9c277', animation: 'caretBlink 1s steps(2) infinite' }} />)}</div>
             )
           })}
         </button>
@@ -152,11 +142,11 @@ export default function JoinLobby() {
         <button onClick={focusCodeInput}
           style={{
             all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center',
-            marginTop: 14, color: 'var(--gold)', fontFamily: 'var(--font-ui)',
-            fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase',
+            marginTop: 12, width: '100%', color: 'var(--ink-3)', fontFamily: 'var(--font-type)',
+            fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase',
           }}>Toca para escribir código</button>
 
-        <div style={{ marginTop: 36 }}>
+        <div className="register-sheet__field">
           <ProfileIdentityPicker
             profiles={profiles}
             value={identityId}
@@ -165,43 +155,23 @@ export default function JoinLobby() {
           />
         </div>
 
-        <div style={{ marginTop: 24 }}>
-          <div style={{
-            fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
-            letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 8,
-          }}>Tu nombre</div>
+        <div className="register-sheet__field">
+          <span className="register-sheet__label">Nombre del sospechoso</span>
           <input
             type="text"
             value={selectedProfile ? selectedProfile.name : name}
             disabled={!!selectedProfile}
             onChange={e => { setIdentityId('guest'); setName(e.target.value) }}
             placeholder="Carlos" maxLength={16}
-            style={{
-              width: '100%', padding: '14px 16px', boxSizing: 'border-box',
-              background: 'var(--surface-1)',
-              border: '1px solid var(--hairline-cold)', borderRadius: 12,
-              color: 'var(--text-1)', fontFamily: 'var(--font-ui)',
-              fontSize: 16, fontWeight: 500, outline: 'none',
-            }}
           />
         </div>
 
-        <div style={{ marginTop: 24 }}>
-          <div style={{
-            fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-2)',
-            letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 10,
-          }}>Avatar</div>
+        <div className="register-sheet__field">
+          <span className="register-sheet__label">Retrato</span>
           <AvatarPicker value={avatar} onChange={chooseAvatar} />
         </div>
 
-        {error && (
-          <div style={{
-            marginTop: 16, padding: '10px 14px', borderRadius: 8,
-            background: 'rgba(220, 38, 38, 0.08)',
-            border: '1px solid rgba(220, 38, 38, 0.35)',
-            color: 'var(--impostor)', fontSize: 13, textAlign: 'center',
-          }}>{error}</div>
-        )}
+        {error && <div className="register-sheet__error">{error}</div>}
       </div>
     </PhoneScreen>
   )

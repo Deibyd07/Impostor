@@ -26,9 +26,9 @@ export default function CardHidden() {
       }}>
         <div style={{
           width: 110, height: 110, borderRadius: 999,
-          border: '1px solid rgba(245, 158, 11, 0.4)',
+          border: '1px solid rgba(214, 164, 80, 0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 60px -10px rgba(245, 158, 11, 0.3), inset 0 0 30px rgba(245, 158, 11, 0.05)',
+          boxShadow: '0 0 60px -10px rgba(214, 164, 80, 0.3), inset 0 0 30px rgba(214, 164, 80, 0.05)',
           marginBottom: 36,
         }}>
           <svg width="56" height="56" viewBox="0 0 56 56" fill="none">

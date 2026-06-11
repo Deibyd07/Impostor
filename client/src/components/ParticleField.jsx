@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-export default function ParticleField({ count = 26, color = '#ef4444' }) {
+export default function ParticleField({ count = 26, color = '#e0584b' }) {
   const dots = useMemo(() => Array.from({ length: count }, (_, i) => ({
     x: (i * 37) % 100,
     y: (i * 83) % 100,
@@ -15,7 +15,7 @@ export default function ParticleField({ count = 26, color = '#ef4444' }) {
           left: `${d.x}%`, top: `${d.y}%`,
           width: d.s, height: d.s, borderRadius: 999,
           background: color, opacity: d.o,
-          boxShadow: `0 0 ${d.s * 3}px rgba(220, 38, 38, 0.6)`,
+          boxShadow: `0 0 ${d.s * 3}px rgba(207, 59, 52, 0.6)`,
         }} />
       ))}
     </div>
