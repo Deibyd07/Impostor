@@ -8,6 +8,7 @@ import AlibiMap from '../../components/AlibiMap.jsx'
 import DetectiveInterrogationPanel from '../../components/DetectiveInterrogationPanel.jsx'
 import GuessWordModal from '../../components/GuessWordModal.jsx'
 import VoicePanel from '../../components/VoicePanel.jsx'
+import PlayerAvatar from '../../components/PlayerAvatar.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { isAlibiGame } from '../../utils/gameTypes.js'
 import { canGuessWordRole, isDetectiveRole } from '../../utils/roles.js'
@@ -88,6 +89,7 @@ export default function Discussion() {
   const actions = (
     <DiscussionActions
       isHost={isHost}
+      isActivePlayer={isActivePlayer}
       isImpostor={isImpostor}
       canGuess={canGuess}
       guessAvailableAt={guessAvailableAt}
@@ -483,7 +485,7 @@ function DiscussionDossier({ role, word, clue, impostorTeammates = [], round, st
           <div>
             {impostorTeammates.map(teammate => (
               <strong key={teammate.id}>
-                <b>{teammate.avatar || teammate.name?.trim()?.charAt(0)?.toUpperCase() || '?'}</b>
+                <PlayerAvatar avatar={teammate.avatar} name={teammate.name} className="dossier-team-avatar" />
                 {teammate.name}
               </strong>
             ))}
@@ -588,7 +590,17 @@ function DiscussionTable({ players, myId }) {
   )
 }
 
-function DiscussionActions({ isHost, isImpostor, canGuess, guessAvailableAt, onGuess, onVote }) {
+function DiscussionActions({ isHost, isActivePlayer, isImpostor, canGuess, guessAvailableAt, onGuess, onVote }) {
+  if (!isActivePlayer) {
+    return (
+      <div className="discussion-actions">
+        <div className="discussion-action discussion-action--waiting">
+          Estas eliminado. Espera el resultado de la mesa.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="discussion-actions">
       {isImpostor && (
@@ -616,8 +628,7 @@ function DiscussionActions({ isHost, isImpostor, canGuess, guessAvailableAt, onG
 }
 
 function Avatar({ value, name }) {
-  const display = value || (name || '?').trim().charAt(0).toUpperCase()
-  return <span className="discussion-avatar">{display}</span>
+  return <PlayerAvatar avatar={value} name={name} className="discussion-avatar" />
 }
 
 function roleMeta(role) {

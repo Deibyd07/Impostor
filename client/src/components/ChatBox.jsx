@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import PlayerAvatar from './PlayerAvatar.jsx'
 
 const CHAT_TEXT_MAX_LENGTH = 20
 
@@ -163,7 +164,12 @@ function ChatMessage({ message, isOwn = false }) {
           textTransform: 'uppercase',
           fontSize: 11,
         }}>
-          {message.avatar ? `${message.avatar} ` : ''}{message.name}
+          <PlayerAvatar
+            avatar={message.avatar}
+            name={message.name}
+            className="chat-message__avatar"
+          />
+          {message.name}
           <span style={{ color: 'var(--text-faint)' }}>:</span>
         </span>{' '}
         <span style={{

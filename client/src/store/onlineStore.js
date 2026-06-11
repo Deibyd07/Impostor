@@ -48,6 +48,21 @@ function isCurrentHost(players, myId, fallback = false) {
   return me ? !!me.isHost : fallback
 }
 
+function currentPlayer(state) {
+  return state.players.find(player => player.id === state.myId) || null
+}
+
+function isCurrentPlayerOut(state) {
+  const me = currentPlayer(state)
+  return !!me?.eliminated || !!me?.disconnected
+}
+
+function phaseForCurrentPlayer(state, phase) {
+  const me = currentPlayer(state)
+  if (me?.eliminated && phase !== 'lobby' && phase !== 'ended') return 'spectator'
+  return phase
+}
+
 export const useOnlineStore = create((set, get) => ({
   socket: null,
   connected: false,
@@ -69,6 +84,12 @@ export const useOnlineStore = create((set, get) => ({
   alibiCase: null,
   alibiRoundResult: null,
   alibiScoreboard: [],
+  myPartyLine: null,
+  partyLine: null,
+  partyLineRound: null,
+  partyLineResult: null,
+  partyLineScoreboard: [],
+  partyLineCalls: [],
   myImpostorTeammates: [],
   votes: {},            // { targetId: count }
   votedFor: null,
@@ -130,6 +151,12 @@ export const useOnlineStore = create((set, get) => ({
         alibiCase: room.alibiCase || null,
         alibiRoundResult: room.alibiRoundResult || null,
         alibiScoreboard: room.alibiScoreboard || [],
+        partyLine: room.partyLine || null,
+        partyLineRound: room.partyLineRound || null,
+        partyLineResult: room.partyLineResult || null,
+        partyLineScoreboard: room.partyLineScoreboard || [],
+        partyLineCalls: room.partyLineCalls || [],
+        myPartyLine: null,
         impostorChatMessages: room.impostorChatMessages || [],
         impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
         detectiveInterrogation: room.interrogation || null,
@@ -159,6 +186,12 @@ export const useOnlineStore = create((set, get) => ({
         alibiCase: room.alibiCase || null,
         alibiRoundResult: room.alibiRoundResult || null,
         alibiScoreboard: room.alibiScoreboard || [],
+        partyLine: room.partyLine || null,
+        partyLineRound: room.partyLineRound || null,
+        partyLineResult: room.partyLineResult || null,
+        partyLineScoreboard: room.partyLineScoreboard || [],
+        partyLineCalls: room.partyLineCalls || [],
+        myPartyLine: null,
         impostorChatMessages: room.impostorChatMessages || [],
         impostorLastGuessRound: Number.isFinite(room.impostorLastGuessRound) ? room.impostorLastGuessRound : -1,
         detectiveInterrogation: room.interrogation || null,
@@ -192,6 +225,11 @@ export const useOnlineStore = create((set, get) => ({
         alibiCase: room.alibiCase || null,
         alibiRoundResult: room.alibiRoundResult || null,
         alibiScoreboard: room.alibiScoreboard || [],
+        partyLine: room.partyLine || null,
+        partyLineRound: room.partyLineRound || null,
+        partyLineResult: room.partyLineResult || null,
+        partyLineScoreboard: room.partyLineScoreboard || [],
+        partyLineCalls: room.partyLineCalls || [],
         impostorChatMessages: room.impostorChatMessages || [],
         impostorLastGuessRound: Number.isFinite(you?.impostorLastGuessRound)
           ? you.impostorLastGuessRound
@@ -219,6 +257,7 @@ export const useOnlineStore = create((set, get) => ({
           myWord: you.word ?? null,
           myClue: you.clue ?? null,
           myAlibi: you.alibi ?? null,
+          myPartyLine: you.partyLine ?? null,
           myImpostorTeammates: Array.isArray(you.impostorTeammates) ? you.impostorTeammates : [],
           impostorChatMessages: Array.isArray(you.impostorChatMessages) ? you.impostorChatMessages : get().impostorChatMessages,
           impostorLastGuessRound: Number.isFinite(you.impostorLastGuessRound) ? you.impostorLastGuessRound : get().impostorLastGuessRound,
@@ -230,6 +269,7 @@ export const useOnlineStore = create((set, get) => ({
           myWord: null,
           myClue: null,
           myAlibi: null,
+          myPartyLine: null,
           myImpostorTeammates: [],
           impostorChatMessages: [],
           impostorLastGuessRound: -1,
@@ -255,6 +295,12 @@ export const useOnlineStore = create((set, get) => ({
         alibiCase: null,
         alibiRoundResult: null,
         alibiScoreboard: [],
+        myPartyLine: null,
+        partyLine: null,
+        partyLineRound: null,
+        partyLineResult: null,
+        partyLineScoreboard: [],
+        partyLineCalls: [],
         myImpostorTeammates: [],
         votes: {},
         votedFor: null,
@@ -288,6 +334,11 @@ export const useOnlineStore = create((set, get) => ({
         alibiCase: room?.alibiCase || get().alibiCase,
         alibiRoundResult: room?.alibiRoundResult || get().alibiRoundResult,
         alibiScoreboard: room?.alibiScoreboard || get().alibiScoreboard,
+        partyLine: room?.partyLine || get().partyLine,
+        partyLineRound: room?.partyLineRound || get().partyLineRound,
+        partyLineResult: room?.partyLineResult || get().partyLineResult,
+        partyLineScoreboard: room?.partyLineScoreboard || get().partyLineScoreboard,
+        partyLineCalls: room?.partyLineCalls || get().partyLineCalls,
         detectiveInterrogation: room?.interrogation || get().detectiveInterrogation,
       })
       toast.success('Ahora eres el anfitrion', { duration: 3000 })
@@ -298,7 +349,7 @@ export const useOnlineStore = create((set, get) => ({
       toast.error(message || 'Error en la sala', { title: 'Sala' })
     })
 
-    socket.on('game:started', ({ phase = 'reveal', alibiCase = null } = {}) => {
+    socket.on('game:started', ({ phase = 'reveal', alibiCase = null, partyLine = null } = {}) => {
       sfx.startGame()
       clearInterrogationClearTimer()
       set({
@@ -309,6 +360,12 @@ export const useOnlineStore = create((set, get) => ({
         myAlibi: null,
         alibiCase: alibiCase || null,
         alibiRoundResult: null,
+        myPartyLine: null,
+        partyLine: partyLine || null,
+        partyLineRound: null,
+        partyLineResult: null,
+        partyLineScoreboard: partyLine?.scoreboard || [],
+        partyLineCalls: [],
         myImpostorTeammates: [],
         votes: {},
         votedFor: null,
@@ -325,12 +382,13 @@ export const useOnlineStore = create((set, get) => ({
         eliminationReveal: null,
       })
     })
-    socket.on('game:yourRole', ({ role, word, clue, alibi, impostorTeammates, impostorChatMessages, impostorLastGuessRound, detectiveInterrogationUsed }) => {
+    socket.on('game:yourRole', ({ role, word, clue, alibi, partyLine, impostorTeammates, impostorChatMessages, impostorLastGuessRound, detectiveInterrogationUsed }) => {
       set({
         myRole: role,
         myWord: word,
         myClue: clue,
         myAlibi: alibi ?? null,
+        myPartyLine: partyLine ?? null,
         myImpostorTeammates: Array.isArray(impostorTeammates) ? impostorTeammates : [],
         impostorChatMessages: Array.isArray(impostorChatMessages) ? impostorChatMessages : [],
         impostorLastGuessRound: Number.isFinite(impostorLastGuessRound) ? impostorLastGuessRound : -1,
@@ -338,17 +396,32 @@ export const useOnlineStore = create((set, get) => ({
       })
     })
     socket.on('game:phase', ({ phase, speakOrder }) => {
+      const effectivePhase = phaseForCurrentPlayer(get(), phase)
       const update = {
-        phase,
+        phase: effectivePhase,
         ...(speakOrder ? { speakOrder } : {}),
-        ...(phase !== 'discussion' ? { detectiveInterrogation: null } : {}),
+        ...(effectivePhase !== 'discussion' ? { detectiveInterrogation: null } : {}),
       }
-      if (phase === 'voting') update.votersReady = 0
+      if (effectivePhase === 'voting') update.votersReady = 0
       if (phase === 'caseIntro') {
         update.myRole = null
         update.myWord = null
         update.myClue = null
         update.myAlibi = null
+      }
+      if (phase === 'partyIntro') {
+        update.myRole = null
+        update.myWord = null
+        update.myClue = null
+        update.myAlibi = null
+        update.myPartyLine = null
+        update.partyLineRound = null
+        update.partyLineResult = null
+        update.partyLineCalls = []
+      }
+      if (phase === 'partyRound') {
+        update.partyLineResult = null
+        update.partyLineCalls = []
       }
       if (phase === 'reveal') {
         update.votedFor = null
@@ -356,9 +429,9 @@ export const useOnlineStore = create((set, get) => ({
         update.votersReady = 0
         update.alibiRoundResult = null
       }
-      if (phase !== 'discussion') clearInterrogationClearTimer()
+      if (effectivePhase !== 'discussion') clearInterrogationClearTimer()
       set(update)
-      if (phase === 'voting') sfx.startVoting()
+      if (effectivePhase === 'voting') sfx.startVoting()
     })
     socket.on('vote:update', ({ votes, votersReady }) => set({ votes, votersReady }))
     socket.on('chat:message', ({ message }) => {
@@ -454,6 +527,9 @@ export const useOnlineStore = create((set, get) => ({
         detectiveInterrogation: null,
         alibiRoundResult: result?.roundResult || get().alibiRoundResult,
         alibiScoreboard: result?.alibiScoreboard || get().alibiScoreboard,
+        partyLineResult: result?.roundResult || get().partyLineResult,
+        partyLineScoreboard: result?.partyLineScoreboard || get().partyLineScoreboard,
+        partyLineCalls: [],
       })
       if (result?.winner === 'impostor' && result?.reason === 'wordGuessed') sfx.guessCorrect()
     })
@@ -479,6 +555,42 @@ export const useOnlineStore = create((set, get) => ({
         chatMessages: [],
       })
     })
+    socket.on('game:partyLineRound', ({ round, partyLine, partyLineRound, privateRound, scoreboard }) => {
+      set({
+        phase: 'partyRound',
+        round: round || get().round,
+        partyLine: partyLine || get().partyLine,
+        partyLineRound: partyLineRound || null,
+        myPartyLine: privateRound || null,
+        partyLineResult: null,
+        partyLineScoreboard: scoreboard || partyLine?.scoreboard || get().partyLineScoreboard,
+        partyLineCalls: [],
+        chatMessages: [],
+      })
+    })
+    socket.on('game:partyLineSubmissionUpdate', ({ submittedPlayerIds, submittedCount, totalPlayers }) => {
+      set((s) => ({
+        partyLineRound: s.partyLineRound ? {
+          ...s.partyLineRound,
+          submittedPlayerIds: submittedPlayerIds || s.partyLineRound.submittedPlayerIds || [],
+          submittedCount: Number.isFinite(submittedCount) ? submittedCount : s.partyLineRound.submittedCount,
+          totalPlayers: Number.isFinite(totalPlayers) ? totalPlayers : s.partyLineRound.totalPlayers,
+        } : s.partyLineRound,
+      }))
+    })
+    socket.on('game:partyLineResult', ({ roundResult }) => {
+      set({
+        partyLineResult: roundResult || null,
+        partyLineScoreboard: roundResult?.scoreboard || get().partyLineScoreboard,
+        partyLineCalls: [],
+      })
+    })
+    socket.on('partyline:calls', ({ calls } = {}) => {
+      set({ partyLineCalls: Array.isArray(calls) ? calls : [] })
+    })
+    socket.on('partyline:error', ({ message } = {}) => {
+      toast.warn(message || 'No se pudo completar la llamada', { duration: 2500 })
+    })
     socket.on('game:newRound', ({ round, speakOrder }) => set({ votes: {}, votedFor: null, phase: 'discussion', round, ...(speakOrder ? { speakOrder } : {}) }))
     socket.on('room:rematch', ({ room }) => {
       set({
@@ -493,6 +605,12 @@ export const useOnlineStore = create((set, get) => ({
         alibiCase: room.alibiCase || null,
         alibiRoundResult: null,
         alibiScoreboard: [],
+        myPartyLine: null,
+        partyLine: room.partyLine || null,
+        partyLineRound: null,
+        partyLineResult: null,
+        partyLineScoreboard: [],
+        partyLineCalls: [],
         impostorChatMessages: room.impostorChatMessages || [],
         detectiveInterrogation: room.interrogation || null,
         detectiveInterrogationUsed: false,
@@ -528,6 +646,12 @@ export const useOnlineStore = create((set, get) => ({
       alibiCase: null,
       alibiRoundResult: null,
       alibiScoreboard: [],
+      myPartyLine: null,
+      partyLine: null,
+      partyLineRound: null,
+      partyLineResult: null,
+      partyLineScoreboard: [],
+      partyLineCalls: [],
       myImpostorTeammates: [],
       impostorChatMessages: [],
       impostorLastGuessRound: -1,
@@ -576,6 +700,12 @@ export const useOnlineStore = create((set, get) => ({
       alibiCase: null,
       alibiRoundResult: null,
       alibiScoreboard: [],
+      myPartyLine: null,
+      partyLine: null,
+      partyLineRound: null,
+      partyLineResult: null,
+      partyLineScoreboard: [],
+      partyLineCalls: [],
       myImpostorTeammates: [],
       myProfileId: null,
       isGuest: true,
@@ -602,17 +732,32 @@ export const useOnlineStore = create((set, get) => ({
     get().socket?.emit('game:continueAlibiIntro')
   },
 
+  continuePartyLineIntro: () => {
+    get().socket?.emit('game:continuePartyLineIntro')
+  },
+
   goToVote: () => {
+    if (isCurrentPlayerOut(get())) return
     get().socket?.emit('game:goToVote')
   },
 
   castVote: (targetId) => {
+    const state = get()
+    if (isCurrentPlayerOut(state) || state.phase !== 'voting' || state.votedFor) return
+    const target = state.players.find(player => (
+      player.id === targetId &&
+      !player.eliminated &&
+      !player.disconnected &&
+      player.id !== state.myId
+    ))
+    if (!target) return
     get().socket?.emit('vote:cast', { targetId })
     sfx.voteCast()
     set((s) => ({ votedFor: targetId, phase: 'voted', votersReady: s.votersReady + 1 }))
   },
 
   guessWord: (word) => {
+    if (isCurrentPlayerOut(get())) return
     get().socket?.emit('game:guessWord', { word })
   },
 
@@ -638,6 +783,37 @@ export const useOnlineStore = create((set, get) => ({
 
   nextAlibiRound: () => {
     get().socket?.emit('game:nextAlibiRound')
+  },
+
+  submitPartyLineAction: (action) => {
+    get().socket?.emit('game:partyLineSubmit', { action })
+    set((s) => ({
+      myPartyLine: s.myPartyLine ? { ...s.myPartyLine, submitted: true } : s.myPartyLine,
+    }))
+  },
+
+  nextPartyLineRound: () => {
+    get().socket?.emit('game:nextPartyLineRound')
+  },
+
+  requestPartyLineCall: (targetId) => {
+    get().socket?.emit('partyline:callRequest', { targetId })
+  },
+
+  acceptPartyLineCall: (callId) => {
+    get().socket?.emit('partyline:callAccept', { callId })
+  },
+
+  declinePartyLineCall: (callId) => {
+    get().socket?.emit('partyline:callDecline', { callId })
+  },
+
+  cancelPartyLineCall: (callId) => {
+    get().socket?.emit('partyline:callCancel', { callId })
+  },
+
+  hangupPartyLineCall: (callId) => {
+    get().socket?.emit('partyline:callHangup', { callId })
   },
 
   setConfig: (patch) => {

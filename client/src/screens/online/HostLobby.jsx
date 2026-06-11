@@ -8,15 +8,17 @@ import AvatarPicker from '../../components/AvatarPicker.jsx'
 import ProfileIdentityPicker from '../../components/ProfileIdentityPicker.jsx'
 import CornerOrnament from '../../components/CornerOrnament.jsx'
 import GameIcon from '../../components/GameIcon.jsx'
+import MaskIcon from '../../components/MaskIcon.jsx'
 import ModeCard from '../../components/ModeCard.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ChipGroup from '../../components/ChipGroup.jsx'
 import VoicePanel from '../../components/VoicePanel.jsx'
+import PlayerAvatar from '../../components/PlayerAvatar.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { profileIdentity, usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
 import { categories, wordBank } from '../../data/wordBank.js'
 import { defaultAvatarForName, rememberAvatarForName, savedAvatarForName } from '../../data/avatars.js'
-import { isAlibiGame } from '../../utils/gameTypes.js'
+import { isAlibiGame, isPartyLineGame } from '../../utils/gameTypes.js'
 
 export default function HostLobby() {
   const navigate = useNavigate()
@@ -105,6 +107,9 @@ export default function HostLobby() {
               gameType: 'impostor', impostorCount: 1, mode: 'classic', category: 'random',
               clueType: 'category', blindIntensity: 'medium', roundTime: '3',
               detectiveEnabled: false, alibiRounds: 3,
+              partyLineRounds: 5,
+              partyLineGames: ['neighbors', 'message', 'dilemma', 'identity'],
+              partyLineSettings: defaultPartyLineSettings(),
             }, currentAvatar, profileIdentity(selectedProfile))}
             style={{ padding: '18px 20px', letterSpacing: '0.2em' }}
           >
@@ -263,7 +268,11 @@ function LobbyPlayersBoard({ players }) {
             <span className="lobby-player-card__index">{String(index + 1).padStart(2, '0')}</span>
             <span className="lobby-player-card__avatar">
               {player.isHost && <GameIcon name="crown" size={15} className="lobby-player-card__role-icon" />}
-              {player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}
+              <PlayerAvatar
+                avatar={player.avatar}
+                name={player.name}
+                style={{ width: '100%', height: '100%', borderRadius: 2 }}
+              />
             </span>
             <span className="lobby-player-card__name">{player.name}</span>
             <span className="lobby-player-card__status">
@@ -286,16 +295,18 @@ function LobbyPlayersBoard({ players }) {
 
 function LobbyStatusPanel({ players, config }) {
   const alibiGame = isAlibiGame(config)
+  const partyLineGame = isPartyLineGame(config)
   const activeCategory = config?.category || 'random'
   const categoryLabel = activeCategory === 'random'
     ? 'Aleatoria'
     : categories[activeCategory]?.label || 'Sin categoría'
-  const gameLabel = alibiGame ? 'Coartada' : 'El Impostor'
+  const gameLabel = partyLineGame ? 'Linea Privada' : alibiGame ? 'Coartada' : 'El Impostor'
   const modeLabel = {
     classic: 'Clásico',
     clue: 'Con pista',
     blind: 'Ciego',
     alibi: 'Coartada',
+    partyline: 'Linea Privada',
   }[config?.mode] || 'Sin modo'
 
   return (
@@ -313,7 +324,12 @@ function LobbyStatusPanel({ players, config }) {
           <span><GameIcon name="cardsFan" size={14} /> Juego</span>
           <strong>{gameLabel}</strong>
         </div>
-        {alibiGame ? (
+        {partyLineGame ? (
+          <div>
+            <span><GameIcon name="cardTarget" size={14} /> Rondas</span>
+            <strong>{config?.partyLineRounds || 5}</strong>
+          </div>
+        ) : alibiGame ? (
           <div>
             <span><GameIcon name="cardTarget" size={14} /> Rondas</span>
             <strong>{config?.alibiRounds || 3}</strong>
@@ -341,17 +357,20 @@ function LobbyStatusPanel({ players, config }) {
 function HostConfigPanel({ config, setConfig, playerCount }) {
   const maxImpostors = Math.max(1, playerCount)
   const alibiGame = isAlibiGame(config)
+  const partyLineGame = isPartyLineGame(config)
   const switchToImpostor = () => setConfig({
     gameType: 'impostor',
     mode: ['classic', 'clue', 'blind'].includes(config.mode) ? config.mode : 'classic',
     impostorCount: Math.max(1, config.impostorCount || 1),
   })
-  const switchToAlibi = () => setConfig({
-    gameType: 'alibi',
-    mode: 'alibi',
+  const switchToPartyLine = () => setConfig({
+    gameType: 'partyline',
+    mode: 'partyline',
     detectiveEnabled: false,
     impostorCount: 1,
-    alibiRounds: config.alibiRounds || 3,
+    partyLineRounds: config.partyLineRounds || 5,
+    partyLineGames: config.partyLineGames?.length ? config.partyLineGames : ['neighbors', 'message', 'dilemma', 'identity'],
+    partyLineSettings: { ...defaultPartyLineSettings(), ...(config.partyLineSettings || {}) },
   })
   const catOptions = [
     {
@@ -370,13 +389,13 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
   return (
     <>
       <SectionHeader>Juego</SectionHeader>
-      <div className="mystery-game-selector">
-        <ModeCard icon="IM" title="EL IMPOSTOR" accent="red" selected={!alibiGame}
+      <div className="mystery-game-selector" role="radiogroup" aria-label="Juego de la sala">
+        <ModeCard icon="IM" title="EL IMPOSTOR" accent="red" selected={!alibiGame && !partyLineGame}
           description="Palabra secreta, impostores y sospechas."
           onClick={switchToImpostor} />
-        <ModeCard icon="CO" title="COARTADA" accent="gold" selected={alibiGame}
-          description="Caso por rondas, pistas privadas y una mentira."
-          onClick={switchToAlibi} />
+        <ModeCard icon="LP" title="LÍNEA PRIVADA" accent="blue" selected={partyLineGame}
+          description="Minijuegos de llamadas, pactos y mentiras."
+          onClick={switchToPartyLine} />
       </div>
 
       {alibiGame && (
@@ -400,45 +419,63 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
         </>
       )}
 
-      {!alibiGame && (
+      {partyLineGame && (
+        <PartyLineConfigPanel config={config} setConfig={setConfig} />
+      )}
+
+      {!alibiGame && !partyLineGame && (
         <>
-      <SectionHeader>Variante de El Impostor</SectionHeader>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-        <ModeCard icon="🎭" title="CLÁSICO" accent="red" selected={config.mode === 'classic'}
-          description="El impostor no sabe la palabra."
-          onClick={() => setConfig({ mode: 'classic' })} />
-        <ModeCard icon="🔍" title="PISTA" accent="gold" selected={config.mode === 'clue'}
-          description="El impostor recibe una pista."
-          onClick={() => setConfig({ mode: 'clue' })} />
-        <ModeCard icon="👁" title="CIEGO" accent="blue" selected={config.mode === 'blind'}
-          description="El impostor no sabe que lo es."
-          onClick={() => setConfig({ mode: 'blind' })} />
-      </div>
+      <div className="impostor-dossier">
+        <span className="impostor-dossier__tab">
+          <MaskIcon size={14} color="#8c1f17" />
+          Expediente · El Impostor
+        </span>
 
-      <SectionHeader>Impostores</SectionHeader>
-      <div style={{ marginBottom: 18 }}>
-        <Stepper
-          value={Math.min(config.impostorCount || 1, maxImpostors)}
-          min={1} max={maxImpostors} accent="red"
-          onChange={(n) => setConfig({ impostorCount: n })}
-        />
-      </div>
-
-      <SectionHeader>Rol especial</SectionHeader>
-      <button
-        type="button"
-        aria-pressed={!!config.detectiveEnabled}
-        onClick={() => setConfig({ detectiveEnabled: !config.detectiveEnabled })}
-        className={`host-toggle ${config.detectiveEnabled ? 'is-on' : ''}`}
-      >
-        <div className="host-toggle__row">
-          <div style={{ minWidth: 0 }}>
-            <div className="host-toggle__title">Detective</div>
-            <div className="host-toggle__desc">Puede iniciar un interrogatorio público una vez por partida.</div>
-          </div>
-          <span className="host-toggle__switch" />
+        <SectionHeader accent="red">Variante</SectionHeader>
+        <div className="mystery-game-selector mystery-game-selector--variants" role="radiogroup" aria-label="Variante de El Impostor">
+          <ModeCard icon="🎭" title="CLÁSICO" accent="red" selected={config.mode === 'classic'}
+            description="El impostor no sabe la palabra."
+            onClick={() => setConfig({ mode: 'classic' })} />
+          <ModeCard icon="🔍" title="PISTA" accent="gold" selected={config.mode === 'clue'}
+            description="El impostor recibe una pista."
+            onClick={() => setConfig({ mode: 'clue' })} />
+          <ModeCard icon="👁" title="CIEGO" accent="blue" selected={config.mode === 'blind'}
+            description="El impostor no sabe que lo es."
+            onClick={() => setConfig({ mode: 'blind' })} />
         </div>
-      </button>
+
+        <SectionHeader accent="red">Impostores en la mesa</SectionHeader>
+        <div className="impostor-count-row">
+          <Stepper
+            value={Math.min(config.impostorCount || 1, maxImpostors)}
+            min={1} max={maxImpostors} accent="red"
+            onChange={(n) => setConfig({ impostorCount: n })}
+          />
+          <div className="impostor-count-masks" aria-hidden="true">
+            {Array.from({ length: Math.min(config.impostorCount || 1, maxImpostors) }).map((_, index) => (
+              <span key={index} style={{ animationDelay: `${index * 70}ms` }}>
+                <MaskIcon size={17} color="#8c1f17" />
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <SectionHeader accent="red">Rol especial</SectionHeader>
+        <button
+          type="button"
+          aria-pressed={!!config.detectiveEnabled}
+          onClick={() => setConfig({ detectiveEnabled: !config.detectiveEnabled })}
+          className={`host-toggle ${config.detectiveEnabled ? 'is-on' : ''}`}
+        >
+          <div className="host-toggle__row">
+            <div style={{ minWidth: 0 }}>
+              <div className="host-toggle__title">Detective</div>
+              <div className="host-toggle__desc">Puede iniciar un interrogatorio público una vez por partida.</div>
+            </div>
+            <span className="host-toggle__switch" />
+          </div>
+        </button>
+      </div>
 
       <SectionHeader right={catOptions.find(opt => opt.value === (config.category || 'random'))?.meta}>
         Categoría
@@ -494,6 +531,157 @@ function HostConfigPanel({ config, setConfig, playerCount }) {
         </>
       )}
     </>
+  )
+}
+
+const PARTYLINE_GAMES = [
+  { id: 'neighbors', title: 'Habitaciones vecinas', desc: 'Adivinar vecinos por numeros consecutivos.' },
+  { id: 'message', title: 'Mensaje interceptado', desc: 'Reconstruir la frase y detectar fragmentos falsos.' },
+  { id: 'dilemma', title: 'Dilema del complice', desc: 'Cooperar o traicionar en secreto.' },
+  { id: 'identity', title: 'Codigo de oficio', desc: 'Comparar protocolos y detectar el procedimiento falso.' },
+]
+
+function defaultPartyLineSettings() {
+  return {
+    neighbors: { strictOrder: true },
+    message: { decoyCount: 1 },
+    dilemma: { highStakes: false },
+    identity: { outsiderCount: 1 },
+  }
+}
+
+function PartyLineConfigPanel({ config, setConfig }) {
+  const enabledGames = config.partyLineGames?.length
+    ? config.partyLineGames
+    : PARTYLINE_GAMES.map(game => game.id)
+  const settings = { ...defaultPartyLineSettings(), ...(config.partyLineSettings || {}) }
+
+  const setSettings = (gameId, patch) => {
+    setConfig({
+      partyLineSettings: {
+        ...settings,
+        [gameId]: {
+          ...(settings[gameId] || {}),
+          ...patch,
+        },
+      },
+    })
+  }
+
+  const toggleGame = (gameId) => {
+    const active = enabledGames.includes(gameId)
+    const next = active
+      ? enabledGames.filter(id => id !== gameId)
+      : [...enabledGames, gameId]
+    if (!next.length) return
+    setConfig({ partyLineGames: next })
+  }
+
+  return (
+    <>
+      <SectionHeader>Linea Privada</SectionHeader>
+      <div className="alibi-config-note">
+        Modo party independiente: cada ronda escoge un minijuego activo, reparte informacion privada y suma puntos.
+      </div>
+
+      <SectionHeader>Rondas</SectionHeader>
+      <div style={{ marginBottom: 18 }}>
+        <ChipGroup
+          value={String(config.partyLineRounds || 5)}
+          onChange={(value) => setConfig({ partyLineRounds: Number(value) })}
+          options={[
+            { value: '3', label: '3 rondas' },
+            { value: '5', label: '5 rondas' },
+            { value: '7', label: '7 rondas' },
+            { value: '10', label: '10 rondas' },
+          ]}
+        />
+      </div>
+
+      <SectionHeader right={`${enabledGames.length}/4`}>Minijuegos activos</SectionHeader>
+      <div className="partyline-config-grid">
+        {PARTYLINE_GAMES.map(game => {
+          const active = enabledGames.includes(game.id)
+          return (
+            <button
+              type="button"
+              key={game.id}
+              aria-pressed={active}
+              className={`partyline-config-card ${active ? 'is-active' : ''}`}
+              onClick={() => toggleGame(game.id)}
+            >
+              <strong>{game.title}</strong>
+              <span>{game.desc}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {enabledGames.includes('neighbors') && (
+        <HostSwitch
+          title="Vecinos con orden exacto"
+          desc="Izquierda es el cuarto anterior y derecha el siguiente. Si lo apagas, basta con encontrar los dos vecinos."
+          active={settings.neighbors?.strictOrder !== false}
+          onClick={() => setSettings('neighbors', { strictOrder: settings.neighbors?.strictOrder === false })}
+        />
+      )}
+
+      {enabledGames.includes('message') && (
+        <>
+          <SectionHeader>Mensaje interceptado</SectionHeader>
+          <ChipGroup
+            value={String(settings.message?.decoyCount || 1)}
+            onChange={(value) => setSettings('message', { decoyCount: Number(value) })}
+            options={[
+              { value: '1', label: '1 falso' },
+              { value: '2', label: '2 falsos' },
+            ]}
+          />
+        </>
+      )}
+
+      {enabledGames.includes('dilemma') && (
+        <HostSwitch
+          title="Dilema de alto riesgo"
+          desc="La traicion paga mas, pero dos traidores pierden puntos."
+          active={!!settings.dilemma?.highStakes}
+          onClick={() => setSettings('dilemma', { highStakes: !settings.dilemma?.highStakes })}
+        />
+      )}
+
+      {enabledGames.includes('identity') && (
+        <>
+          <SectionHeader>Codigo de oficio</SectionHeader>
+          <ChipGroup
+            value={String(settings.identity?.outsiderCount || 1)}
+            onChange={(value) => setSettings('identity', { outsiderCount: Number(value) })}
+            options={[
+              { value: '1', label: '1 protocolo falso' },
+              { value: '2', label: '2 protocolos falsos' },
+            ]}
+          />
+        </>
+      )}
+    </>
+  )
+}
+
+function HostSwitch({ title, desc, active, onClick }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`host-toggle ${active ? 'is-on' : ''}`}
+    >
+      <div className="host-toggle__row">
+        <div style={{ minWidth: 0 }}>
+          <div className="host-toggle__title">{title}</div>
+          <div className="host-toggle__desc">{desc}</div>
+        </div>
+        <span className="host-toggle__switch" />
+      </div>
+    </button>
   )
 }
 

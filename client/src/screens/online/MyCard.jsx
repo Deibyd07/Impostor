@@ -4,6 +4,7 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import RoleCard from '../../components/RoleCard.jsx'
 import AlibiCard from '../../components/AlibiCard.jsx'
 import Badge from '../../components/Badge.jsx'
+import CardSlamFlip from '../../components/CardSlamFlip.jsx'
 import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 import { useTimer } from '../../hooks/useTimer.js'
@@ -83,23 +84,21 @@ export default function MyCard() {
         <Badge color="var(--gold)" size="sm">{me?.name || ''}</Badge>
       </div>
 
-      <div style={{
-        padding: '0 24px',
-        animation: 'cardReveal 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both',
-        perspective: '1100px',
-      }}>
-        {isAlibiMode ? (
-          <AlibiCard alibi={myAlibi} seconds={seconds} totalSeconds={TOTAL} />
-        ) : (
-          <RoleCard
-            variant={myRole}
-            word={myWord}
-            clue={myClue}
-            impostorTeammates={myImpostorTeammates}
-            seconds={seconds}
-            totalSeconds={TOTAL}
-          />
-        )}
+      <div style={{ padding: '0 24px' }}>
+        <CardSlamFlip backTitle={isAlibiMode ? 'Coartada' : 'Expediente'}>
+          {isAlibiMode ? (
+            <AlibiCard alibi={myAlibi} seconds={seconds} totalSeconds={TOTAL} />
+          ) : (
+            <RoleCard
+              variant={myRole}
+              word={myWord}
+              clue={myClue}
+              impostorTeammates={myImpostorTeammates}
+              seconds={seconds}
+              totalSeconds={TOTAL}
+            />
+          )}
+        </CardSlamFlip>
       </div>
 
       <div style={{ textAlign: 'center', marginTop: 20, padding: '0 24px' }}>

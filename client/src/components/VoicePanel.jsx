@@ -3,13 +3,16 @@ import SectionHeader from './SectionHeader.jsx'
 import { useOnlineStore } from '../store/onlineStore.js'
 import { LOCAL_SPEAKER_ID, useVoiceStore } from '../store/voiceStore.js'
 import { resolveVoiceChannel } from '../utils/voiceChannels.js'
+import PlayerAvatar from './PlayerAvatar.jsx'
 
 export default function VoicePanel({ compact = false }) {
   const players = useOnlineStore(s => s.players)
   const myId = useOnlineStore(s => s.myId)
   const roomCode = useOnlineStore(s => s.roomCode)
+  const config = useOnlineStore(s => s.config)
   const phase = useOnlineStore(s => s.phase)
   const detectiveInterrogation = useOnlineStore(s => s.detectiveInterrogation)
+  const partyLineCalls = useOnlineStore(s => s.partyLineCalls)
   const supported = useVoiceStore(s => s.supported)
   const enabled = useVoiceStore(s => s.enabled)
   const micWanted = useVoiceStore(s => s.micWanted)
@@ -54,6 +57,8 @@ export default function VoicePanel({ compact = false }) {
     players,
     phase,
     interrogation: detectiveInterrogation,
+    partyLineCalls,
+    isPartyLineMode: config?.gameType === 'partyline' || config?.mode === 'partyline',
   })
   const micLabel = !enabled
     ? 'Voz apagada'
@@ -204,12 +209,11 @@ export default function VoicePanel({ compact = false }) {
 
 function VoiceChip({ player, label, active = false, muted = false, speaking = false, volume = null, masterVolume = 1, onVolumeChange }) {
   const name = player?.name || 'Jugador'
-  const avatar = player?.avatar || name.trim().charAt(0).toUpperCase() || '?'
   const hasVolume = typeof onVolumeChange === 'function'
   const finalVolume = Math.round((Number(volume) || 0) * masterVolume * 100)
   return (
     <div className={`voice-chip ${hasVolume ? 'voice-chip--remote' : ''} ${active ? 'is-active' : ''} ${muted ? 'is-muted' : ''} ${speaking ? 'is-speaking' : ''}`}>
-      <span>{avatar}</span>
+      <PlayerAvatar avatar={player?.avatar} name={name} />
       <div className="voice-chip__body">
         <div className="voice-chip__head">
           <strong>{name}</strong>

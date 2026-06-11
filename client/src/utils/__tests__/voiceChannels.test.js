@@ -56,7 +56,7 @@ describe('resolveVoiceChannel', () => {
     expect(channel.channel).toBe('table')
   })
 
-  it('cierra voz en fases privadas', () => {
+  it('mantiene la voz en votacion del modo principal', () => {
     const channel = resolveVoiceChannel({
       roomCode: 'ABCD',
       myId: 'a',
@@ -65,7 +65,45 @@ describe('resolveVoiceChannel', () => {
       interrogation: null,
     })
 
+    expect(channel.canSpeak).toBe(true)
+    expect(channel.allowedPeerIds).toBe(null)
+  })
+
+  it('cierra la voz de sala en Linea Privada sin llamada activa', () => {
+    const channel = resolveVoiceChannel({
+      roomCode: 'ABCD',
+      myId: 'a',
+      players,
+      phase: 'partyRound',
+      interrogation: null,
+      isPartyLineMode: true,
+      partyLineCalls: [],
+    })
+
     expect(channel.canSpeak).toBe(false)
     expect(channel.allowedPeerIds).toEqual([])
+    expect(channel.channel).toBe('party-wait')
+  })
+
+  it('abre solo el par privado durante una llamada de Linea Privada', () => {
+    const channel = resolveVoiceChannel({
+      roomCode: 'ABCD',
+      myId: 'a',
+      players,
+      phase: 'partyRound',
+      interrogation: null,
+      isPartyLineMode: true,
+      partyLineCalls: [{
+        status: 'active',
+        callerId: 'a',
+        callerName: 'A',
+        targetId: 'b',
+        targetName: 'B',
+      }],
+    })
+
+    expect(channel.canSpeak).toBe(true)
+    expect(channel.allowedPeerIds).toEqual(['b'])
+    expect(channel.channel).toBe('party-call')
   })
 })

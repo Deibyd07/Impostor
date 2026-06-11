@@ -21,6 +21,8 @@ export default function VotePrivate() {
   const castVote = useOnlineStore(s => s.castVote)
   const isAlibiMode = isAlibiGame(config)
   const isAlibiDetective = isAlibiMode && (isDetectiveRole(myRole) || myAlibi?.role === 'alibi-detective')
+  const me = players.find(player => player.id === myId)
+  const isEliminated = !!me?.eliminated
 
   useEffect(() => {
     if (phase === 'caseIntro') navigate('/online/alibi-case')
@@ -29,7 +31,10 @@ export default function VotePrivate() {
     if (phase === 'roundResult') navigate('/online/alibi-result')
     if (phase === 'ended') navigate('/online/end')
     if (phase === 'spectator') navigate('/online/spectator')
-  }, [phase, navigate])
+    if (isEliminated) navigate('/online/spectator')
+  }, [phase, isEliminated, navigate])
+
+  if (isEliminated) return null
 
   const detectiveId = alibiCase?.detective?.id || myId
   const activeOthers = players.filter(p => (

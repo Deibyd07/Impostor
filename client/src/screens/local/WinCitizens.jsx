@@ -3,10 +3,11 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Confetti from '../../components/Confetti.jsx'
 import Badge from '../../components/Badge.jsx'
 import RoundScoreboard from '../../components/RoundScoreboard.jsx'
+import CulpritBoard from '../../components/CulpritBoard.jsx'
 import { sfx } from '../../utils/sfx.js'
 
 export default function WinCitizens({
-  impostorName, word, fakeWord, mode,
+  impostorName, word, fakeWord, mode, impostorPlayers = [],
   onRematch, onNew,
   rematchLabel = 'Revancha', newLabel = 'Nueva partida',
   rematchDisabled = false,
@@ -46,20 +47,13 @@ export default function WinCitizens({
             position: 'absolute', top: 0, left: 0, right: 0, height: 1,
             background: 'linear-gradient(90deg, transparent, var(--gold) 50%, transparent)',
           }} />
-          <div style={{
-            width: 76, height: 76, borderRadius: 999, margin: '0 auto 14px',
-            background: 'linear-gradient(135deg, #321114, #240f10)',
-            color: 'var(--impostor)',
-            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 24px -4px var(--impostor-glow), inset 0 0 0 2px var(--impostor)',
-          }}>{(impostorName || '?').charAt(0).toUpperCase()}</div>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 22,
-            color: 'var(--text-1)', letterSpacing: '0.04em',
-          }}>{impostorName}</div>
-          <div style={{ marginTop: 10 }}>
-            <Badge color="var(--impostor)" warn>ERA EL IMPOSTOR</Badge>
+          <div style={{ margin: '4px 0 16px' }}>
+            <CulpritBoard
+              players={impostorPlayers.length ? impostorPlayers : [{ name: impostorName || '?' }]}
+            />
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <Badge color="var(--impostor)" warn>{impostorPlayers.length > 1 ? 'ERAN LOS IMPOSTORES' : 'ERA EL IMPOSTOR'}</Badge>
           </div>
 
           <div className="hr-gold-soft" style={{ margin: '20px 0 16px' }} />

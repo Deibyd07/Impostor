@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import AvatarPicker from './AvatarPicker.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 
 export default function PlayerChip({
   name, avatar, eliminated = false, voted = 0, disconnected = false,
@@ -8,8 +9,6 @@ export default function PlayerChip({
   const [editing, setEditing] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const inputRef = useRef(null)
-  const initial = (name || '?').trim().charAt(0).toUpperCase()
-  const displayAvatar = avatar || initial
 
   useEffect(() => {
     if (editing) inputRef.current?.select()
@@ -52,7 +51,13 @@ export default function PlayerChip({
           cursor: canPickAvatar ? 'pointer' : 'default',
           lineHeight: 1,
         }}
-      >{displayAvatar}</button>
+      >
+        <PlayerAvatar
+          avatar={avatar}
+          name={name}
+          style={{ width: '100%', height: '100%', borderRadius: 999, fontSize: avatar ? 15 : 13 }}
+        />
+      </button>
       {avatarOpen && canPickAvatar && (
         <div style={{
           position: 'absolute',

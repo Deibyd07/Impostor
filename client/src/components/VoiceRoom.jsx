@@ -8,8 +8,10 @@ export default function VoiceRoom() {
   const roomCode = useOnlineStore(s => s.roomCode)
   const myId = useOnlineStore(s => s.myId)
   const players = useOnlineStore(s => s.players)
+  const config = useOnlineStore(s => s.config)
   const phase = useOnlineStore(s => s.phase)
   const detectiveInterrogation = useOnlineStore(s => s.detectiveInterrogation)
+  const partyLineCalls = useOnlineStore(s => s.partyLineCalls)
   const bindSocket = useVoiceStore(s => s.bindSocket)
   const setRoomContext = useVoiceStore(s => s.setRoomContext)
   const setCanSpeak = useVoiceStore(s => s.setCanSpeak)
@@ -20,6 +22,13 @@ export default function VoiceRoom() {
   const peerVolumes = useVoiceStore(s => s.peerVolumes)
   const selectedOutputDeviceId = useVoiceStore(s => s.selectedOutputDeviceId)
   const relayActive = useVoiceStore(s => s.relayActive)
+  const isPartyLineMode = config?.gameType === 'partyline' || config?.mode === 'partyline'
+  const hasPartyLineCallAudio = useMemo(() => (
+    partyLineCalls.some(call => (
+      (call.status === 'active' || (call.status === 'ringing' && call.callerId === myId)) &&
+      (call.callerId === myId || call.targetId === myId)
+    ))
+  ), [myId, partyLineCalls])
 
   const voiceChannel = useMemo(() => {
     return resolveVoiceChannel({
@@ -28,8 +37,10 @@ export default function VoiceRoom() {
       players,
       phase,
       interrogation: detectiveInterrogation,
+      partyLineCalls,
+      isPartyLineMode,
     })
-  }, [detectiveInterrogation, myId, phase, players, roomCode])
+  }, [detectiveInterrogation, isPartyLineMode, myId, partyLineCalls, phase, players, roomCode])
 
   const audiblePeerIds = useMemo(() => (
     voiceChannel.allowedPeerIds ? new Set(voiceChannel.allowedPeerIds) : null
@@ -54,6 +65,11 @@ export default function VoiceRoom() {
   useEffect(() => {
     if (!roomCode) stopVoice()
   }, [roomCode, stopVoice])
+
+  useEffect(() => {
+    if (!isPartyLineMode || phase === 'lobby') return
+    if (phase !== 'partyRound' || !hasPartyLineCallAudio) stopVoice()
+  }, [hasPartyLineCallAudio, isPartyLineMode, phase, stopVoice])
 
   return (
     <>

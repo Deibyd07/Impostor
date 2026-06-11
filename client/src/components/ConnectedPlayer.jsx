@@ -1,4 +1,5 @@
 import Badge from './Badge.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 
 export default function ConnectedPlayer({
   name, avatar, isHost = false, placeholder = false, status = 'ready', isYou = false,
@@ -22,7 +23,6 @@ export default function ConnectedPlayer({
       </div>
     )
   }
-  const displayAvatar = avatar || (name || '?').charAt(0).toUpperCase()
   return (
     <div className={`connected-player ${isYou ? 'is-you' : ''}`} style={{
       display: 'flex', alignItems: 'center', gap: 10,
@@ -39,7 +39,13 @@ export default function ConnectedPlayer({
         boxShadow: 'inset 0 0 0 1px rgba(214, 164, 80, 0.25)',
         flexShrink: 0,
         lineHeight: 1,
-      }}>{displayAvatar}</div>
+      }}>
+        <PlayerAvatar
+          avatar={avatar}
+          name={name}
+          style={{ width: '100%', height: '100%', borderRadius: 999, fontSize: avatar ? 18 : 14 }}
+        />
+      </div>
       <span style={{
         flex: 1, fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 500,
         color: 'var(--text-1)',

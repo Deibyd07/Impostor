@@ -4,6 +4,7 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import AvatarPicker from '../../components/AvatarPicker.jsx'
+import PlayerAvatar from '../../components/PlayerAvatar.jsx'
 import { usePlayerProfilesStore } from '../../store/playerProfilesStore.js'
 import { defaultAvatarForName } from '../../data/avatars.js'
 
@@ -115,7 +116,13 @@ export default function Profile() {
               placeholder="Nombre del jugador"
               style={inputStyle}
             />
-            <AvatarPicker value={avatar} onChange={(nextAvatar) => { setAvatar(nextAvatar); setAvatarTouched(true) }} />
+            <AvatarPicker
+              value={avatar}
+              columns={5}
+              tileSize={62}
+              previewSize={52}
+              onChange={(nextAvatar) => { setAvatar(nextAvatar); setAvatarTouched(true) }}
+            />
             <div style={{ display: 'grid', gridTemplateColumns: editingProfile ? '1fr 1fr' : '1fr', gap: 10 }}>
               {editingProfile && (
                 <button type="button" onClick={resetForm} style={secondaryButtonStyle}>
@@ -151,15 +158,15 @@ export default function Profile() {
                 return (
                   <article key={profile.id} style={{
                     display: 'grid',
-                    gridTemplateColumns: '46px 1fr auto',
-                    gap: 11,
+                    gridTemplateColumns: '66px 1fr auto',
+                    gap: 14,
                     alignItems: 'center',
                     padding: 13,
                     borderRadius: 14,
                     border: `1px solid ${active ? 'var(--gold)' : 'var(--hairline-cold)'}`,
                     background: active ? 'rgba(214, 164, 80, 0.10)' : 'rgba(255,255,255,0.03)',
                   }}>
-                    <div style={avatarStyle}>{profile.avatar}</div>
+                    <PlayerAvatar avatar={profile.avatar} name={profile.name} style={avatarStyle} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{
                         fontFamily: 'var(--font-display)',
@@ -282,8 +289,8 @@ const emptyStyle = {
 }
 
 const avatarStyle = {
-  width: 44,
-  height: 44,
+  width: 60,
+  height: 60,
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import SectionHeader from './SectionHeader.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 import { useGlobalLeaderboardStore } from '../store/globalLeaderboardStore.js'
 
 export default function RoundScoreboard({ scoreSummary, syncKey }) {
@@ -83,7 +84,7 @@ function RoomRanking({ summary, reduceMotion }) {
             style={roomRowStyle(player.rank)}
           >
             <div className="t-num" style={{ color: 'var(--gold)', fontSize: 23 }}>{player.rank}</div>
-            <div style={avatarStyle}>{player.avatar || '?'}</div>
+            <PlayerAvatar avatar={player.avatar} name={player.name} style={avatarStyle} />
             <div style={{ minWidth: 0 }}>
               <div style={nameStyle}>{player.name}</div>
               <div className="t-meta">
@@ -128,7 +129,7 @@ function GlobalRanking({ players, loading, available, error, profileIds, onRefre
             <div className="t-num" style={{ color: highlighted ? 'var(--citizen)' : 'var(--gold)', fontSize: 23 }}>
               {player.rank}
             </div>
-            <div style={avatarStyle}>{player.avatar || '?'}</div>
+            <PlayerAvatar avatar={player.avatar} name={player.name} style={avatarStyle} />
             <div style={{ minWidth: 0 }}>
               <div style={nameStyle}>{player.name}</div>
               <div className="t-meta">

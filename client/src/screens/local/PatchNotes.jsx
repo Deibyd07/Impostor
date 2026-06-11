@@ -4,6 +4,124 @@ import SectionHeader from '../../components/SectionHeader.jsx'
 
 const patches = [
   {
+    version: '0.4.0',
+    path: '/patch-0-4-0',
+    eyebrow: 'Presentacion y ambiente',
+    title: 'Avatares, sonidos y momentos mas dramaticos',
+    summary: 'Esta version refuerza la identidad del juego con avatares ilustrados, nueva musica de fondo, efectos de sonido y animaciones mas teatrales para que cada partida se sienta mas como una mesa de misterio.',
+    highlights: [
+      {
+        code: 'AV',
+        title: 'Avatares ilustrados',
+        body: 'Los perfiles ahora usan retratos visuales para que cada jugador tenga una identidad mas reconocible en sala, cartas, chat y votaciones.',
+      },
+      {
+        code: 'SFX',
+        title: 'Sonidos con mas presencia',
+        body: 'La mesa suma musica de ambiente, efectos de cartas, telefonos, sellos y decisiones para acompanar los momentos importantes.',
+      },
+      {
+        code: 'DRAMA',
+        title: 'Animaciones mas cinematograficas',
+        body: 'Revelaciones, eliminaciones, transiciones y escenas de Linea Privada tienen mas movimiento y peso visual.',
+      },
+    ],
+    sections: [
+      {
+        title: 'Identidad de jugadores',
+        items: [
+          'Los emojis fueron reemplazados por avatares ilustrados en los perfiles.',
+          'La pantalla de perfiles muestra retratos mas grandes para elegirlos con mejor detalle.',
+          'Los avatares aparecen de forma consistente en lobby, chat, votacion, ranking y cartas.',
+          'Los perfiles antiguos se adaptan automaticamente a un retrato visual.',
+        ],
+      },
+      {
+        title: 'Ambiente sonoro',
+        items: [
+          'Nueva musica de fondo para el menu y el lobby.',
+          'Efectos nuevos para llamadas, decisiones, cartas, sellos y acciones de mesa.',
+          'El juego muestra creditos de la musica y de los avatares desde el menu principal.',
+          'Los controles de sonido siguen disponibles en cualquier pantalla.',
+        ],
+      },
+      {
+        title: 'Momentos de partida',
+        items: [
+          'Las eliminaciones y revelaciones tienen animaciones mas llamativas.',
+          'Linea Privada gana sonidos y escenas propias para llamadas y resoluciones.',
+          'Los jugadores eliminados quedan en espera y no pueden interferir con votos o acciones.',
+          'La experiencia visual se siente mas cercana a un juego de mesa de misterio.',
+        ],
+      },
+    ],
+    testFlow: [
+      'Abre el menu y confirma la nueva musica y los creditos al final.',
+      'Entra a Mis perfiles y revisa los avatares ilustrados grandes.',
+      'Crea una sala online y verifica avatares en lobby, chat y votacion.',
+      'Juega una ronda y revisa sonidos, animaciones y bloqueo de jugadores eliminados.',
+    ],
+  },
+  {
+    version: '0.3.0',
+    path: '/patch-0-3-0',
+    eyebrow: 'Nuevo modo de juego',
+    title: 'Línea Privada: llamadas, pactos y mentiras',
+    summary: 'Llega un modo party de rondas rápidas donde todo pasa por teléfono: llamadas privadas entre jugadores, información secreta y decisiones que nadie más ve. Además, toda la mesa estrena interfaz.',
+    highlights: [
+      {
+        code: 'LÍNEA',
+        title: 'Nuevo modo Línea Privada',
+        body: 'Rondas cortas con llamadas privadas uno a uno: negocia, pacta y miente sin que el resto de la mesa escuche.',
+      },
+      {
+        code: 'JUEGOS',
+        title: 'Cuatro minijuegos al teléfono',
+        body: 'Habitaciones vecinas, Mensaje interceptado, Dilema del cómplice y Código de oficio, cada uno con su propia mesa de juego.',
+      },
+      {
+        code: 'MESA',
+        title: 'Interfaz renovada en todo el juego',
+        body: 'Papel, sellos, puertas, telegramas y cartas de decisión: cada pantalla se siente parte del mismo caso.',
+      },
+    ],
+    sections: [
+      {
+        title: 'Línea Privada',
+        items: [
+          'Cada ronda reparte información privada distinta y sortea un minijuego entre los que el anfitrión activó.',
+          'Desde la centralita puedes llamar a cualquier jugador libre y hablar en privado: el resto no escucha esa llamada.',
+          'Las decisiones se envían en secreto y al cerrar la llamada se revelan aciertos, traiciones y puntos.',
+          'El anfitrión elige cuántas rondas jugar, qué minijuegos entran y sus reglas especiales.',
+        ],
+      },
+      {
+        title: 'Los cuatro minijuegos',
+        items: [
+          'Habitaciones vecinas: descubre quién duerme a cada lado de tu cuarto tocando puertas en un pasillo de hotel.',
+          'Mensaje interceptado: junta fragmentos por llamada y escribe la frase completa en un telegrama; ojo con las piezas plantadas.',
+          'Dilema del cómplice: pacta con tu pareja secreta y elige entre dos cartas, cooperar o traicionar.',
+          'Código de oficio: compara procedimientos, señala al sospechoso y marca el paso exacto que lo delata.',
+        ],
+      },
+      {
+        title: 'Mesa renovada',
+        items: [
+          'Al elegir juego o variante, la carta seleccionada queda claramente marcada con sello, alfiler y tinta.',
+          'La pantalla de ronda usa objetos reales de la mesa: formularios de papel, puertas, telegramas y fichas de sospechosos.',
+          'El panel de teléfonos ahora es una centralita con lámparas y conectores que muestran quién está libre u ocupado.',
+          'Estas notas de parche también estrenan presentación de expediente.',
+        ],
+      },
+    ],
+    testFlow: [
+      'Crea una sala online y elige Línea Privada como juego.',
+      'Activa los cuatro minijuegos y configura tres rondas.',
+      'En la ronda, llama a alguien libre desde la centralita y negocien en privado.',
+      'Envía tu decisión secreta y revisa el informe de puntos al cerrar la llamada.',
+    ],
+  },
+  {
     version: '0.2.2',
     path: '/patch-0-2-2',
     eyebrow: 'Identidad visual',
@@ -483,6 +601,7 @@ export default function PatchNotes() {
         </nav>
 
         <section className="patch-hero" aria-labelledby="patch-title">
+          <span className="stamp stamp--lg stamp--tilt-r patch-hero__stamp">Alpha {patch.version}</span>
           <div className="patch-hero__tag">Parche {patch.version}</div>
           <h1 id="patch-title">{patch.title}</h1>
           <p>{patch.summary}</p>

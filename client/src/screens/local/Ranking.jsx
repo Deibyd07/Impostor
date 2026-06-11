@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
+import PlayerAvatar from '../../components/PlayerAvatar.jsx'
 import { useGlobalLeaderboardStore } from '../../store/globalLeaderboardStore.js'
 
 export default function Ranking() {
@@ -65,7 +66,7 @@ export default function Ranking() {
                   <div className="t-num" style={{ color: 'var(--gold)', fontSize: 27 }}>
                     {player.rank}
                   </div>
-                  <div style={avatarStyle}>{player.avatar || '?'}</div>
+                  <PlayerAvatar avatar={player.avatar} name={player.name} style={avatarStyle} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{
                       fontFamily: 'var(--font-display)',

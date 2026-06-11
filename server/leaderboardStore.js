@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
 import WebSocket from 'ws'
+import { normalizeAvatar } from './avatars.js'
 
 const DEFAULT_LEADERBOARD_LIMIT = 50
 
@@ -8,8 +9,8 @@ function cleanName(name) {
   return String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 16)
 }
 
-function cleanAvatar(avatar) {
-  return String(avatar ?? '').trim().slice(0, 8)
+function cleanAvatar(avatar, name = '') {
+  return normalizeAvatar(String(avatar ?? '').trim(), name)
 }
 
 function cleanProfileId(profileId) {
@@ -54,7 +55,7 @@ function rowFromStats(profile, previous, { role, won, playedAt }) {
   const next = {
     profile_id: profile.id,
     name: profile.name,
-    avatar: profile.avatar,
+    avatar: cleanAvatar(profile.avatar, profile.name),
     games_played: gamesPlayed,
     wins,
     losses,
@@ -139,7 +140,7 @@ export function createLeaderboardStore({
         profiles: (data || []).map(row => ({
           id: row.id,
           name: row.name,
-          avatar: row.avatar,
+          avatar: cleanAvatar(row.avatar, row.name),
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         })),
@@ -154,7 +155,7 @@ export function createLeaderboardStore({
       const profile = {
         id: cleanProfileId(id) || randomUUID(),
         name: clean,
-        avatar: cleanAvatar(avatar),
+        avatar: cleanAvatar(avatar, clean),
         updated_at: now,
       }
 
@@ -171,7 +172,7 @@ export function createLeaderboardStore({
         profile: {
           id: data.id,
           name: data.name,
-          avatar: data.avatar,
+          avatar: cleanAvatar(data.avatar, data.name),
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         },
@@ -183,7 +184,7 @@ export function createLeaderboardStore({
       if (!id) return { ok: false, error: 'invalid_profile' }
 
       const name = patch.name == null ? null : cleanName(patch.name)
-      const avatar = patch.avatar == null ? null : cleanAvatar(patch.avatar)
+      const avatar = patch.avatar == null ? null : cleanAvatar(patch.avatar, name || '')
       const update = { updated_at: new Date().toISOString() }
       if (name) update.name = name
       if (avatar !== null) update.avatar = avatar
@@ -209,7 +210,7 @@ export function createLeaderboardStore({
         profile: {
           id: data.id,
           name: data.name,
-          avatar: data.avatar,
+          avatar: cleanAvatar(data.avatar, data.name),
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         },
@@ -244,7 +245,7 @@ export function createLeaderboardStore({
         .map(player => ({
           id: String(player.profileId),
           name: cleanName(player.name),
-          avatar: cleanAvatar(player.avatar),
+          avatar: cleanAvatar(player.avatar, player.name),
           role: player.role || 'citizen',
         }))
 
@@ -341,7 +342,7 @@ export function createLeaderboardStore({
           rank: index + 1,
           profileId: row.profile_id,
           name: row.name,
-          avatar: row.avatar,
+          avatar: cleanAvatar(row.avatar, row.name),
           gamesPlayed: row.games_played,
           wins: row.wins,
           losses: row.losses,

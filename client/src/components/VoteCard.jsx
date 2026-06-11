@@ -1,8 +1,7 @@
 import GameIcon from './GameIcon.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 
 export default function VoteCard({ name, avatar, votes = 0, isLeader = false, disabled = false, onClick }) {
-  const initial = (name || '?').charAt(0).toUpperCase()
-  const displayAvatar = avatar || initial
   const intensity = Math.min(1, votes / 3)
   return (
     <button
@@ -39,7 +38,13 @@ export default function VoteCard({ name, avatar, votes = 0, isLeader = false, di
         boxShadow: votes > 0
           ? '0 0 20px -4px var(--impostor-glow), inset 0 0 0 1px rgba(207, 59, 52, 0.5)'
           : 'inset 0 0 0 1px rgba(214, 164, 80, 0.18)',
-      }}>{displayAvatar}</div>
+      }}>
+        <PlayerAvatar
+          avatar={avatar}
+          name={name}
+          style={{ width: '100%', height: '100%', borderRadius: 999, fontSize: avatar ? 28 : 24 }}
+        />
+      </div>
       <div style={{
         fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 500,
         color: 'var(--text-1)', marginBottom: 6,

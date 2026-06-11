@@ -2,6 +2,7 @@ import Badge from './Badge.jsx'
 import CircularTimer from './CircularTimer.jsx'
 import MaskIcon from './MaskIcon.jsx'
 import GameIcon from './GameIcon.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 
 /**
  * RoleCard — variantes:
@@ -90,6 +91,7 @@ function CitizenCard({
 function ImpostorCard({ withClue = false, clue, impostorTeammates = [], seconds, totalSeconds }) {
   return (
     <div className="id-card id-card--impostor grain grain-heavy">
+      <span className="id-card__embers" aria-hidden="true" />
       <div className="id-card__top">
         <Badge color="var(--impostor)" dot warn>IMPOSTOR</Badge>
         <CircularTimer seconds={seconds} total={totalSeconds} accent="impostor" />
@@ -127,6 +129,7 @@ function DetectiveImpostorCard({ word, clue, impostorTeammates = [], seconds, to
   const hasClue = !!clue
   return (
     <div className="id-card id-card--impostor id-card--double grain grain-heavy">
+      <span className="id-card__embers" aria-hidden="true" />
       <div className="id-card__top">
         <Badge color="var(--gold)" dot warn>DETECTIVE IMPOSTOR</Badge>
         <CircularTimer seconds={seconds} total={totalSeconds} accent="impostor" />
@@ -170,7 +173,7 @@ function ImpostorTeammates({ teammates = [], compact = false }) {
       <div>
         {teammates.map(teammate => (
           <strong key={teammate.id}>
-            <b>{teammate.avatar || teammate.name?.trim()?.charAt(0)?.toUpperCase() || '?'}</b>
+            <PlayerAvatar avatar={teammate.avatar} name={teammate.name} className="dossier-team-avatar" />
             {teammate.name}
           </strong>
         ))}

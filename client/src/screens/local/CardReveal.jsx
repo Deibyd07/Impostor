@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import RoleCard from '../../components/RoleCard.jsx'
+import CardSlamFlip from '../../components/CardSlamFlip.jsx'
 import { useTimer } from '../../hooks/useTimer.js'
 import { useGameStore } from '../../store/gameStore.js'
 import { sfx } from '../../utils/sfx.js'
@@ -56,16 +57,17 @@ export default function CardReveal() {
 
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          animation: 'cardReveal 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both',
         }}>
-          <RoleCard
-            variant={variant}
-            word={word}
-            clue={clue}
-            impostorTeammates={impostorTeammates}
-            seconds={seconds}
-            totalSeconds={TOTAL_SECONDS}
-          />
+          <CardSlamFlip>
+            <RoleCard
+              variant={variant}
+              word={word}
+              clue={clue}
+              impostorTeammates={impostorTeammates}
+              seconds={seconds}
+              totalSeconds={TOTAL_SECONDS}
+            />
+          </CardSlamFlip>
         </div>
 
         <button className="btn btn-secondary" onClick={() => navigate('/game/hidden')} style={{

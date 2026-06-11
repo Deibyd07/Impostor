@@ -1,6 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { categories } from '../data/wordBank.js'
 import GameIcon from './GameIcon.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 import { isAlibiGame } from '../utils/gameTypes.js'
 
 export function LobbyInvitePanel({ roomCode, joinUrl, copied, onCopy }) {
@@ -48,7 +49,11 @@ export function LobbyPlayersBoard({ players, myId, minPlayers = 3 }) {
             <span className="lobby-player-card__index">{String(index + 1).padStart(2, '0')}</span>
             <span className="lobby-player-card__avatar">
               {player.isHost && <GameIcon name="crown" size={15} className="lobby-player-card__role-icon" />}
-              {player.avatar || player.name?.charAt(0)?.toUpperCase() || '?'}
+              <PlayerAvatar
+                avatar={player.avatar}
+                name={player.name}
+                style={{ width: '100%', height: '100%', borderRadius: 2 }}
+              />
             </span>
             <span className="lobby-player-card__name">{player.name}</span>
             <span className="lobby-player-card__status">

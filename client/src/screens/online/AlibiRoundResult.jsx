@@ -4,6 +4,7 @@ import PhoneScreen from '../../components/PhoneScreen.jsx'
 import Badge from '../../components/Badge.jsx'
 import SectionHeader from '../../components/SectionHeader.jsx'
 import { OnlineVoiceMobilePanel, OnlineVoicePanel } from '../../components/OnlineVoicePanel.jsx'
+import PlayerAvatar from '../../components/PlayerAvatar.jsx'
 import { useOnlineStore } from '../../store/onlineStore.js'
 
 export default function AlibiRoundResult() {
@@ -68,7 +69,10 @@ export default function AlibiRoundResult() {
 
         <section className="alibi-result__liar">
           <span>{result.detected ? 'Acusacion correcta' : 'Acusacion fallida'}</span>
-          <strong>{result.liar?.avatar || '?'} {result.liar?.name || 'Sin jugador'}</strong>
+          <strong>
+            <PlayerAvatar avatar={result.liar?.avatar} name={result.liar?.name} className="result-inline-avatar" />
+            {result.liar?.name || 'Sin jugador'}
+          </strong>
           <p>
             {result.detected
               ? `${result.detective?.name || 'El Detective'} descubrio la coartada falsa.`
@@ -85,7 +89,7 @@ export default function AlibiRoundResult() {
             <div className="alibi-result-list">
               {result.voteCounts.map(item => (
                 <div key={item.playerId} className={item.isLiar ? 'is-liar' : ''}>
-                  <span>{item.avatar || item.name.charAt(0).toUpperCase()}</span>
+                  <PlayerAvatar avatar={item.avatar} name={item.name} />
                   <strong>{item.name}</strong>
                   <b>{item.votes}</b>
                 </div>
@@ -98,7 +102,7 @@ export default function AlibiRoundResult() {
             <div className="alibi-result-list">
               {result.points.map(item => (
                 <div key={item.playerId} className={item.isLiar ? 'is-liar' : item.votedCorrectly ? 'is-correct' : ''}>
-                  <span>{item.avatar || item.name.charAt(0).toUpperCase()}</span>
+                  <PlayerAvatar avatar={item.avatar} name={item.name} />
                   <strong>{item.name}</strong>
                   <b>+{item.points}</b>
                 </div>

@@ -1,10 +1,17 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import RoleCard from '../../components/RoleCard.jsx'
 import AlibiCard from '../../components/AlibiCard.jsx'
 import AlibiMap from '../../components/AlibiMap.jsx'
 import VoteCard from '../../components/VoteCard.jsx'
 import DetectiveInterrogationPanel from '../../components/DetectiveInterrogationPanel.jsx'
 import Badge from '../../components/Badge.jsx'
+import ModeCard from '../../components/ModeCard.jsx'
+import MaskIcon from '../../components/MaskIcon.jsx'
+import Stepper from '../../components/Stepper.jsx'
+import CardSlamFlip from '../../components/CardSlamFlip.jsx'
+import CulpritBoard from '../../components/CulpritBoard.jsx'
+import EliminationEffect from '../../components/EliminationEffect.jsx'
+import { NeighborAction, MessageAction, DilemmaAction, ProtocolAction } from '../online/PartyLineRound.jsx'
 
 /**
  * /design-preview — galería interna de piezas del sistema «Lámpara y Tinta».
@@ -83,11 +90,90 @@ const detectiveAlibi = {
 }
 
 const mockPlayers = [
-  { id: 'p1', name: 'Marlowe', avatar: '🕵️' },
-  { id: 'p2', name: 'Vera', avatar: '🦊' },
-  { id: 'p3', name: 'Otto', avatar: '🎩' },
-  { id: 'p4', name: 'Ada', avatar: '🐈‍⬛' },
+  { id: 'p1', name: 'Marlowe', avatar: 'av01' },
+  { id: 'p2', name: 'Vera', avatar: 'av02' },
+  { id: 'p3', name: 'Otto', avatar: 'av03' },
+  { id: 'p4', name: 'Ada', avatar: 'av04' },
 ]
+
+function ModeSelectorDemo() {
+  const [game, setGame] = useState('impostor')
+  const [variant, setVariant] = useState('classic')
+  return (
+    <div style={{ display: 'grid', gap: 14, maxWidth: 760 }}>
+      <div className="mystery-game-selector" role="radiogroup" aria-label="Juego (demo)">
+        <ModeCard icon="IM" title="EL IMPOSTOR" accent="red" selected={game === 'impostor'}
+          description="Palabra secreta, impostores y sospechas."
+          onClick={() => setGame('impostor')} />
+        <ModeCard icon="LP" title="LÍNEA PRIVADA" accent="blue" selected={game === 'partyline'}
+          description="Minijuegos de llamadas, pactos y mentiras."
+          onClick={() => setGame('partyline')} />
+      </div>
+      <div className="mystery-game-selector mystery-game-selector--variants" role="radiogroup" aria-label="Variante (demo)">
+        <ModeCard icon="🎭" title="CLÁSICO" accent="red" selected={variant === 'classic'}
+          description="El impostor no sabe la palabra."
+          onClick={() => setVariant('classic')} />
+        <ModeCard icon="🔍" title="PISTA" accent="gold" selected={variant === 'clue'}
+          description="El impostor recibe una pista."
+          onClick={() => setVariant('clue')} />
+        <ModeCard icon="👁" title="CIEGO" accent="blue" selected={variant === 'blind'}
+          description="El impostor no sabe que lo es."
+          onClick={() => setVariant('blind')} />
+      </div>
+    </div>
+  )
+}
+
+function ImpostorDossierDemo() {
+  const [count, setCount] = useState(2)
+  const [detective, setDetective] = useState(true)
+  return (
+    <div className="lobby-config-panel" style={{ maxWidth: 720 }}>
+      <div className="impostor-dossier" style={{ marginTop: 14 }}>
+        <span className="impostor-dossier__tab">
+          <MaskIcon size={14} color="#8c1f17" />
+          Expediente · El Impostor
+        </span>
+        <div className="impostor-count-row" style={{ marginTop: 6 }}>
+          <Stepper value={count} min={1} max={6} accent="red" onChange={setCount} />
+          <div className="impostor-count-masks" aria-hidden="true">
+            {Array.from({ length: count }).map((_, index) => (
+              <span key={index} style={{ animationDelay: `${index * 70}ms` }}>
+                <MaskIcon size={17} color="#8c1f17" />
+              </span>
+            ))}
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-pressed={detective}
+          onClick={() => setDetective(value => !value)}
+          className={`host-toggle ${detective ? 'is-on' : ''}`}
+        >
+          <div className="host-toggle__row">
+            <div style={{ minWidth: 0 }}>
+              <div className="host-toggle__title">Detective</div>
+              <div className="host-toggle__desc">Puede iniciar un interrogatorio público una vez por partida.</div>
+            </div>
+            <span className="host-toggle__switch" />
+          </div>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PartyLinePanelDemo({ label, hint, children }) {
+  return (
+    <section className="partyline-action-panel" style={{ maxWidth: 880, width: '100%', marginInline: 'auto' }}>
+      <div className="partyline-action-panel__head">
+        <span className="partyline-action-panel__eyebrow">{label}</span>
+        <span className="partyline-action-panel__state">{hint}</span>
+      </div>
+      {children}
+    </section>
+  )
+}
 
 function Section({ title, children, wide = false, id }) {
   return (
@@ -143,6 +229,81 @@ export default function DesignPreview() {
         </div>
       </Section>
 
+      <Section id="modos" title="Selector de juego y variantes">
+        <ModeSelectorDemo />
+      </Section>
+
+      <Section id="expediente" title="Expediente del impostor (config del host)">
+        <ImpostorDossierDemo />
+      </Section>
+
+      <Section id="minijuegos" title="Minijuegos de Línea Privada" wide>
+        <div style={{ display: 'grid', gap: 30 }}>
+          <PartyLinePanelDemo label="01 · Habitaciones vecinas" hint="Fijar vecinos">
+            <NeighborAction
+              players={mockPlayers.slice(1)}
+              privateRound={{ roomNumber: '204', leftRoomNumber: '203', rightRoomNumber: '205' }}
+              disabled={false}
+              onSubmit={() => {}}
+            />
+          </PartyLinePanelDemo>
+          <PartyLinePanelDemo label="02 · Mensaje interceptado" hint="Enviar frase">
+            <MessageAction
+              players={mockPlayers.slice(1)}
+              privateRound={{ fragment: 'abre el ascensor', isDecoy: false }}
+              max={1}
+              disabled={false}
+              onSubmit={() => {}}
+            />
+          </PartyLinePanelDemo>
+          <PartyLinePanelDemo label="03 · Dilema del cómplice" hint="Confirmar decisión">
+            <DilemmaAction
+              privateRound={{ solo: false, partner: { name: 'Vera', avatar: 'av02' } }}
+              disabled={false}
+              onSubmit={() => {}}
+            />
+          </PartyLinePanelDemo>
+          <PartyLinePanelDemo label="04 · Código de oficio" hint="Acusar protocolo">
+            <ProtocolAction
+              players={mockPlayers.slice(1)}
+              details={[
+                { id: 'd1', label: 'El conserje revisa primero el sótano' },
+                { id: 'd2', label: 'Las llaves se cuelgan mirando al norte' },
+                { id: 'd3', label: 'El turno cierra con dos campanadas' },
+                { id: 'd4', label: 'El registro se firma en tinta verde' },
+              ]}
+              disabled={false}
+              onSubmit={() => {}}
+            />
+          </PartyLinePanelDemo>
+        </div>
+      </Section>
+
+      <Section id="azote" title="Revelación: azote contra la mesa + volteo">
+        <div style={{ maxWidth: 430, marginInline: 'auto' }}>
+          <CardSlamFlip>
+            <RoleCard variant="citizen" word="Submarino" seconds={6} totalSeconds={8} />
+          </CardSlamFlip>
+        </div>
+      </Section>
+
+      <Section id="culpable" title="Ficha del culpable (final de partida)">
+        <div style={{ display: 'grid', gap: 34 }}>
+          <CulpritBoard players={[{ id: 'p3', name: 'Otto', avatar: 'av07' }]} />
+          <CulpritBoard
+            players={[{ id: 'p2', name: 'Vera', avatar: 'av12' }, { id: 'p4', name: 'Ada', avatar: 'av21' }]}
+            stampText="Intocable"
+          />
+        </div>
+      </Section>
+
+      {typeof window !== 'undefined' && window.location.hash === '#sentencia' && (
+        <EliminationEffect
+          reveal={{ id: 'demo', name: 'Otto', avatar: 'av07', wasImpostor: true }}
+          onComplete={() => {}}
+        />
+      )}
+
       <Section id="cartas" title="Cartas de identidad — El Impostor">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 26 }}>
           <RoleCard variant="citizen" word="Submarino" seconds={6} totalSeconds={8} />
@@ -150,7 +311,7 @@ export default function DesignPreview() {
           <RoleCard
             variant="impostor-clue"
             clue="Se mueve bajo el agua"
-            impostorTeammates={[{ id: 't1', name: 'Vera', avatar: '🦊' }]}
+            impostorTeammates={[{ id: 't1', name: 'Vera', avatar: 'av02' }]}
             seconds={6}
             totalSeconds={8}
           />

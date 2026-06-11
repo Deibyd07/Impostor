@@ -58,6 +58,7 @@ export default function EndGame() {
     return (
       <WinCitizens
         impostorName={impostors.map(p => p.name).join(' · ')}
+        impostorPlayers={impostors.map(p => ({ id: p.id, name: p.name, avatar: p.avatar }))}
         word={session.word}
         fakeWord={session.fakeWord}
         mode={session.config.mode}
@@ -71,6 +72,7 @@ export default function EndGame() {
   return (
     <WinImpostor
       impostorNames={impostors.map(p => p.name)}
+      impostorPlayers={impostors.map(p => ({ id: p.id, name: p.name, avatar: p.avatar }))}
       word={session.word}
       reason={reason}
       onRematch={onRematch}

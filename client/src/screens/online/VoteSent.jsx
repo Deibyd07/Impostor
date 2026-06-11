@@ -14,6 +14,8 @@ export default function VoteSent() {
   const myId = useOnlineStore(s => s.myId)
   const config = useOnlineStore(s => s.config)
   const isAlibiMode = isAlibiGame(config)
+  const me = players.find(player => player.id === myId)
+  const isEliminated = !!me?.eliminated
 
   useEffect(() => {
     if (phase === 'caseIntro') navigate('/online/alibi-case')
@@ -21,7 +23,10 @@ export default function VoteSent() {
     if (phase === 'roundResult') navigate('/online/alibi-result')
     if (phase === 'ended') navigate('/online/end')
     if (phase === 'spectator') navigate('/online/spectator')
-  }, [phase, navigate])
+    if (isEliminated) navigate('/online/spectator')
+  }, [phase, isEliminated, navigate])
+
+  if (isEliminated) return null
 
   const active = players.filter(p => !p.eliminated && !p.disconnected)
   const totalActive = isAlibiMode ? 1 : active.length

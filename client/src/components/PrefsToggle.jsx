@@ -6,13 +6,15 @@ export default function PrefsToggle({ style }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef(null)
   const sound = usePrefsStore(s => s.sound)
-  const volume = usePrefsStore(s => s.volume ?? 1)
+  const musicVolume = usePrefsStore(s => s.musicVolume ?? 1)
+  const sfxVolume = usePrefsStore(s => s.sfxVolume ?? 1)
   const vibration = usePrefsStore(s => s.vibration)
   const setSound = usePrefsStore(s => s.setSound)
-  const setVolume = usePrefsStore(s => s.setVolume)
+  const setMusicVolume = usePrefsStore(s => s.setMusicVolume)
+  const setSfxVolume = usePrefsStore(s => s.setSfxVolume)
   const toggleVibration = usePrefsStore(s => s.toggleVibration)
-  const active = sound && volume > 0
-  const volumePercent = Math.round(volume * 100)
+
+  const active = sound && (musicVolume > 0 || sfxVolume > 0)
   const supportsVibe = typeof navigator !== 'undefined' && 'vibrate' in navigator
 
   useEffect(() => {
@@ -30,18 +32,8 @@ export default function PrefsToggle({ style }) {
       return
     }
     setSound(true)
-    if (volume <= 0) setVolume(1)
     sfx.unlock()
     sfx.tap()
-  }
-
-  const changeVolume = (event) => {
-    const next = Number(event.target.value) / 100
-    setVolume(next)
-    if (next > 0 && !sound) {
-      setSound(true)
-      sfx.unlock()
-    }
   }
 
   return (
@@ -52,7 +44,7 @@ export default function PrefsToggle({ style }) {
         aria-label={active ? 'Configurar sonido' : 'Activar sonido'}
         aria-expanded={open}
         aria-controls="audio-preferences-panel"
-        title={active ? `Sonido ${volumePercent}%` : 'Sin sonido'}
+        title={active ? `Música ${Math.round(musicVolume * 100)}%  ·  Efectos ${Math.round(sfxVolume * 100)}%` : 'Sin sonido'}
         className={`prefs-toggle__button ${active ? 'is-active' : ''}`}
         style={mainButton(active)}
       >
@@ -67,39 +59,31 @@ export default function PrefsToggle({ style }) {
           className="prefs-panel"
           style={panelStyle}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 12 }}>
-            <button
-              type="button"
-              onClick={toggleSound}
-              aria-pressed={active}
-              style={toggleButton(active)}
-            >
+          {/* master on/off */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+            <button type="button" onClick={toggleSound} aria-pressed={active} style={toggleButton(active)}>
               <SoundIcon on={active} />
               <span>{active ? 'Sonido' : 'Silencio'}</span>
             </button>
-            <span style={{
-              minWidth: 44,
-              textAlign: 'right',
-              fontFamily: 'var(--font-num)',
-              fontSize: 20,
-              color: active ? 'var(--gold)' : 'var(--text-faint)',
-              letterSpacing: '0.04em',
-            }}>{volumePercent}%</span>
           </div>
 
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={volumePercent}
-            onChange={changeVolume}
-            aria-label="Volumen"
-            style={{
-              width: '100%',
-              accentColor: 'var(--gold)',
-              cursor: 'pointer',
-            }}
+          {/* música */}
+          <VolumeRow
+            label="Música"
+            icon={<MusicIcon />}
+            value={musicVolume}
+            disabled={!sound}
+            onChange={setMusicVolume}
+          />
+
+          {/* efectos */}
+          <VolumeRow
+            label="Efectos"
+            icon={<SfxIcon />}
+            value={sfxVolume}
+            disabled={!sound}
+            onChange={setSfxVolume}
+            onPointerUp={() => { if (sound && sfxVolume > 0) sfx.uiTap() }}
           />
 
           {supportsVibe && (
@@ -107,19 +91,64 @@ export default function PrefsToggle({ style }) {
               type="button"
               onClick={toggleVibration}
               aria-pressed={vibration}
-              style={{
-                ...toggleButton(vibration),
-                marginTop: 12,
-                width: '100%',
-                justifyContent: 'center',
-              }}
+              style={{ ...toggleButton(vibration), marginTop: 14, width: '100%', justifyContent: 'center', boxSizing: 'border-box' }}
             >
               <VibeIcon on={vibration} />
-              <span>{vibration ? 'Vibracion' : 'Sin vibracion'}</span>
+              <span>{vibration ? 'Vibración' : 'Sin vibración'}</span>
             </button>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function VolumeRow({ label, icon, value, disabled, onChange, onPointerUp }) {
+  const pct = Math.round(value * 100)
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+        <span style={rowLabel(disabled)}>
+          {icon}
+          {label}
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-num)',
+          fontSize: 16,
+          color: disabled ? 'var(--text-faint)' : 'var(--gold)',
+          letterSpacing: '0.04em',
+          minWidth: 36,
+          textAlign: 'right',
+        }}>
+          {pct}%
+        </span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={pct}
+        disabled={disabled}
+        aria-label={label}
+        onChange={e => onChange(Number(e.target.value) / 100)}
+        onPointerUp={onPointerUp}
+        style={{
+          '--fill': value,
+          width: '100%',
+          height: 4,
+          appearance: 'none',
+          WebkitAppearance: 'none',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          outline: 'none',
+          borderRadius: 999,
+          background: disabled
+            ? 'rgba(255,255,255,0.08)'
+            : `linear-gradient(to right, rgba(214,164,80,0.9) 0%, rgba(214,164,80,0.9) ${pct}%, rgba(255,255,255,0.12) ${pct}%, rgba(255,255,255,0.12) 100%)`,
+          opacity: disabled ? 0.38 : 1,
+          transition: 'opacity 180ms ease',
+        }}
+      />
     </div>
   )
 }
@@ -166,11 +195,25 @@ function toggleButton(active) {
   }
 }
 
+function rowLabel(disabled) {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    fontFamily: 'var(--font-ui)',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: disabled ? 'var(--text-faint)' : 'var(--text-2)',
+  }
+}
+
 const panelStyle = {
   position: 'absolute',
   top: 48,
   right: 0,
-  width: 236,
+  width: 248,
   padding: 14,
   borderRadius: 14,
   background: 'linear-gradient(180deg, rgba(26,26,46,0.98), rgba(36, 23, 27,0.98))',
@@ -194,6 +237,25 @@ function SoundIcon({ on }) {
           <line x1="17" y1="9" x2="23" y2="15"/>
         </>
       )}
+    </svg>
+  )
+}
+
+function MusicIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>
+  )
+}
+
+function SfxIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.5 8.5a5 5 0 010 7"/>
     </svg>
   )
 }

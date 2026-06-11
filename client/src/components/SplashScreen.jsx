@@ -1,139 +1,207 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import MaskIcon from './MaskIcon.jsx'
+import { sfx } from '../utils/sfx.js'
 
-const NORMAL_DURATION_MS = 2600
-const REDUCED_DURATION_MS = 650
+const NORMAL_DURATION_MS = 4200
+const REDUCED_DURATION_MS = 900
+const TAGLINE = 'EL IMPOSTOR · LÍNEA PRIVADA'
 
+/**
+ * Intro cinematográfica: la lámpara del despacho parpadea y se enciende,
+ * un expediente cae sobre la mesa, el título se estampa con sello de goma,
+ * un hilo rojo une dos alfileres y la firma sale a máquina de escribir.
+ * Un clic la salta.
+ */
 export default function SplashScreen({ onDone }) {
   const reduceMotion = useReducedMotion()
   const durationMs = reduceMotion ? REDUCED_DURATION_MS : NORMAL_DURATION_MS
+  const [leaving, setLeaving] = useState(false)
+
+  const finish = useMemo(() => {
+    let called = false
+    return () => {
+      if (called) return
+      called = true
+      onDone?.()
+    }
+  }, [onDone])
 
   useEffect(() => {
-    const timer = setTimeout(() => onDone?.(), durationMs)
-    return () => clearTimeout(timer)
-  }, [durationMs, onDone])
+    const exitTimer = setTimeout(() => {
+      setLeaving(true)
+      sfx.stopTypewriter()
+    }, Math.max(0, durationMs - 460))
+    const doneTimer = setTimeout(finish, durationMs)
+    // sonidos sincronizados con la escena (solo suenan si el navegador ya
+    // permitió audio; en la primera visita sin interacción quedan en silencio)
+    const soundTimers = reduceMotion ? [] : [
+      setTimeout(() => sfx.slam(), 980),
+      setTimeout(() => sfx.stamp(), 1440),
+      setTimeout(() => sfx.typewriter(), 2500),
+    ]
+    return () => {
+      clearTimeout(exitTimer)
+      clearTimeout(doneTimer)
+      soundTimers.forEach(clearTimeout)
+      sfx.stopTypewriter()
+    }
+  }, [durationMs, finish, reduceMotion])
 
-  const container = reduceMotion
-    ? { opacity: 1 }
-    : {
-        opacity: [0, 1, 1, 0],
-        transition: { duration: durationMs / 1000, times: [0, 0.18, 0.82, 1], ease: 'easeInOut' },
-      }
+  const skip = () => {
+    sfx.stopTypewriter()
+    setLeaving(true)
+    setTimeout(finish, 160)
+  }
+
+  if (reduceMotion) {
+    return (
+      <motion.div
+        className="splash"
+        role="img"
+        aria-label="Mesa de Misterio"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: leaving ? 0 : 1 }}
+        transition={{ duration: 0.3 }}
+        onClick={skip}
+      >
+        <div className="splash__lamp is-on" aria-hidden="true" />
+        <div className="splash__folder">
+          <span className="splash__tape" aria-hidden="true" />
+          <div className="splash__case-no">Caso nº MS-01 · confidencial</div>
+          <div className="splash__title">MESA DE<br />MISTERIO</div>
+          <div className="splash__tagline">{TAGLINE}</div>
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
-      aria-label="El Impostor"
+      className="splash"
       role="img"
-      initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
-      animate={container}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 2400,
-        overflow: 'hidden',
-        background:
-          'radial-gradient(90% 55% at 50% 28%, rgba(207, 59, 52,0.24), transparent 62%),' +
-          'radial-gradient(90% 45% at 50% 72%, rgba(214, 164, 80,0.12), transparent 70%),' +
-          'linear-gradient(180deg, #0c0709 0%, #160e11 58%, #020207 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--text-1)',
-        pointerEvents: 'auto',
-      }}
+      aria-label="Mesa de Misterio"
+      initial={{ opacity: 1 }}
+      animate={leaving ? { opacity: 0, scale: 1.045 } : { opacity: 1, scale: 1 }}
+      transition={{ duration: 0.46, ease: [0.5, 0, 0.75, 1] }}
+      onClick={skip}
     >
+      {/* lámpara que parpadea al encenderse */}
       <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.94, filter: 'blur(6px)' }}
-        animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-        transition={{ duration: reduceMotion ? 0 : 0.62, delay: 0.14, ease: [0.2, 0.8, 0.25, 1] }}
-        style={{
-          width: '100%',
-          padding: '0 32px',
-          textAlign: 'center',
-          position: 'relative',
-        }}
+        className="splash__lamp"
+        aria-hidden="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.45, 0.12, 0.8, 0.5, 1] }}
+        transition={{ duration: 0.85, delay: 0.12, times: [0, 0.25, 0.4, 0.6, 0.75, 1], ease: 'easeOut' }}
+      />
+
+      {/* motas de polvo bajo la luz */}
+      <div className="splash__dust" aria-hidden="true" />
+
+      {/* el expediente cae sobre la mesa */}
+      <motion.div
+        className="splash__folder"
+        initial={{ opacity: 0, y: -56, rotate: -5, scale: 1.04 }}
+        animate={{ opacity: 1, y: 0, rotate: -1.3, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 240, damping: 19, mass: 0.9, delay: 0.62 }}
       >
+        <span className="splash__tape" aria-hidden="true" />
+
         <motion.div
-          initial={reduceMotion ? false : { opacity: 0, scale: 0.78, rotate: -5 }}
-          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: [0.78, 1.08, 1], rotate: [ -5, 2, 0 ] }}
-          transition={{ duration: reduceMotion ? 0 : 0.78, delay: 0.22, ease: 'easeOut' }}
-          style={{
-            width: 114,
-            height: 114,
-            margin: '0 auto 24px',
-            borderRadius: 999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'radial-gradient(circle at 50% 38%, rgba(207, 59, 52,0.24), rgba(0,0,0,0.34) 70%)',
-            border: '1px solid rgba(214, 164, 80,0.38)',
-            boxShadow:
-              '0 0 0 1px rgba(207, 59, 52,0.22), 0 0 52px -10px rgba(207, 59, 52,0.8), inset 0 0 32px rgba(214, 164, 80,0.08)',
-            color: '#e0584b',
-          }}
+          className="splash__case-no"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 1.0 }}
         >
-          <MaskIcon size={74} color="#e0584b" />
+          Caso nº MS-01 · confidencial
         </motion.div>
 
-        <div style={{
-          fontFamily: 'var(--font-display)',
-          fontWeight: 900,
-          fontSize: 50,
-          letterSpacing: '0.01em',
-          lineHeight: 0.94,
-          textShadow:
-            '0 0 52px rgba(207, 59, 52,0.78), 0 0 22px rgba(207, 59, 52,0.5), 0 3px 1px rgba(0,0,0,0.9)',
-        }}>
-          MESA DE<br />MISTERIO
+        {/* sello de goma: golpea y rebota */}
+        <motion.div
+          className="splash__stamp-wrap"
+          initial={{ opacity: 0, scale: 2.3, rotate: -10 }}
+          animate={{ opacity: 1, scale: [2.3, 0.94, 1.02, 1], rotate: [-10, -1.6, -2.2, -2] }}
+          transition={{ duration: 0.5, delay: 1.18, times: [0, 0.55, 0.8, 1], ease: 'easeIn' }}
+        >
+          <div className="splash__title">MESA DE<br />MISTERIO</div>
+          <motion.span
+            className="splash__ink-burst"
+            aria-hidden="true"
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: [0, 0.5, 0], scale: [0.4, 1.25, 1.45] }}
+            transition={{ duration: 0.55, delay: 1.43 }}
+          />
+        </motion.div>
+
+        {/* hilo rojo entre dos alfileres */}
+        <div className="splash__thread" aria-hidden="true">
+          <motion.span
+            className="splash__pin splash__pin--l"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: [0, 1.35, 1] }}
+            transition={{ duration: 0.3, delay: 1.78 }}
+          />
+          <svg viewBox="0 0 220 22" preserveAspectRatio="none">
+            <motion.path
+              d="M4 6 C 60 20, 160 20, 216 7"
+              fill="none"
+              stroke="var(--thread)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.52, delay: 1.92, ease: 'easeInOut' }}
+            />
+          </svg>
+          <motion.span
+            className="splash__pin splash__pin--r"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: [0, 1.35, 1] }}
+            transition={{ duration: 0.3, delay: 2.38 }}
+          />
         </div>
 
-        <motion.div
-          initial={reduceMotion ? false : { scaleX: 0, opacity: 0 }}
-          animate={reduceMotion ? { scaleX: 1, opacity: 0.72 } : { scaleX: [0, 1, 1], opacity: [0, 0.85, 0.55] }}
-          transition={{ duration: reduceMotion ? 0 : 0.82, delay: 0.48, ease: 'easeOut' }}
-          style={{
-            width: 116,
-            height: 1,
-            margin: '20px auto 14px',
-            transformOrigin: 'center',
-            background: 'linear-gradient(90deg, transparent, var(--gold), transparent)',
-          }}
-        />
+        {/* firma a máquina de escribir */}
+        <div className="splash__tagline" aria-label={TAGLINE}>
+          {TAGLINE.split('').map((char, index) => (
+            <motion.span
+              key={index}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.02, delay: 2.5 + index * 0.038 }}
+            >
+              {char}
+            </motion.span>
+          ))}
+          <motion.i
+            className="splash__caret"
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 1, 0, 1, 0] }}
+            transition={{ duration: 1.4, delay: 2.5 + TAGLINE.length * 0.038, repeat: Infinity }}
+          />
+        </div>
 
+        {/* lacre con la máscara */}
         <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={reduceMotion ? { opacity: 0.72 } : { opacity: [0, 0.72, 0.72], y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.48, delay: 0.7 }}
-          style={{
-            fontFamily: 'var(--font-ui)',
-            fontSize: 10,
-            fontWeight: 800,
-            color: 'var(--gold)',
-            letterSpacing: '0.34em',
-            textTransform: 'uppercase',
-          }}
+          className="splash__seal"
+          aria-hidden="true"
+          initial={{ opacity: 0, scale: 1.9 }}
+          animate={{ opacity: 1, scale: [1.9, 0.92, 1] }}
+          transition={{ duration: 0.4, delay: 2.05, times: [0, 0.7, 1], ease: 'easeIn' }}
         >
-          El Impostor · Coartada
+          <MaskIcon size={30} color="#f3d9cf" />
         </motion.div>
       </motion.div>
 
-      {!reduceMotion && (
-        <motion.div
-          aria-hidden="true"
-          initial={{ x: '-120%', opacity: 0 }}
-          animate={{ x: '120%', opacity: [0, 0.9, 0] }}
-          transition={{ duration: 1.05, delay: 0.42, ease: 'easeInOut' }}
-          style={{
-            position: 'absolute',
-            inset: '0 auto 0 0',
-            width: '44%',
-            transform: 'skewX(-16deg)',
-            background: 'linear-gradient(90deg, transparent, rgba(214, 164, 80,0.24), transparent)',
-            filter: 'blur(1px)',
-          }}
-        />
-      )}
+      <motion.div
+        className="splash__skip"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.65 }}
+        transition={{ duration: 0.4, delay: 2.9 }}
+      >
+        tocar para entrar
+      </motion.div>
     </motion.div>
   )
 }

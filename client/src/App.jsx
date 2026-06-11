@@ -24,6 +24,9 @@ import VotePrivate from './screens/online/VotePrivate.jsx'
 import VoteSent from './screens/online/VoteSent.jsx'
 import AlibiCaseIntro from './screens/online/AlibiCaseIntro.jsx'
 import AlibiRoundResult from './screens/online/AlibiRoundResult.jsx'
+import PartyLineIntro from './screens/online/PartyLineIntro.jsx'
+import PartyLineRound from './screens/online/PartyLineRound.jsx'
+import PartyLineResult from './screens/online/PartyLineResult.jsx'
 import Spectator from './screens/online/Spectator.jsx'
 import EndOnline from './screens/online/EndOnline.jsx'
 
@@ -43,6 +46,8 @@ const routes = [
   { path: '/', element: <Home /> },
   { path: '/design-preview', element: <DesignPreview /> },
   { path: '/how', element: <HowToPlay /> },
+  { path: '/patch-0-4-0', element: <PatchNotes /> },
+  { path: '/patch-0-3-0', element: <PatchNotes /> },
   { path: '/patch-0-2-2', element: <PatchNotes /> },
   { path: '/patch-0-2-1', element: <PatchNotes /> },
   { path: '/patch-0-2-0', element: <PatchNotes /> },
@@ -69,6 +74,9 @@ const routes = [
   { path: '/online/vote-sent', element: <VoteSent /> },
   { path: '/online/alibi-case', element: <AlibiCaseIntro /> },
   { path: '/online/alibi-result', element: <AlibiRoundResult /> },
+  { path: '/online/party-intro', element: <PartyLineIntro /> },
+  { path: '/online/party', element: <PartyLineRound /> },
+  { path: '/online/party-result', element: <PartyLineResult /> },
   { path: '/online/spectator', element: <Spectator /> },
   { path: '/online/end', element: <EndOnline /> },
 
@@ -178,6 +186,9 @@ function OnlineRouteDirector() {
 function onlineTargetForPhase({ phase, isHost }) {
   if (phase === 'lobby') return isHost ? '/online/host' : '/online/waiting'
   if (phase === 'caseIntro') return '/online/alibi-case'
+  if (phase === 'partyIntro') return '/online/party-intro'
+  if (phase === 'partyRound') return '/online/party'
+  if (phase === 'partyResult') return '/online/party-result'
   if (phase === 'reveal') return '/online/card'
   if (phase === 'discussion') return '/online/discussion'
   if (phase === 'voting') return '/online/vote'
@@ -189,11 +200,14 @@ function onlineTargetForPhase({ phase, isHost }) {
 }
 
 function resolveMusicLoop(pathname, { detectiveInterrogation }) {
-  if (['/', '/how', '/patch-0-2-2', '/patch-0-2-1', '/patch-0-2-0', '/patch-0-1-0', '/patch-0-0-5', '/patch-0-0-4', '/patch-0-0-3', '/profile', '/ranking', '/setup', '/online/host', '/online/join', '/online/waiting', '/online/alibi-case'].includes(pathname)) {
+  if (['/', '/how', '/patch-0-4-0', '/patch-0-3-0', '/patch-0-2-2', '/patch-0-2-1', '/patch-0-2-0', '/patch-0-1-0', '/patch-0-0-5', '/patch-0-0-4', '/patch-0-0-3', '/profile', '/ranking', '/setup', '/online/host', '/online/join', '/online/waiting', '/online/alibi-case'].includes(pathname)) {
     return 'lobby'
   }
-  if (pathname === '/game' || pathname === '/online/spectator') return 'discussion'
+  if (['/online/party-intro', '/online/party', '/online/party-result'].includes(pathname)) {
+    return 'partyline'
+  }
+  if (pathname === '/game' || pathname === '/online/spectator' || pathname === '/online/party') return 'discussion'
   if (pathname === '/online/discussion') return detectiveInterrogation ? 'interrogation' : 'discussion'
-  if (pathname === '/game/vote' || pathname === '/online/vote' || pathname === '/online/vote-sent' || pathname === '/online/alibi-result') return 'voting'
+  if (pathname === '/game/vote' || pathname === '/online/vote' || pathname === '/online/vote-sent' || pathname === '/online/alibi-result' || pathname === '/online/party-result') return 'voting'
   return null
 }

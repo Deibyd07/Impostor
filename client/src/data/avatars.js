@@ -1,13 +1,27 @@
-export const PLAYER_AVATARS = [
-  '🕵️', '🎭', '👑', '🔥', '⚡', '🌙',
-  '🧠', '💎', '🛡️', '🗡️', '🎯', '🎲',
-  '🚀', '🪐', '🌟', '🌈', '🍀', '🌵',
-  '🐺', '🦊', '🐼', '🐸', '🐙', '🦉',
-  '👻', '🤖', '👽', '🧙', '🥷', '🦸',
-  '🎸', '🎧', '⚽', '🏆', '🍕', '☕',
-]
+export const IMAGE_AVATARS = Array.from({ length: 45 }, (_, index) => `av${String(index + 1).padStart(2, '0')}`)
+
+export const PLAYER_AVATARS = [...IMAGE_AVATARS]
 
 const AVATAR_STORAGE_KEY = 'el-impostor-player-avatars'
+const avatarAssets = import.meta.glob('../assets/avatars/av*.jpg', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+})
+
+export function isImageAvatar(avatar) {
+  return IMAGE_AVATARS.includes(avatar)
+}
+
+export function avatarImageFor(avatar) {
+  if (!isImageAvatar(avatar)) return null
+  return avatarAssets[`../assets/avatars/${avatar}.jpg`] || null
+}
+
+export function avatarFallbackFor(avatar, name = '') {
+  if (isImageAvatar(avatar)) return ''
+  return String(name || '?').trim().charAt(0).toUpperCase() || '?'
+}
 
 export function isValidAvatar(avatar) {
   return PLAYER_AVATARS.includes(avatar)

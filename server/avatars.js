@@ -1,11 +1,6 @@
-export const PLAYER_AVATARS = [
-  '🕵️', '🎭', '👑', '🔥', '⚡', '🌙',
-  '🧠', '💎', '🛡️', '🗡️', '🎯', '🎲',
-  '🚀', '🪐', '🌟', '🌈', '🍀', '🌵',
-  '🐺', '🦊', '🐼', '🐸', '🐙', '🦉',
-  '👻', '🤖', '👽', '🧙', '🥷', '🦸',
-  '🎸', '🎧', '⚽', '🏆', '🍕', '☕',
-]
+export const IMAGE_AVATARS = Array.from({ length: 45 }, (_, index) => `av${String(index + 1).padStart(2, '0')}`)
+
+export const PLAYER_AVATARS = [...IMAGE_AVATARS]
 
 export function defaultAvatarForName(name = '') {
   const text = String(name || '').trim()

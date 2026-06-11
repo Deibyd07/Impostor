@@ -215,12 +215,21 @@ describe('buildSession - estado inicial', () => {
     expect(s.players.map(p => p.id).sort()).toEqual(['alpha', 'beta', 'gamma'])
   })
 
-  it('mantiene el avatar elegido por jugador', () => {
-    const ps = [{ id: 'alpha', name: 'A', avatar: '👑' }, { id: 'beta', name: 'B', avatar: '🦊' }, { id: 'gamma', name: 'C', avatar: '🚀' }]
+  it('normaliza avatares antiguos a retratos visuales', () => {
+    const oldAvatars = [
+      String.fromCodePoint(0x1F451),
+      String.fromCodePoint(0x1F98A),
+      String.fromCodePoint(0x1F680),
+    ]
+    const ps = [
+      { id: 'alpha', name: 'A', avatar: oldAvatars[0] },
+      { id: 'beta', name: 'B', avatar: oldAvatars[1] },
+      { id: 'gamma', name: 'C', avatar: oldAvatars[2] },
+    ]
     const s = buildSession({
       players: ps, impostorCount: 1, mode: 'classic', category: 'animales',
     })
-    expect(s.players.map(p => p.avatar).sort()).toEqual(['👑', '🦊', '🚀'].sort())
+    expect(s.players.map(p => p.avatar).sort()).toEqual(['av21', 'av22', 'av23'])
   })
 
   it('mantiene perfil e invitado al repartir roles', () => {

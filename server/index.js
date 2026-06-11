@@ -14,6 +14,20 @@ import { createRoomStore } from './roomStore.js'
 import { createLeaderboardStore } from './leaderboardStore.js'
 import { applyRoomScoreSummary } from './scoreboard.js'
 import { alibiCases } from './alibiCases.js'
+import {
+  PARTYLINE_GAME_IDS,
+  PARTYLINE_ROUND_OPTIONS,
+  createPartyLineRound,
+  createPartyLineState,
+  partyLineGameOverPayload,
+  partyLinePrivateFor,
+  partyLineScoreboard,
+  publicPartyLineRound,
+  publicPartyLineSummary,
+  resolvePartyLineRound,
+  sanitizePartyLineAction,
+  sanitizePartyLineConfig,
+} from './partyLineGames.js'
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true })
 
@@ -417,11 +431,18 @@ function isValidSessionToken(s) {
 function isAlibiConfig(config) {
   return config?.gameType === 'alibi' || config?.mode === 'alibi'
 }
+function isPartyLineConfig(config) {
+  return config?.gameType === 'partyline' || config?.mode === 'partyline'
+}
 function sanitizeConfig(cfg) {
   const out = {}
   if (typeof cfg !== 'object' || !cfg) return out
   const requestedAlibi = cfg.gameType === 'alibi' || cfg.mode === 'alibi'
-  if (requestedAlibi) {
+  const requestedPartyLine = cfg.gameType === 'partyline' || cfg.mode === 'partyline'
+  if (requestedPartyLine) {
+    out.gameType = 'partyline'
+    out.mode = 'partyline'
+  } else if (requestedAlibi) {
     out.gameType = 'alibi'
     out.mode = 'alibi'
   } else {
@@ -437,6 +458,16 @@ function sanitizeConfig(cfg) {
   if (Number.isFinite(cfg.alibiRounds)) {
     const rounds = Math.floor(cfg.alibiRounds)
     out.alibiRounds = ALIBI_ROUND_OPTIONS.includes(rounds) ? rounds : 3
+  }
+  if (Number.isFinite(cfg.partyLineRounds)) {
+    const rounds = Math.floor(cfg.partyLineRounds)
+    out.partyLineRounds = PARTYLINE_ROUND_OPTIONS.includes(rounds) ? rounds : 5
+  }
+  if (Array.isArray(cfg.partyLineGames)) {
+    out.partyLineGames = cfg.partyLineGames.filter(id => PARTYLINE_GAME_IDS.includes(id))
+  }
+  if (cfg.partyLineSettings && typeof cfg.partyLineSettings === 'object') {
+    out.partyLineSettings = sanitizePartyLineConfig(cfg).partyLineSettings
   }
   if (typeof cfg.detectiveEnabled === 'boolean') out.detectiveEnabled = cfg.detectiveEnabled
   return out
@@ -589,6 +620,8 @@ function serializeRoom(room) {
     roomScores: room.roomScores || {},
     alibi: room.alibi || null,
     alibiScores: room.alibiScores || {},
+    partyLine: room.partyLine || null,
+    partyLineCalls: room.partyLineCalls || [],
     updatedAt: Date.now(),
   }
 }
@@ -660,6 +693,8 @@ function restoreRoom(snapshot) {
     roomScores: snapshot.roomScores || {},
     alibi: snapshot.alibi || null,
     alibiScores: snapshot.alibiScores || {},
+    partyLine: snapshot.partyLine || null,
+    partyLineCalls: [],
   }
   if (room.players.some(player => player.id === room.hostId)) {
     syncHostFlags(room)
@@ -747,6 +782,7 @@ function pruneDisconnectedPlayer(room, playerId) {
   delete room.votes[playerId]
   delete room.lastGuessRounds[playerId]
   room.speakOrder = (room.speakOrder || []).filter(id => id !== playerId)
+  const callsChanged = endPartyLineCallsFor(room, playerId)
   if (room.interrogation && (room.interrogation.detectiveId === playerId || room.interrogation.targetId === playerId)) {
     clearInterrogation(room)
   }
@@ -758,6 +794,7 @@ function pruneDisconnectedPlayer(room, playerId) {
   const hostChanged = room.hostId === playerId
   const newHost = assignHost(room)
   broadcastPlayers(room)
+  if (callsChanged) emitPartyLineCalls(room)
   if (hostChanged) notifyHostAssigned(room, newHost)
   if (wasActiveGame) afterPlayerListChanged(room)
   saveRoom(room)
@@ -834,6 +871,8 @@ async function makeRoom(hostSocketId, hostName, avatar, config, profile = {}) {
     roomScores: {},
     alibi: null,
     alibiScores: {},
+    partyLine: null,
+    partyLineCalls: [],
   }
   rooms.set(code, room)
   return room
@@ -882,6 +921,11 @@ function sanitizeRoom(room, viewerId = null) {
     alibiCase: publicAlibiCase(room),
     alibiRoundResult: room.alibi?.roundResult || null,
     alibiScoreboard: alibiScoreboard(room),
+    partyLine: publicPartyLineSummary(room),
+    partyLineRound: publicPartyLineRound(room),
+    partyLineResult: room.partyLine?.roundResult || null,
+    partyLineScoreboard: partyLineScoreboard(room),
+    partyLineCalls: publicPartyLineCalls(room),
   }
 }
 
@@ -1033,6 +1077,92 @@ function removeVoicePeer(playerId, room = null) {
     const peer = targetRoom.players.find(p => p.id === peerId && !p.disconnected)
     if (peer?.socketId) io.to(peer.socketId).emit('voice:peerLeft', { peerId: playerId })
   })
+}
+
+function publicPartyLineCalls(room) {
+  if (!room?.partyLineCalls?.length) return []
+  return room.partyLineCalls
+    .filter(call => call?.status === 'ringing' || call?.status === 'active')
+    .map(call => {
+      const caller = room.players.find(player => player.id === call.callerId)
+      const target = room.players.find(player => player.id === call.targetId)
+      return {
+        id: call.id,
+        status: call.status,
+        callerId: call.callerId,
+        callerName: caller?.name || call.callerName || 'Jugador',
+        callerAvatar: normalizeAvatar(caller?.avatar || call.callerAvatar, caller?.name || call.callerName),
+        targetId: call.targetId,
+        targetName: target?.name || call.targetName || 'Jugador',
+        targetAvatar: normalizeAvatar(target?.avatar || call.targetAvatar, target?.name || call.targetName),
+        startedAt: call.startedAt,
+        updatedAt: call.updatedAt,
+      }
+    })
+}
+
+function emitPartyLineCalls(room) {
+  io.to(room.code).emit('partyline:calls', { calls: publicPartyLineCalls(room) })
+}
+
+function clearPartyLineCalls(room, { emit = true } = {}) {
+  if (!room?.partyLineCalls?.length) return
+  room.partyLineCalls = []
+  if (emit) emitPartyLineCalls(room)
+}
+
+function partyLineActiveCallFor(room, playerId) {
+  return (room?.partyLineCalls || []).find(call => (
+    call.status === 'active' &&
+    (call.callerId === playerId || call.targetId === playerId)
+  )) || null
+}
+
+function partyLineOutgoingCallFor(room, playerId) {
+  return (room?.partyLineCalls || []).find(call => (
+    call.status === 'ringing' && call.callerId === playerId
+  )) || null
+}
+
+function partyLineIncomingCallFor(room, playerId) {
+  return (room?.partyLineCalls || []).find(call => (
+    call.status === 'ringing' && call.targetId === playerId
+  )) || null
+}
+
+function isPartyLineCallerBusy(room, playerId) {
+  return !!partyLineActiveCallFor(room, playerId) || !!partyLineOutgoingCallFor(room, playerId)
+}
+
+function isPartyLineTargetBusy(room, playerId) {
+  return !!partyLineActiveCallFor(room, playerId) ||
+    !!partyLineOutgoingCallFor(room, playerId) ||
+    !!partyLineIncomingCallFor(room, playerId)
+}
+
+function declineIncomingCallsFor(room, targetId) {
+  const before = room.partyLineCalls?.length || 0
+  room.partyLineCalls = (room.partyLineCalls || []).filter(call => !(
+    call.status === 'ringing' && call.targetId === targetId
+  ))
+  return before !== room.partyLineCalls.length
+}
+
+function endPartyLineCallsFor(room, playerId) {
+  const before = room.partyLineCalls?.length || 0
+  room.partyLineCalls = (room.partyLineCalls || []).filter(call => (
+    call.callerId !== playerId && call.targetId !== playerId
+  ))
+  return before !== room.partyLineCalls.length
+}
+
+function partyLineVoicePeerAllowed(room, fromId, toId) {
+  if (!isPartyLineConfig(room?.config)) return true
+  if (room.phase === 'lobby') return true
+  if (room.phase !== 'partyRound') return false
+  const call = partyLineActiveCallFor(room, fromId)
+  if (!call) return false
+  return (call.callerId === toId || call.targetId === toId)
 }
 
 function formatTemplate(template, values) {
@@ -1395,6 +1525,16 @@ function rolePayloadFor(room, playerId) {
       detectiveInterrogationUsed: room.detectiveInterrogationUsedBy === playerId,
     }
   }
+  if (isPartyLineConfig(room.config)) {
+    return {
+      role: 'partyline-player',
+      word: null,
+      clue: null,
+      impostorTeammates: [],
+      partyLine: partyLinePrivateFor(room, playerId),
+      detectiveInterrogationUsed: false,
+    }
+  }
   const impostorTeammates = impostorTeammatesFor(room, playerId)
   const impostorPrivate = canUseImpostorChat(room, playerId)
     ? {
@@ -1468,10 +1608,35 @@ function emitYourRole(room) {
   })
 }
 
+function emitPartyLineRound(room) {
+  const publicRound = publicPartyLineRound(room)
+  const summary = publicPartyLineSummary(room)
+  room.players.forEach(player => {
+    if (!player.socketId || player.disconnected) return
+    io.to(player.socketId).emit('game:partyLineRound', {
+      round: room.round,
+      partyLine: summary,
+      partyLineRound: publicRound,
+      privateRound: partyLinePrivateFor(room, player.id),
+      scoreboard: partyLineScoreboard(room),
+    })
+  })
+}
+
+function emitPartyLineSubmissionUpdate(room) {
+  const round = publicPartyLineRound(room)
+  io.to(room.code).emit('game:partyLineSubmissionUpdate', {
+    submittedPlayerIds: round?.submittedPlayerIds || [],
+    submittedCount: round?.submittedCount || 0,
+    totalPlayers: round?.totalPlayers || 0,
+  })
+}
+
 function activePlayers(room) { return room.players.filter(p => !p.eliminated) }
 
 function checkVictory(room) {
   if (isAlibiConfig(room.config)) return null
+  if (isPartyLineConfig(room.config)) return null
   if (room.impostorGuessedWord) return { winner: 'impostor', reason: 'wordGuessed' }
   const active = activePlayers(room)
   const activeImpostors = active.filter(p => isImpostorRole(room.roles[p.id]))
@@ -1523,9 +1688,11 @@ function syncHostFlags(room) {
 
 function assignHost(room) {
   if (!room.players.length) return null
-  let host = room.players.find(p => p.id === room.hostId && !p.disconnected)
+  let host = room.players.find(p => p.id === room.hostId && !p.disconnected && !p.eliminated)
   if (!host) {
-    host = room.players.find(p => !p.disconnected) || room.players[0]
+    host = room.players.find(p => !p.disconnected && !p.eliminated)
+      || room.players.find(p => !p.disconnected)
+      || room.players[0]
     room.hostId = host.id
   }
   syncHostFlags(room)
@@ -1588,6 +1755,10 @@ function tryAdvanceReveal(room) {
 }
 
 function afterPlayerListChanged(room) {
+  if (isPartyLineConfig(room.config) && room.phase === 'partyRound') {
+    tryResolvePartyLineSubmissions(room)
+    return
+  }
   if (room.phase !== 'lobby' && room.phase !== 'ended') {
     const v = checkVictory(room)
     if (v) {
@@ -1643,8 +1814,12 @@ function tryResolveVotes(room) {
     wasImpostor: isImpostorRole(room.roles[eliminatedId]),
     name: player?.name,
   })
-  broadcastPlayers(room)
   const v = checkVictory(room)
+  if (!v && eliminatedId === room.hostId) {
+    const newHost = assignHost(room)
+    notifyHostAssigned(room, newHost)
+  }
+  broadcastPlayers(room)
   if (v) {
     room.phase = 'ended'
     room.result = gameOverPayload(room, v)
@@ -1682,6 +1857,40 @@ function tryResolveAlibiVotes(room) {
   io.to(room.code).emit('game:alibiRoundResult', { roundResult })
   io.to(room.code).emit('game:phase', { phase: 'roundResult' })
   saveRoom(room)
+}
+
+function tryResolvePartyLineSubmissions(room) {
+  if (!room || !isPartyLineConfig(room.config) || room.phase !== 'partyRound') return false
+  const round = room.partyLine?.currentRound
+  if (!round) return false
+  const activeIds = room.players
+    .filter(item => !item.disconnected && round.assignments?.[item.id])
+    .map(item => item.id)
+  if (activeIds.length < 2) return false
+  const allSubmitted = activeIds.every(id => !!round.submissions[id])
+  if (!allSubmitted) {
+    emitPartyLineSubmissionUpdate(room)
+    saveRoom(room)
+    return false
+  }
+
+  const roundResult = resolvePartyLineRound(room)
+  if (!roundResult) return false
+  clearPartyLineCalls(room)
+  if (room.round >= (room.partyLine?.totalRounds || 5)) {
+    room.phase = 'ended'
+    room.result = partyLineGameOverPayload(room, roundResult)
+    io.to(room.code).emit('game:partyLineResult', { roundResult })
+    io.to(room.code).emit('game:over', room.result)
+    saveRoom(room)
+    return true
+  }
+
+  room.phase = 'partyResult'
+  io.to(room.code).emit('game:partyLineResult', { roundResult })
+  io.to(room.code).emit('game:phase', { phase: 'partyResult' })
+  saveRoom(room)
+  return true
 }
 
 function findPlayerByName(room, name) {
@@ -1836,6 +2045,134 @@ io.on('connection', (socket) => {
 
   socket.on('room:leave', () => leaveSocket(socket, true))
 
+  socket.on('partyline:callRequest', ({ targetId } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const caller = getPlayerBySocket(room, socket.id)
+    if (!room || !caller || caller.eliminated || caller.disconnected) return
+    if (!isPartyLineConfig(room.config) || room.phase !== 'partyRound') return
+    if (typeof targetId !== 'string' || targetId === caller.id) return
+
+    const target = room.players.find(player => player.id === targetId && !player.eliminated && !player.disconnected)
+    const round = room.partyLine?.currentRound
+    if (!target || !round?.assignments?.[caller.id] || !round.assignments[targetId]) {
+      socket.emit('partyline:error', { message: 'Esa linea no esta disponible.' })
+      return
+    }
+
+    const clearedIncoming = declineIncomingCallsFor(room, caller.id)
+    if (isPartyLineCallerBusy(room, caller.id)) {
+      if (clearedIncoming) {
+        emitPartyLineCalls(room)
+        saveRoom(room)
+      }
+      socket.emit('partyline:error', { message: 'Ya tienes una llamada en curso.' })
+      return
+    }
+    if (isPartyLineTargetBusy(room, target.id)) {
+      if (clearedIncoming) {
+        emitPartyLineCalls(room)
+        saveRoom(room)
+      }
+      socket.emit('partyline:error', { message: `${target.name} esta ocupado.` })
+      return
+    }
+
+    const now = Date.now()
+    room.partyLineCalls = room.partyLineCalls || []
+    room.partyLineCalls.push({
+      id: `call-${now}-${caller.id}-${Math.random().toString(36).slice(2, 8)}`,
+      status: 'ringing',
+      callerId: caller.id,
+      callerName: caller.name,
+      callerAvatar: normalizeAvatar(caller.avatar, caller.name),
+      targetId: target.id,
+      targetName: target.name,
+      targetAvatar: normalizeAvatar(target.avatar, target.name),
+      startedAt: now,
+      updatedAt: now,
+    })
+    emitPartyLineCalls(room)
+    saveRoom(room)
+  })
+
+  socket.on('partyline:callAccept', ({ callId } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || player.eliminated || player.disconnected) return
+    if (!isPartyLineConfig(room.config) || room.phase !== 'partyRound') return
+    const call = (room.partyLineCalls || []).find(item => item.id === callId && item.status === 'ringing')
+    if (!call || call.targetId !== player.id) return
+
+    const caller = room.players.find(item => item.id === call.callerId && !item.eliminated && !item.disconnected)
+    if (!caller || partyLineActiveCallFor(room, player.id) || partyLineOutgoingCallFor(room, player.id)) {
+      room.partyLineCalls = (room.partyLineCalls || []).filter(item => item.id !== call.id)
+      emitPartyLineCalls(room)
+      saveRoom(room)
+      return
+    }
+
+    const now = Date.now()
+    room.partyLineCalls = (room.partyLineCalls || []).filter(item => (
+      item.id === call.id ||
+      (item.callerId !== call.callerId && item.targetId !== call.callerId && item.callerId !== call.targetId && item.targetId !== call.targetId)
+    ))
+    call.status = 'active'
+    call.acceptedAt = now
+    call.updatedAt = now
+    if (!room.partyLineCalls.includes(call)) room.partyLineCalls.push(call)
+    emitPartyLineCalls(room)
+    saveRoom(room)
+  })
+
+  socket.on('partyline:callDecline', ({ callId } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || !isPartyLineConfig(room.config)) return
+    const before = room.partyLineCalls?.length || 0
+    room.partyLineCalls = (room.partyLineCalls || []).filter(call => !(
+      call.id === callId && call.status === 'ringing' && call.targetId === player.id
+    ))
+    if (before !== room.partyLineCalls.length) {
+      emitPartyLineCalls(room)
+      saveRoom(room)
+    }
+  })
+
+  socket.on('partyline:callCancel', ({ callId } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || !isPartyLineConfig(room.config)) return
+    const before = room.partyLineCalls?.length || 0
+    room.partyLineCalls = (room.partyLineCalls || []).filter(call => !(
+      call.id === callId && call.status === 'ringing' && call.callerId === player.id
+    ))
+    if (before !== room.partyLineCalls.length) {
+      emitPartyLineCalls(room)
+      saveRoom(room)
+    }
+  })
+
+  socket.on('partyline:callHangup', ({ callId } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || !isPartyLineConfig(room.config)) return
+    const before = room.partyLineCalls?.length || 0
+    room.partyLineCalls = (room.partyLineCalls || []).filter(call => !(
+      call.id === callId &&
+      call.status === 'active' &&
+      (call.callerId === player.id || call.targetId === player.id)
+    ))
+    if (before !== room.partyLineCalls.length) {
+      emitPartyLineCalls(room)
+      saveRoom(room)
+    }
+  })
+
   socket.on('voice:join', () => {
     if (!allow(socket.id, 1)) return
     const room = getRoomBySocket(socket.id)
@@ -1845,11 +2182,14 @@ io.on('connection', (socket) => {
 
     if (!room.voicePeers) room.voicePeers = new Set()
     const wasAlreadyJoined = room.voicePeers.has(player.id)
-    const peers = [...room.voicePeers].filter(peerId => peerId !== player.id)
+    const peers = [...room.voicePeers].filter(peerId => (
+      peerId !== player.id && partyLineVoicePeerAllowed(room, player.id, peerId)
+    ))
     room.voicePeers.add(player.id)
     socket.emit('voice:peers', { peers })
     if (!wasAlreadyJoined) {
-      peers.forEach(peerId => {
+      ;[...room.voicePeers].forEach(peerId => {
+        if (peerId === player.id || !partyLineVoicePeerAllowed(room, peerId, player.id)) return
         const peer = room.players.find(p => p.id === peerId && !p.disconnected)
         if (peer?.socketId) io.to(peer.socketId).emit('voice:peerJoined', { peerId: player.id })
       })
@@ -1869,6 +2209,7 @@ io.on('connection', (socket) => {
     const sender = getPlayerBySocket(room, socket.id)
     if (!room || typeof targetId !== 'string') return
     if (!sender || !room.voicePeers?.has(sender.id) || !room.voicePeers?.has(targetId)) return
+    if (!partyLineVoicePeerAllowed(room, sender.id, targetId)) return
     const target = room.players.find(p => p.id === targetId && !p.disconnected)
     if (!target?.socketId) return
 
@@ -1888,6 +2229,7 @@ io.on('connection', (socket) => {
 
     room.voicePeers.forEach(peerId => {
       if (peerId === sender.id) return
+      if (!partyLineVoicePeerAllowed(room, sender.id, peerId)) return
       const peer = room.players.find(p => p.id === peerId && !p.disconnected)
       if (!peer?.socketId) return
       io.to(peer.socketId).emit('voice:audio', {
@@ -1913,9 +2255,14 @@ io.on('connection', (socket) => {
     clearInterrogation(room, { emit: false })
     room.round = 1
     const alibiGame = isAlibiConfig(room.config)
+    const partyLineGame = isPartyLineConfig(room.config)
     if (alibiGame) resetAlibiGame(room)
-    else assignRoles(room)
-    room.phase = alibiGame ? 'caseIntro' : 'reveal'
+    else if (partyLineGame) {
+      room.partyLine = createPartyLineState(room)
+      room.roles = {}
+      room.players.forEach(p => { room.roles[p.id] = 'partyline-player' })
+    } else assignRoles(room)
+    room.phase = partyLineGame ? 'partyIntro' : alibiGame ? 'caseIntro' : 'reveal'
     room.votes = {}; room.voters = {}
     room.eliminatedIds = []
     room.chatMessages = []
@@ -1927,16 +2274,35 @@ io.on('connection', (socket) => {
     room.speakOrder = []
     room.lastTie = null
     room.result = null
+    room.partyLineCalls = []
     if (!isAlibiConfig(room.config)) {
       room.alibi = null
       room.alibiScores = {}
     }
+    if (!partyLineGame) room.partyLine = null
     room.players.forEach(p => { p.eliminated = false; p.ready = false })
     io.to(room.code).emit('game:started', {
       phase: room.phase,
       alibiCase: alibiGame ? publicAlibiCase(room) : null,
+      partyLine: partyLineGame ? publicPartyLineSummary(room) : null,
     })
-    if (!alibiGame) emitYourRole(room)
+    if (!alibiGame && !partyLineGame) emitYourRole(room)
+    saveRoom(room)
+  })
+
+  socket.on('game:continuePartyLineIntro', () => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || room.hostId !== player.id) return
+    if (!isPartyLineConfig(room.config) || room.phase !== 'partyIntro') return
+    room.phase = 'partyRound'
+    room.round = 1
+    room.chatMessages = []
+    room.partyLineCalls = []
+    createPartyLineRound(room)
+    io.to(room.code).emit('game:phase', { phase: 'partyRound' })
+    emitPartyLineRound(room)
     saveRoom(room)
   })
 
@@ -1967,7 +2333,7 @@ io.on('connection', (socket) => {
     if (!allow(socket.id, 1)) return
     const room = getRoomBySocket(socket.id)
     const player = getPlayerBySocket(room, socket.id)
-    if (!room || !player) return
+    if (!room || !player || player.eliminated || player.disconnected) return
     if (isAlibiConfig(room.config)) {
       if (!isDetectiveRole(room.roles[player.id])) return
     } else if (room.hostId !== player.id) {
@@ -1983,7 +2349,11 @@ io.on('connection', (socket) => {
   socket.on('chat:message', ({ text } = {}) => {
     if (!allow(socket.id, 1)) return
     const room = getRoomBySocket(socket.id)
-    if (!room || room.phase !== 'discussion') return
+    if (!room || (room.phase !== 'discussion' && room.phase !== 'partyRound')) return
+    if (isPartyLineConfig(room.config)) {
+      socket.emit('chat:error', { message: 'Linea Privada no permite chat de texto durante la partida' })
+      return
+    }
     const player = getPlayerBySocket(room, socket.id)
     if (!player || player.eliminated || player.disconnected) return
     if (
@@ -1998,7 +2368,7 @@ io.on('connection', (socket) => {
       socket.emit('chat:error', { message: 'Estas enviando mensajes muy rapido' })
       return
     }
-    const cleanText = sanitizeChatText(text, isAlibiConfig(room.config) ? 80 : CHAT_TEXT_MAX_LENGTH)
+    const cleanText = sanitizeChatText(text, (isAlibiConfig(room.config) || isPartyLineConfig(room.config)) ? 80 : CHAT_TEXT_MAX_LENGTH)
     if (!cleanText) return
 
     const message = chatPayloadFor(player, cleanText)
@@ -2095,6 +2465,22 @@ io.on('connection', (socket) => {
     saveRoom(room)
   })
 
+  socket.on('game:partyLineSubmit', ({ action } = {}) => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    if (!room || !isPartyLineConfig(room.config) || room.phase !== 'partyRound') return
+    const player = getPlayerBySocket(room, socket.id)
+    if (!player || player.eliminated || player.disconnected) return
+    const round = room.partyLine?.currentRound
+    if (!round || !round.assignments?.[player.id] || round.submissions?.[player.id]) return
+
+    const cleanAction = sanitizePartyLineAction(round, action)
+    if (!cleanAction) return
+    round.submissions[player.id] = { ...cleanAction, submittedAt: Date.now() }
+    emitPartyLineSubmissionUpdate(room)
+    if (!tryResolvePartyLineSubmissions(room)) saveRoom(room)
+  })
+
   socket.on('game:newRound', () => {
     if (!allow(socket.id, 1)) return
     const room = getRoomBySocket(socket.id)
@@ -2136,6 +2522,28 @@ io.on('connection', (socket) => {
     saveRoom(room)
   })
 
+  socket.on('game:nextPartyLineRound', () => {
+    if (!allow(socket.id, 1)) return
+    const room = getRoomBySocket(socket.id)
+    const player = getPlayerBySocket(room, socket.id)
+    if (!room || !player || room.hostId !== player.id) return
+    if (!isPartyLineConfig(room.config) || room.phase !== 'partyResult') return
+    if (room.players.filter(p => !p.disconnected).length < 3) return
+    room.round += 1
+    room.votes = {}
+    room.voters = {}
+    room.lastTie = null
+    room.phase = 'partyRound'
+    room.chatMessages = []
+    room.partyLineCalls = []
+    room.players.forEach(p => { p.ready = false; p.eliminated = false })
+    createPartyLineRound(room)
+    io.to(room.code).emit('game:phase', { phase: 'partyRound' })
+    emitPartyLineRound(room)
+    broadcastPlayers(room)
+    saveRoom(room)
+  })
+
   socket.on('room:rematch', () => {
     if (!allow(socket.id, 2)) return
     const room = getRoomBySocket(socket.id)
@@ -2169,6 +2577,8 @@ io.on('connection', (socket) => {
     room.result = null
     room.alibi = null
     room.alibiScores = {}
+    room.partyLine = null
+    room.partyLineCalls = []
     room.players.forEach(p => {
       p.eliminated = false
       p.ready = false
@@ -2229,6 +2639,7 @@ function leaveSocket(socket, hard) {
   if (!player) return
   const wasActiveGame = room.phase !== 'lobby' && room.phase !== 'ended'
   removeVoicePeer(player.id, room)
+  const callsChanged = endPartyLineCallsFor(room, player.id)
 
   // Lobby o ended o disconnect "hard": eliminar completamente
   if (hard || room.phase === 'ended') {
@@ -2249,6 +2660,7 @@ function leaveSocket(socket, hard) {
     const hostChanged = room.hostId === player.id
     const newHost = assignHost(room)
     broadcastPlayers(room)
+    if (callsChanged) emitPartyLineCalls(room)
     if (hostChanged) notifyHostAssigned(room, newHost)
     if (wasActiveGame) afterPlayerListChanged(room)
     saveRoom(room)
@@ -2261,6 +2673,7 @@ function leaveSocket(socket, hard) {
   player.disconnectExpiresAt = player.disconnectedAt + RECONNECT_GRACE_MS
   player.socketId = null
   broadcastPlayers(room)
+  if (callsChanged) emitPartyLineCalls(room)
   scheduleDisconnectTimer(room, player)
   saveRoom(room)
 }

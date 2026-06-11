@@ -37,7 +37,7 @@ export default function ProfileIdentityPicker({
         <option value="guest">Invitado - sin ranking</option>
         {profiles.map(profile => (
           <option key={profile.id} value={profile.id}>
-            {profile.avatar || ''} {profile.name}
+            {profile.name}
           </option>
         ))}
       </select>

@@ -2,10 +2,11 @@ import { useEffect } from 'react'
 import PhoneScreen from '../../components/PhoneScreen.jsx'
 import MaskIcon from '../../components/MaskIcon.jsx'
 import RoundScoreboard from '../../components/RoundScoreboard.jsx'
+import CulpritBoard from '../../components/CulpritBoard.jsx'
 import { sfx } from '../../utils/sfx.js'
 
 export default function WinImpostor({
-  impostorNames = [], word, reason,
+  impostorNames = [], word, reason, impostorPlayers = [],
   onRematch, onNew,
   rematchLabel = 'Revancha', newLabel = 'Nueva partida',
   rematchDisabled = false,
@@ -45,20 +46,26 @@ export default function WinImpostor({
           textShadow: '0 0 36px rgba(207, 59, 52, 0.7), 2px 0 0 rgba(207, 59, 52, 0.5), -2px 0 0 rgba(94, 138, 166, 0.4)',
         }}>{single ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}<br />GANÓ{single ? '' : 'N'}</div>
 
-        <div style={{ marginTop: 38, filter: 'drop-shadow(0 0 30px rgba(207, 59, 52, 0.6))' }}>
-          <MaskIcon size={120} color="#e0584b" />
+        <div style={{ position: 'relative', marginTop: 30 }}>
+          <div style={{
+            position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)',
+            filter: 'drop-shadow(0 0 30px rgba(207, 59, 52, 0.7))', opacity: 0.5, zIndex: 0,
+          }}>
+            <MaskIcon size={150} color="#e0584b" />
+          </div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <CulpritBoard
+              players={impostorPlayers.length ? impostorPlayers : impostorNames.map(name => ({ name }))}
+              stampText="Intocable"
+            />
+          </div>
         </div>
 
         <div style={{
-          marginTop: 24, fontFamily: 'var(--font-ui)', fontSize: 11,
+          marginTop: 22, fontFamily: 'var(--font-ui)', fontSize: 11,
           color: 'rgba(252, 165, 165, 0.6)', letterSpacing: '0.32em',
           textTransform: 'uppercase',
         }}>{reason === 'wordGuessed' ? 'Adivinó la palabra' : 'Identidad protegida'}</div>
-        <div style={{
-          marginTop: 8, fontFamily: 'var(--font-display)', fontWeight: 700,
-          fontSize: 26, color: 'var(--text-1)', letterSpacing: '0.06em', textAlign: 'center',
-          textShadow: '0 0 20px var(--impostor-glow)',
-        }}>{impostorNames.map(n => n.toUpperCase()).join(' · ')}</div>
 
         <div className="hr-red" style={{ width: 80, margin: '20px auto 18px' }} />
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import SectionHeader from './SectionHeader.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 import { isDetectiveRole } from '../utils/roles.js'
 
 function secondsLeft(expiresAt, now) {
@@ -116,10 +117,7 @@ export default function DetectiveInterrogationPanel({
 }
 
 function Avatar({ value, name, active = false }) {
-  const display = value || (name || '?').trim().charAt(0).toUpperCase()
-  return (
-    <span className={`di-avatar ${active ? 'is-active' : ''}`}>{display}</span>
-  )
+  return <PlayerAvatar avatar={value} name={name} className={`di-avatar ${active ? 'is-active' : ''}`} />
 }
 
 function Speaker({ label, name, avatar, align = 'left' }) {
